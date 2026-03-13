@@ -28,18 +28,39 @@ def _branch_filter(qs, branch_ids: list[int] | None, field: str = 'branch__in'):
 # ── Metric 1: QR scans ────────────────────────────────────────────────────────
 
 def get_qr_scan_count(branch_ids: list[int] | None, start_date: date, end_date: date) -> int:
-    """Count guests who scanned QR AND subscribed via the app in the period."""
-    from apps.tenant.branch.models import ClientBranch, ClientBranchVisit
+    """Count unique guests who scanned QR and interacted with the app in any way."""
+    from django.db.models import Exists, OuterRef
+    from apps.tenant.branch.models import (
+        ClientBranch, ClientBranchVisit, CoinTransaction,
+        TransactionType, TransactionSource, TestimonialMessage,
+    )
+    from apps.tenant.game.models import ClientAttempt
+    from apps.tenant.delivery.models import Delivery
 
     visited_ids = ClientBranchVisit.objects.filter(
         visited_at__date__gte=start_date,
         visited_at__date__lte=end_date,
     )
     visited_ids = _branch_filter(visited_ids, branch_ids, 'client__branch__in').values('client_id')
-    return ClientBranch.objects.filter(
-        pk__in=visited_ids,
-    ).filter(
-        Q(vk_status__community_via_app=True) | Q(vk_status__newsletter_via_app=True),
+    return ClientBranch.objects.filter(pk__in=visited_ids).filter(
+        Q(vk_status__community_via_app=True)                        # Подписались на сообщество
+        | Q(vk_status__newsletter_via_app=True)                     # Подписались на рассылку
+        | Q(vk_status__is_story_uploaded=True)                      # Опубликовали сторис
+        | Exists(ClientAttempt.objects.filter(                       # Сыграли в игру
+            client=OuterRef('pk'),
+        ))
+        | Exists(TestimonialMessage.objects.filter(                  # Оставили отзыв
+            conversation__client=OuterRef('pk'),
+            source=TestimonialMessage.Source.APP,
+        ))
+        | Exists(Delivery.objects.filter(                            # Активировали код доставки
+            activated_by=OuterRef('pk'),
+        ))
+        | Exists(CoinTransaction.objects.filter(                     # Потратили монеты в магазине
+            client=OuterRef('pk'),
+            type=TransactionType.EXPENSE,
+            source=TransactionSource.SHOP,
+        ))
     ).count()
 
 
