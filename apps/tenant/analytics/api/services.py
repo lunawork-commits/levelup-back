@@ -14,6 +14,7 @@ from collections import defaultdict
 
 from django.db.models import Count, Min, Q
 from django.db.models.functions import TruncDate
+from apps.tenant.analytics.models import POSGuestCache
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -273,7 +274,6 @@ def get_pos_guests_count(
     Returns 0 if POS is not configured or fetch fails.
     """
     import logging
-    from apps.tenant.analytics.models import POSGuestCache
     from django.db.models import Sum
 
     qs = POSGuestCache.objects.filter(date__gte=start_date, date__lte=end_date)

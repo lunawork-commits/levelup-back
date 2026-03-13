@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 
 from celery import shared_task
+from django_tenants.utils import get_tenant_model
 
 logger = logging.getLogger(__name__)
 

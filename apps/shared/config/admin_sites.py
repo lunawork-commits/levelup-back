@@ -26,8 +26,8 @@ class PublicAdminSite(AdminSite):
         # is_superuser — единственный gate для уровня SUPERADMIN
         if request.user.is_superuser:
             return True
-        # SUPERADMIN и NETWORK_ADMIN тоже заходят в public_admin
-        return getattr(request.user, 'role', None) in ('superadmin', 'network_admin')
+        # Только SUPERADMIN заходит в public_admin
+        return getattr(request.user, 'role', None) == 'superadmin'
 
     def each_context(self, request):
         ctx = super().each_context(request)

@@ -436,14 +436,18 @@ class TenantAdminPermissionTest(TestCase):
 
     def test_network_admin_own_tenant(self):
         request = self._request(role='network_admin', company_id=1, tenant_pk=1)
+        request.user.companies.filter.return_value.exists.return_value = True
         self.assertTrue(tenant_admin.has_permission(request))
 
     def test_network_admin_foreign_tenant_denied(self):
         request = self._request(role='network_admin', company_id=1, tenant_pk=2)
+        request.user.companies.filter.return_value.exists.return_value = False
         self.assertFalse(tenant_admin.has_permission(request))
 
     def test_branch_admin_own_tenant(self):
-        request = self._request(role='branch_admin', company_id=5, tenant_pk=5)
+        # v5 has no branch_admin role — network_admin is the equivalent
+        request = self._request(role='network_admin', company_id=5, tenant_pk=5)
+        request.user.companies.filter.return_value.exists.return_value = True
         self.assertTrue(tenant_admin.has_permission(request))
 
     def test_no_tenant_on_request_denied(self):

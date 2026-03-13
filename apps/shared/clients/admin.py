@@ -151,7 +151,8 @@ class CompanyAdmin(admin.ModelAdmin):
         return qs
 
     def get_readonly_fields(self, request, obj=None):
-        if getattr(request.user, 'role', None) == 'network_admin':
+        user = getattr(request, 'user', None)
+        if getattr(user, 'role', None) == 'network_admin':
             # NETWORK_ADMIN не управляет биллингом и техническими полями
             return ('schema_name', 'client_id', 'is_active', 'paid_until')
         if obj:
