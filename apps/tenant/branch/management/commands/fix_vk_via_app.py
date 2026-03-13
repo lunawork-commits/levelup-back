@@ -6,8 +6,9 @@ Logic:
     and the game required subscribing to community + newsletter via mini-app.
     Therefore: community_via_app=True, newsletter_via_app=True.
 
-    All other guests who are subscribed but have no game super prize:
-    via_app stays False (subscribed externally or pre-existing).
+    IMPORTANT: only guests with community_via_app=None are updated.
+    Guests with community_via_app=False were already subscribed BEFORE the app
+    (detected by sync_vk_status) — they are skipped to avoid false attribution.
 
 Usage:
     # Dry run — see what would change:
@@ -43,23 +44,35 @@ def fix_schema(schema: str, dry_run: bool, stdout, style):
             stdout.write(f'  [{schema}] Nothing to fix.')
             return
 
-        updated = already_ok = 0
+        updated = skipped_preexisting = already_ok = 0
         now = timezone.now()
 
+        # Карта: client_branch_id → datetime первого суперприза
+        from django.db.models import Min
+        first_prize_dates = dict(
+            SuperPrizeEntry.objects
+            .filter(acquired_from='game', client_branch_id__in=game_prize_cb_ids)
+            .values('client_branch_id')
+            .annotate(first_at=Min('created_at'))
+            .values_list('client_branch_id', 'first_at')
+        )
+
         for cb_id in game_prize_cb_ids:
+            prize_date = first_prize_dates.get(cb_id, now)
+
             try:
                 vk_status = ClientVKStatus.objects.get(client_id=cb_id)
             except ClientVKStatus.DoesNotExist:
-                # Create it — they must have been subscribed to play
+                # No VKStatus at all — guest subscribed via app to play
                 if not dry_run:
                     cb = ClientBranch.objects.get(id=cb_id)
                     ClientVKStatus.objects.create(
                         client=cb,
                         is_community_member=True,
-                        community_joined_at=now,
+                        community_joined_at=prize_date,
                         community_via_app=True,
                         is_newsletter_subscriber=True,
-                        newsletter_joined_at=now,
+                        newsletter_joined_at=prize_date,
                         newsletter_via_app=True,
                         checked_at=now,
                     )
@@ -69,25 +82,28 @@ def fix_schema(schema: str, dry_run: bool, stdout, style):
             needs_update = False
             update_fields = []
 
-            if vk_status.community_via_app is not True:
+            # community — только если via_app=None (не был подписан до приложения)
+            # via_app=False означает подписался до приложения → пропускаем
+            if vk_status.community_via_app is None:
                 needs_update = True
                 if not dry_run:
                     vk_status.community_via_app = True
-                    if not vk_status.is_community_member:
-                        vk_status.is_community_member = True
-                        vk_status.community_joined_at = vk_status.community_joined_at or now
-                        update_fields += ['is_community_member', 'community_joined_at']
-                    update_fields.append('community_via_app')
+                    vk_status.is_community_member = True
+                    vk_status.community_joined_at = prize_date
+                    update_fields += ['community_via_app', 'is_community_member', 'community_joined_at']
+            elif vk_status.community_via_app is False:
+                skipped_preexisting += 1  # уже был в группе до приложения
 
-            if vk_status.newsletter_via_app is not True:
+            # newsletter — только если via_app=None
+            if vk_status.newsletter_via_app is None:
                 needs_update = True
                 if not dry_run:
                     vk_status.newsletter_via_app = True
-                    if not vk_status.is_newsletter_subscriber:
-                        vk_status.is_newsletter_subscriber = True
-                        vk_status.newsletter_joined_at = vk_status.newsletter_joined_at or now
-                        update_fields += ['is_newsletter_subscriber', 'newsletter_joined_at']
-                    update_fields.append('newsletter_via_app')
+                    vk_status.is_newsletter_subscriber = True
+                    vk_status.newsletter_joined_at = prize_date
+                    update_fields += ['newsletter_via_app', 'is_newsletter_subscriber', 'newsletter_joined_at']
+            elif vk_status.newsletter_via_app is False:
+                skipped_preexisting += 1  # уже был в рассылке до приложения
 
             if needs_update:
                 if not dry_run and update_fields:
@@ -99,6 +115,7 @@ def fix_schema(schema: str, dry_run: bool, stdout, style):
         suffix = ' [DRY RUN]' if dry_run else ''
         stdout.write(style.SUCCESS(
             f'  [{schema}] {updated} updated (via_app=True), '
+            f'{skipped_preexisting} skipped (pre-existing subscribers), '
             f'{already_ok} already correct{suffix}'
         ))
 
