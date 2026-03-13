@@ -599,7 +599,7 @@ function buildMatrix() {
       el.innerHTML = `
         <div class="rf-cell-emoji">${cell.segment_emoji || ''}</div>
         <div class="rf-cell-name">${cell.segment_name || '—'}</div>
-        <div class="rf-cell-count" style="color:${bg}">${cell.count}</div>
+        <div class="rf-cell-count" style="color: black">${cell.count}</div>
         <div class="rf-cell-pct">${cell.pct}%</div>
       `;
       el.addEventListener('click', () => selectCell(rl.r_score, fl.f_score, cell, bg));
