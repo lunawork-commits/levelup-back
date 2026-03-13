@@ -157,11 +157,12 @@ def get_inventory(vk_id: int, branch_id: int):
 
 
 def get_super_prizes(vk_id: int, branch_id: int):
-    """All SuperPrizeEntries for the guest, most recent first."""
+    """Pending SuperPrizeEntries for the guest (not claimed and not expired)."""
     cb = _get_client_branch(vk_id, branch_id)
     return (
         SuperPrizeEntry.objects
-        .filter(client_branch=cb)
+        .filter(client_branch=cb, claimed_at__isnull=True)
+        .exclude(expires_at__lt=timezone.now())
         .select_related('product')
         .order_by('-created_at')
     )
