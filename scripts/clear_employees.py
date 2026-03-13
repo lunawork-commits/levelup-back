@@ -5,7 +5,9 @@
 """
 import django
 import os
+import sys
 
+sys.path.insert(0, '/app')
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'main.settings')
 django.setup()
 
