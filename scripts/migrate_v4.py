@@ -618,12 +618,15 @@ def migrate_inventory_inventory(content: str, schema: str, out: list):
         dur_min = parse_interval_minutes(r[4], default=40)
         # Calculate expires_at from activated_at + duration
         expires = ts_add(r[5], minutes=dur_min) if r[5] else None
+        # For birthday prizes v4 never set used_at — use created_at as proxy
+        # (issuing = guest was physically present)
+        used_at = r[6] if r[6] else (r[1] if acq == 'birthday' else None)
         out.append(insert_row(schema, 'inventory_inventoryitem',
             ['id', 'client_branch_id', 'product_id', 'acquired_from',
              'description', 'duration', 'activated_at', 'expires_at',
              'used_at', 'created_at', 'updated_at'],
             [r[0], r[7], r[8], acq, '', dur_min,
-             r[5], expires, r[6], r[1], r[2]]
+             r[5], expires, used_at, r[1], r[2]]
         ))
 
 
