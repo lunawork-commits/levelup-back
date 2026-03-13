@@ -690,35 +690,44 @@ def get_rf_migration_summary(
 
     since = date_type.today() - timedelta(days=days)
     MigModel = _get_migration_model(mode)
-    qs = MigModel.objects.filter(created_at__date__gte=since)
+    qs = MigModel.objects.filter(
+        created_at__date__gte=since,
+        to_segment__isnull=False,           # skip records where target segment was deleted
+    )
     if branch_ids:
         qs = qs.filter(client__branch__in=branch_ids)
 
-    rows = (
-        qs.values(
-            'from_segment__code', 'from_segment__name', 'from_segment__emoji',
-            'from_segment__color',
-            'to_segment__code',   'to_segment__name',   'to_segment__emoji',
-            'to_segment__color',
-        )
-        .annotate(count=Count('id'))
-        .order_by('-count')[:30]
-    )
+    # Use select_related to avoid INNER JOIN problem with nullable from_segment
+    # (Django .values('from_segment__code') uses INNER JOIN which drops NULL rows)
+    counts: dict[tuple, int] = {}
+    meta: dict[tuple, dict] = {}
 
-    return [
-        {
-            'from_code':  r['from_segment__code'],
-            'from_name':  r['from_segment__name'],
-            'from_emoji': r['from_segment__emoji'],
-            'from_color': r['from_segment__color'],
-            'to_code':    r['to_segment__code'],
-            'to_name':    r['to_segment__name'],
-            'to_emoji':   r['to_segment__emoji'],
-            'to_color':   r['to_segment__color'],
-            'count':      r['count'],
+    for mig in qs.select_related('from_segment', 'to_segment').iterator():
+        fs = mig.from_segment
+        ts = mig.to_segment
+        key = (
+            fs.code  if fs else '',
+            fs.name  if fs else '—',
+            fs.emoji if fs else '',
+            fs.color if fs else '#94a3b8',
+            ts.code,
+            ts.name,
+            ts.emoji or '',
+            ts.color or '#94a3b8',
+        )
+        counts[key] = counts.get(key, 0) + 1
+        meta[key] = {
+            'from_code':  key[0], 'from_name':  key[1],
+            'from_emoji': key[2], 'from_color': key[3],
+            'to_code':    key[4], 'to_name':    key[5],
+            'to_emoji':   key[6], 'to_color':   key[7],
         }
-        for r in rows
-    ]
+
+    result = sorted(
+        [{'count': v, **meta[k]} for k, v in counts.items()],
+        key=lambda x: -x['count'],
+    )
+    return result[:30]
 
 
 # ── Migration effectiveness ───────────────────────────────────────────────────
