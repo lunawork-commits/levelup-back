@@ -90,7 +90,7 @@ class GameClaimView(APIView):
         if result['type'] == 'super_prize':
             return Response({
                 'type': 'super_prize',
-                'reward': SuperPrizeRewardSerializer(result['reward']).data,
+                'reward': SuperPrizeRewardSerializer(result['reward'], context={'request': request}).data,
             })
 
         return Response({'type': 'coin', 'reward': result['reward']})

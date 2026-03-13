@@ -38,7 +38,10 @@ class SuperPrizeProductSerializer(serializers.Serializer):
     image_url = serializers.SerializerMethodField()
 
     def get_image_url(self, obj) -> str | None:
-        return obj.image.url if (obj.image and obj.image.name) else None
+        if not (obj.image and obj.image.name):
+            return None
+        request = self.context.get('request')
+        return request.build_absolute_uri(obj.image.url) if request else obj.image.url
 
 
 class SuperPrizeRewardSerializer(serializers.Serializer):
@@ -52,7 +55,7 @@ class SuperPrizeRewardSerializer(serializers.Serializer):
             .filter(branch=obj.client_branch.branch, is_super_prize=True, is_active=True)
             .order_by('ordering', 'name')
         )
-        return SuperPrizeProductSerializer(products, many=True).data
+        return SuperPrizeProductSerializer(products, many=True, context=self.context).data
 
 
 class GameCooldownSerializer(serializers.Serializer):

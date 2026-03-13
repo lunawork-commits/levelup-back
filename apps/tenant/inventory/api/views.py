@@ -41,7 +41,7 @@ class InventoryView(APIView):
                 {'detail': 'Профиль гостя не найден.'},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        return Response(InventoryItemSerializer(items, many=True).data)
+        return Response(InventoryItemSerializer(items, many=True, context={'request': request}).data)
 
 
 class SuperPrizeView(APIView):
@@ -60,7 +60,7 @@ class SuperPrizeView(APIView):
                 {'detail': 'Профиль гостя не найден.'},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        return Response(SuperPrizeEntrySerializer(entries, many=True).data)
+        return Response(SuperPrizeEntrySerializer(entries, many=True, context={'request': request}).data)
 
     def post(self, request: Request) -> Response:
         s = SuperPrizeClaimSerializer(data=request.data)
@@ -82,7 +82,7 @@ class SuperPrizeView(APIView):
                 {'detail': 'Товар не найден или недоступен как суперприз.'},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        return Response(SuperPrizeEntrySerializer(entry).data)
+        return Response(SuperPrizeEntrySerializer(entry, context={'request': request}).data)
 
 
 class InventoryCooldownView(APIView):
@@ -163,7 +163,7 @@ class InventoryActivateView(APIView):
                 },
                 status=status.HTTP_409_CONFLICT,
             )
-        return Response(InventoryItemSerializer(item).data)
+        return Response(InventoryItemSerializer(item, context={'request': request}).data)
 
 
 class BirthdayStatusView(APIView):
@@ -222,7 +222,7 @@ class BirthdayPrizeView(APIView):
                 {'detail': 'Подарок на день рождения уже получен в этом году.'},
                 status=status.HTTP_409_CONFLICT,
             )
-        return Response(BirthdayProductSerializer(products, many=True).data)
+        return Response(BirthdayProductSerializer(products, many=True, context={'request': request}).data)
 
     def post(self, request: Request) -> Response:
         s = BirthdayPrizeClaimSerializer(data=request.data)
@@ -249,4 +249,4 @@ class BirthdayPrizeView(APIView):
                 {'detail': 'Товар не найден или недоступен как подарок на ДР.'},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        return Response(InventoryItemSerializer(item).data, status=status.HTTP_201_CREATED)
+        return Response(InventoryItemSerializer(item, context={'request': request}).data, status=status.HTTP_201_CREATED)

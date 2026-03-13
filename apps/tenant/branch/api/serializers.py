@@ -150,7 +150,10 @@ class PromotionSerializer(serializers.Serializer):
     image_url = serializers.SerializerMethodField()
 
     def get_image_url(self, obj) -> str | None:
-        return obj.images.url if (obj.images and obj.images.name) else None
+        if not (obj.images and obj.images.name):
+            return None
+        request = self.context.get('request')
+        return request.build_absolute_uri(obj.images.url) if request else obj.images.url
 
 
 # ── CoinTransaction ────────────────────────────────────────────────────────────

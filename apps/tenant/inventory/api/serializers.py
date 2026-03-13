@@ -43,7 +43,10 @@ class InventoryItemSerializer(serializers.Serializer):
 
     def get_product_image_url(self, obj) -> str | None:
         img = obj.product.image
-        return img.url if (img and img.name) else None
+        if not (img and img.name):
+            return None
+        request = self.context.get('request')
+        return request.build_absolute_uri(img.url) if request else img.url
 
 
 class _SuperPrizeProductSerializer(serializers.Serializer):
@@ -53,7 +56,10 @@ class _SuperPrizeProductSerializer(serializers.Serializer):
     image_url = serializers.SerializerMethodField()
 
     def get_image_url(self, obj) -> str | None:
-        return obj.image.url if (obj.image and obj.image.name) else None
+        if not (obj.image and obj.image.name):
+            return None
+        request = self.context.get('request')
+        return request.build_absolute_uri(obj.image.url) if request else obj.image.url
 
 
 class SuperPrizeEntrySerializer(serializers.Serializer):
@@ -77,10 +83,14 @@ class SuperPrizeEntrySerializer(serializers.Serializer):
         if not obj.product:
             return None
         img = obj.product.image
+        img_url = None
+        if img and img.name:
+            request = self.context.get('request')
+            img_url = request.build_absolute_uri(img.url) if request else img.url
         return {
             'id':        obj.product.pk,
             'name':      obj.product.name,
-            'image_url': img.url if (img and img.name) else None,
+            'image_url': img_url,
         }
 
     def get_available_products(self, obj) -> list:
@@ -91,7 +101,7 @@ class SuperPrizeEntrySerializer(serializers.Serializer):
             .filter(branch=obj.client_branch.branch, is_super_prize=True, is_active=True)
             .order_by('ordering', 'name')
         )
-        return _SuperPrizeProductSerializer(products, many=True).data
+        return _SuperPrizeProductSerializer(products, many=True, context=self.context).data
 
 
 class BirthdayStatusSerializer(serializers.Serializer):
@@ -115,7 +125,10 @@ class BirthdayProductSerializer(serializers.Serializer):
     price     = serializers.IntegerField()
 
     def get_image_url(self, obj) -> str | None:
-        return obj.image.url if (obj.image and obj.image.name) else None
+        if not (obj.image and obj.image.name):
+            return None
+        request = self.context.get('request')
+        return request.build_absolute_uri(obj.image.url) if request else obj.image.url
 
 
 class InventoryCooldownSerializer(serializers.Serializer):

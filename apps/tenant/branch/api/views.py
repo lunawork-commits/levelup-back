@@ -152,7 +152,7 @@ class PromotionView(APIView):
                 {'detail': 'Торговая точка неактивна.'},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        return Response(PromotionSerializer(promotions, many=True).data)
+        return Response(PromotionSerializer(promotions, many=True, context={'request': request}).data)
 
 
 class TransactionsView(APIView):

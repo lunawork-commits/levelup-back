@@ -33,7 +33,10 @@ class ProductSerializer(serializers.Serializer):
     category_name    = serializers.SerializerMethodField()
 
     def get_image_url(self, obj) -> str | None:
-        return obj.image.url if (obj.image and obj.image.name) else None
+        if not (obj.image and obj.image.name):
+            return None
+        request = self.context.get('request')
+        return request.build_absolute_uri(obj.image.url) if request else obj.image.url
 
     def get_category_name(self, obj) -> str | None:
         return obj.category.name if obj.category else None
@@ -65,4 +68,7 @@ class BuyResponseSerializer(serializers.Serializer):
 
     def get_product_image_url(self, obj) -> str | None:
         img = obj.product.image
-        return img.url if (img and img.name) else None
+        if not (img and img.name):
+            return None
+        request = self.context.get('request')
+        return request.build_absolute_uri(img.url) if request else img.url

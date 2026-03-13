@@ -40,7 +40,7 @@ class CatalogView(APIView):
                 {'detail': 'Торговая точка неактивна.'},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        return Response(ProductSerializer(products, many=True).data)
+        return Response(ProductSerializer(products, many=True, context={'request': request}).data)
 
 
 class CooldownView(APIView):
@@ -107,4 +107,4 @@ class BuyView(APIView):
                 {'detail': 'Недостаточно монет для покупки.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        return Response(BuyResponseSerializer(item).data, status=status.HTTP_201_CREATED)
+        return Response(BuyResponseSerializer(item, context={'request': request}).data, status=status.HTTP_201_CREATED)
