@@ -174,6 +174,48 @@ def poll_vk_messages_task(self, schema_name: str, branch_id: int) -> dict:
         raise self.retry(exc=exc)
 
 
+@shared_task(name='apps.tenant.branch.tasks.generate_daily_codes_task')
+def generate_daily_codes_task() -> dict:
+    """
+    Celery Beat task: generate 5-digit DailyCodes for every active branch
+    in every tenant for today (game, quest, birthday purposes).
+    Runs daily at 00:00 Moscow time (configured in main/celery.py).
+    """
+    import random
+    from datetime import date
+    from django_tenants.utils import get_tenant_model, schema_context
+
+    TenantModel = get_tenant_model()
+    today       = date.today()
+    created_total = 0
+    skipped_total = 0
+
+    for tenant in TenantModel.objects.exclude(schema_name='public'):
+        with schema_context(tenant.schema_name):
+            from apps.tenant.branch.models import Branch, DailyCode, DailyCodePurpose
+            branches  = Branch.objects.filter(is_active=True)
+            purposes  = [p.value for p in DailyCodePurpose]
+            for branch in branches:
+                for purpose in purposes:
+                    code = f'{random.randint(0, 99999):05d}'
+                    _, created = DailyCode.objects.get_or_create(
+                        branch=branch,
+                        purpose=purpose,
+                        valid_date=today,
+                        defaults={'code': code},
+                    )
+                    if created:
+                        created_total += 1
+                    else:
+                        skipped_total += 1
+
+    logger.info(
+        'generate_daily_codes: created=%d already_existed=%d date=%s',
+        created_total, skipped_total, today,
+    )
+    return {'created': created_total, 'skipped': skipped_total, 'date': str(today)}
+
+
 @shared_task(name='apps.tenant.branch.tasks.poll_all_vk_messages_task')
 def poll_all_vk_messages_task() -> dict:
     """

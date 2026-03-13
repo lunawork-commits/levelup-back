@@ -53,6 +53,11 @@ app.conf.beat_schedule = {
         'schedule': crontab(hour=9, minute=0),
         'kwargs': {'process_evening': True},
     },
+    # Generate daily codes (game, quest, birthday) for all branches at midnight
+    'generate-daily-codes': {
+        'task': 'apps.tenant.branch.tasks.generate_daily_codes_task',
+        'schedule': crontab(hour=0, minute=0),
+    },
 }
 
 app.conf.timezone = 'Europe/Moscow'
