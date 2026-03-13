@@ -487,8 +487,10 @@ def migrate_all_cooldowns(content: str, schema: str, out: list):
         for r in rows:
             # v4: id(0), last_activated_at(1), duration_interval(2), client_id(3)
             last_act = r[1]
+            if not last_act:  # skip cooldowns with no activation date
+                continue
             dur_h = parse_interval_hours(r[2], default=18)
-            expires = ts_add(last_act, hours=dur_h) if last_act else None
+            expires = ts_add(last_act, hours=dur_h)
             out.append(insert_row(schema, 'branch_cooldown',
                 ['id', 'client_id', 'feature', 'last_activated_at',
                  'duration', 'expires_at', 'created_at', 'updated_at'],
