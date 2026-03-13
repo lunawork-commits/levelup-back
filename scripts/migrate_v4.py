@@ -235,19 +235,32 @@ def migrate_users_user(content: str, out: list):
     public.users_user
     v4: id, password, last_login, is_superuser, username, first_name,
         last_name, email, is_staff, is_active, date_joined, company_id
-    v5: adds role field. is_superuser → superadmin, else → network_admin.
+    v5: adds role field. company_id replaced with M2M companies.
+        is_superuser → superadmin, else → network_admin.
     """
     out.append(comment('public.users_user'))
     rows = extract_inserts(content, 'public', 'users_user')
+    user_companies = []  # [(user_id, company_id), ...]
     for r in rows:
         role = 'superadmin' if r[3] else 'network_admin'
         out.append(insert_row('public', 'users_user',
             ['id', 'password', 'last_login', 'is_superuser', 'username',
              'first_name', 'last_name', 'email', 'is_staff', 'is_active',
-             'date_joined', 'role', 'company_id'],
+             'date_joined', 'role'],
             [r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9],
-             r[10], role, r[11]]
+             r[10], role]
         ))
+        if r[11]:  # company_id
+            user_companies.append((r[0], r[11]))
+
+    # Populate M2M junction table users_user_companies
+    if user_companies:
+        out.append(comment('public.users_user_companies (M2M from company_id)'))
+        for user_id, company_id in user_companies:
+            out.append(
+                f'INSERT INTO public.users_user_companies (user_id, company_id) '
+                f'VALUES ({user_id}, {company_id}) ON CONFLICT DO NOTHING;'
+            )
 
 
 def migrate_config_clientconfig(content: str, out: list):
