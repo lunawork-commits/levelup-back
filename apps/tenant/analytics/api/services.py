@@ -532,17 +532,18 @@ def get_rf_matrix(branch_ids: list[int] | None, mode: str = 'restaurant') -> dic
                 return seg
         return None
 
-    # Fill in segment info for cells where segment was NULL (find_segment returned None during recalc)
+    # Always override segment display info from current boundaries,
+    # so that changes to segment definitions are immediately reflected in the matrix
+    # without requiring a full RF score recalculation.
     for cell in cell_lookup.values():
-        if not cell['segment_id']:
-            seg = _find_segment_for_rf(cell['r_score'], cell['f_score'])
-            if seg:
-                cell['segment_id']       = seg.pk
-                cell['segment_code']     = seg.code
-                cell['segment_name']     = seg.name
-                cell['segment_emoji']    = seg.emoji
-                cell['segment_color']    = seg.color
-                cell['segment_strategy'] = seg.strategy
+        seg = _find_segment_for_rf(cell['r_score'], cell['f_score'])
+        if seg:
+            cell['segment_id']       = seg.pk
+            cell['segment_code']     = seg.code
+            cell['segment_name']     = seg.name
+            cell['segment_emoji']    = seg.emoji
+            cell['segment_color']    = seg.color
+            cell['segment_strategy'] = seg.strategy
 
     cells: dict[str, dict] = {}
     for r in r_vals:
