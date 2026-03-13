@@ -69,7 +69,7 @@ class BroadcastSendInline(admin.TabularInline):
     readonly_fields = fields
 
     def has_add_permission(self, request, obj=None):
-        return False
+        return request.user.is_superuser
 
 
 # ── BroadcastRecipient inline (inside BroadcastSend change view) ──────────────
@@ -86,7 +86,7 @@ class BroadcastRecipientInline(admin.TabularInline):
     readonly_fields = fields
 
     def has_add_permission(self, request, obj=None):
-        return False
+        return request.user.is_superuser
 
 
 # ── Broadcast ─────────────────────────────────────────────────────────────────
@@ -317,7 +317,7 @@ class BroadcastSendAdmin(admin.ModelAdmin):
     inlines = [BroadcastRecipientInline]
 
     def has_add_permission(self, request):
-        return False
+        return request.user.is_superuser
 
     # ── Display helpers ────────────────────────────────────────────────────────
 

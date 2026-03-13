@@ -203,7 +203,7 @@ class RFMigrationLogAdmin(admin.ModelAdmin):
     readonly_fields = ('created_at',)
 
     def has_change_permission(self, request, obj=None):
-        return False
+        return request.user.is_superuser
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related(
@@ -268,7 +268,7 @@ class BranchSegmentSnapshotAdmin(admin.ModelAdmin):
     readonly_fields = ('created_at', 'updated_at')
 
     def has_change_permission(self, request, obj=None):
-        return False
+        return request.user.is_superuser
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('branch', 'segment')
