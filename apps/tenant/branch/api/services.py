@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.utils import timezone
 from django.db.models import Q, Sum
 from django.db.models.functions import Coalesce
 
@@ -211,6 +212,9 @@ def update_client_profile(
     if birth_date is not None:
         profile.birth_date = birth_date
         cb_updates.append('birth_date')
+        if profile.birth_date_set_at is None:
+            profile.birth_date_set_at = timezone.localdate()
+            cb_updates.append('birth_date_set_at')
     if cb_updates:
         profile.save(update_fields=cb_updates)
 
