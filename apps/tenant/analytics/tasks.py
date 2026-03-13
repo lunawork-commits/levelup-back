@@ -12,6 +12,7 @@ import logging
 
 from celery import shared_task
 from django_tenants.utils import get_tenant_model
+from apps.tenant.analytics.pos_service import sync_get_guests_for_period
 
 logger = logging.getLogger(__name__)
 
