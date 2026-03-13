@@ -58,6 +58,10 @@ a,a:hover,a:focus,a:visited{text-decoration:none!important; color: black}
 .c-teal  {color:var(--teal)!important;}
 .c-grey  {color:#9ca3af!important;}
 
+/* Async skeleton loader */
+.slow-skeleton{display:inline-block;width:60px;height:1em;background:linear-gradient(90deg,#e5e7eb 25%,#f3f4f6 50%,#e5e7eb 75%);background-size:200% 100%;animation:skeleton-pulse 1.4s infinite;border-radius:4px;vertical-align:middle;}
+@keyframes skeleton-pulse{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
 /* Tooltip */
 .tip-btn{position:absolute;top:10px;right:10px;width:18px;height:18px;border-radius:50%;background:#e5e7eb;color:#6b7280;font-size:11px;display:flex;align-items:center;justify-content:center;cursor:help;z-index:2;font-weight:700;}
 .tip-box{display:none;position:absolute;bottom:calc(100% + 6px);left:0;right:0;background:var(--navy);color:#fff;font-size:11px;font-weight:500;padding:9px 12px;border-radius:8px;z-index:30;line-height:1.6;}
@@ -308,7 +312,7 @@ a,a:hover,a:focus,a:visited{text-decoration:none!important; color: black}
         <div class="tip-btn">?</div>
         <div class="card-body">
           <div class="mc-label">👥 Гостей по POS-системе</div>
-          <div class="mc-val {% if stats.pos_guests > 0 %}c-green{% else %}c-grey{% endif %}">{{ stats.pos_guests }}</div>
+          <div class="mc-val c-grey" id="stat-pos-guests"><span class="slow-skeleton"></span></div>
           <div class="mc-sub">IIKO / Dooglys</div>
           <div class="tip-box">Количество гостей по данным кассовой системы.</div>
         </div>
@@ -320,9 +324,7 @@ a,a:hover,a:focus,a:visited{text-decoration:none!important; color: black}
         <div class="tip-btn">?</div>
         <div class="card-body">
           <div class="mc-label">🔄 Индекс сканирования</div>
-          <div class="mc-val {% if stats.scan_index > 0 %}c-orange{% else %}c-grey{% endif %}">
-            {% if stats.scan_index %}{{ stats.scan_index }}%{% else %}0%{% endif %}
-          </div>
+          <div class="mc-val c-grey" id="stat-scan-index"><span class="slow-skeleton"></span></div>
           <div class="mc-sub">QR ÷ POS × 100%</div>
           <div class="tip-box">Доля реальных гостей, «оцифрованных» через приложение.</div>
         </div>
@@ -438,6 +440,34 @@ document.addEventListener('DOMContentLoaded', () => {
   donut('ch-quality',  [D.reviews_sentiment.positive,   D.reviews_sentiment.partial, D.reviews_sentiment.negative], ['#16a34a','#f59e0b','#dc2626']);
   donut('ch-reviews',  [D.reviews_ratio.left,            D.reviews_ratio.not_left],                            ['#3b82f6','#d1d5db']);
   donut('ch-quests',   [D.quests.completed,              D.quests.pending],                                    ['#00bcd4','#d1d5db']);
+
+  // Async load slow stats (POS guests + scan index)
+  (function loadSlowStats() {
+    const params = new URLSearchParams(window.location.search);
+    // Keep only period/start/end/branches params for the API call
+    const apiParams = new URLSearchParams();
+    ['period','start','end','branches'].forEach(k => { if (params.has(k)) apiParams.set(k, params.get(k)); });
+    fetch('/api/v1/analytics/stats/slow/?' + apiParams.toString())
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(data => {
+        const posEl  = document.getElementById('stat-pos-guests');
+        const scanEl = document.getElementById('stat-scan-index');
+        if (posEl) {
+          posEl.textContent = data.pos_guests ?? '0';
+          if (data.pos_guests > 0) posEl.classList.replace('c-grey', 'c-green');
+        }
+        if (scanEl) {
+          scanEl.textContent = data.scan_index ? data.scan_index + '%' : '0%';
+          if (data.scan_index > 0) scanEl.classList.replace('c-grey', 'c-orange');
+        }
+      })
+      .catch(() => {
+        const posEl  = document.getElementById('stat-pos-guests');
+        const scanEl = document.getElementById('stat-scan-index');
+        if (posEl)  posEl.textContent = '—';
+        if (scanEl) scanEl.textContent = '—';
+      });
+  })();
 });
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

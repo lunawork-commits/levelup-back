@@ -325,11 +325,23 @@ def get_scan_index(
 # ── Main aggregate ────────────────────────────────────────────────────────────
 
 def get_general_stats(
-    branch_ids: list[int] | None, start_date: date, end_date: date
+    branch_ids: list[int] | None, start_date: date, end_date: date,
+    skip_slow: bool = False,
 ) -> dict:
-    """All general-stats metrics in a single dict for the API response."""
-    pos = get_pos_guests_count(branch_ids, start_date, end_date)
+    """All general-stats metrics in a single dict for the API response.
+
+    Pass skip_slow=True to omit POS-dependent metrics (pos_guests, scan_index)
+    that may require a live external API call. Use the /api/v1/analytics/stats/slow/
+    endpoint to load those asynchronously after the page renders.
+    """
     scans = get_qr_scan_count(branch_ids, start_date, end_date)
+
+    if skip_slow:
+        pos        = None
+        scan_index = None
+    else:
+        pos        = get_pos_guests_count(branch_ids, start_date, end_date)
+        scan_index = round(scans / pos * 100, 1) if pos else 0.0
 
     return {
         'qr_scans':                  scans,
@@ -345,7 +357,7 @@ def get_general_stats(
         'vk_stories_publishers':     get_vk_stories_publishers(branch_ids, start_date, end_date),
         'stories_referrals':         get_stories_referrals(branch_ids, start_date, end_date),
         'pos_guests':                pos,
-        'scan_index':                round(scans / pos * 100, 1) if pos else 0.0,
+        'scan_index':                scan_index,
     }
 
 

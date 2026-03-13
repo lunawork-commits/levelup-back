@@ -85,7 +85,7 @@ class GeneralStatsView(View):
         start, end, active_period = _parse_period(request)
         branches, branch_ids, active_branches = _branches_context(request)
 
-        stats  = get_general_stats(branch_ids, start, end)
+        stats  = get_general_stats(branch_ids, start, end, skip_slow=True)
         charts = get_chart_data(branch_ids, start, end)
 
         # Reviews summary for the VK reviews widget

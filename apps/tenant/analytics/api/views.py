@@ -108,6 +108,33 @@ class RecalculateRFView(APIView):
         return Response(result, status=status.HTTP_200_OK)
 
 
+class SlowStatsAPIView(APIView):
+    """
+    GET /api/v1/analytics/stats/slow/
+
+    Returns only the slow-to-compute stats (POS guests + scan index).
+    Called asynchronously from the dashboard after the page has loaded.
+
+    Query params: same as GeneralStatsAPIView (branch_ids, period, start, end)
+    """
+
+    def get(self, request):
+        ser = StatsQuerySerializer(data=request.query_params)
+        if not ser.is_valid():
+            return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        branch_ids = ser.validated_data['branch_ids'] or None
+        start_date = ser.validated_data['start']
+        end_date   = ser.validated_data['end']
+
+        pos   = services.get_pos_guests_count(branch_ids, start_date, end_date)
+        scans = services.get_qr_scan_count(branch_ids, start_date, end_date)
+        return Response({
+            'pos_guests': pos,
+            'scan_index': round(scans / pos * 100, 1) if pos else 0.0,
+        })
+
+
 class BranchListAPIView(APIView):
     """
     GET /api/v1/analytics/branches/
