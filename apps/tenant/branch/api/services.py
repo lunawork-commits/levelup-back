@@ -173,7 +173,10 @@ def register_or_get_client(
     profile, created = ClientBranch.objects.get_or_create(
         client=client,
         branch=branch,
-        defaults={'birth_date': birth_date},
+        defaults={
+            'birth_date': birth_date,
+            'birth_date_set_at': timezone.localdate() if birth_date else None,
+        },
     )
 
     # Record visit: atomic, 6-hour cooldown
