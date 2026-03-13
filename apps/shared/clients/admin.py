@@ -106,10 +106,10 @@ class DomainInline(admin.TabularInline):
             return 0
         return 1
 
-    def has_add_permission(self, request, obj=None):  # noqa: ARG002
+    def has_add_permission(self, request, obj=None):
         if getattr(request.user, 'role', None) == 'network_admin':
             return False
-        return super().has_add_permission(request)
+        return super().has_add_permission(request, obj)
 
     def has_change_permission(self, request, obj=None):
         if getattr(request.user, 'role', None) == 'network_admin':
