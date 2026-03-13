@@ -56,25 +56,28 @@ def rollback_schema(schema: str, dry_run: bool):
         reverted = deleted = skipped = 0
 
         for vk_status in qs.iterator():
-            update_fields = []
+            will_change = False
 
             # ── community ────────────────────────────────────────────────────
             if vk_status.community_via_app is True:
+                will_change = True
                 if not dry_run:
                     vk_status.community_via_app = False if vk_status.is_community_member else None
                     vk_status.community_joined_at = None
-                    update_fields += ['community_via_app', 'community_joined_at']
 
             # ── newsletter ───────────────────────────────────────────────────
             if vk_status.newsletter_via_app is True:
+                will_change = True
                 if not dry_run:
                     vk_status.newsletter_via_app = False if vk_status.is_newsletter_subscriber else None
                     vk_status.newsletter_joined_at = None
-                    update_fields += ['newsletter_via_app', 'newsletter_joined_at']
 
-            if update_fields:
+            if will_change:
                 if not dry_run:
-                    vk_status.save(update_fields=update_fields)
+                    vk_status.save(update_fields=[
+                        'community_via_app', 'community_joined_at',
+                        'newsletter_via_app', 'newsletter_joined_at',
+                    ])
                 reverted += 1
             else:
                 skipped += 1
