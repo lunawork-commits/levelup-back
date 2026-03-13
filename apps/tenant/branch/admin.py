@@ -130,7 +130,7 @@ class BranchAdmin(admin.ModelAdmin):
         pos_type = _tenant_pos_type(request)
 
         base = (None, {
-            'fields': ('branch_id', 'name', 'description', 'is_active'),
+            'fields': ('branch_id', 'name', 'description', 'is_active', 'story_image'),
         })
 
         if pos_type == POSType.IIKO:

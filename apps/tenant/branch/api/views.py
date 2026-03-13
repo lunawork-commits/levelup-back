@@ -47,6 +47,9 @@ class BranchInfoView(APIView):
                 {'detail': 'Торговая точка неактивна.'},
                 status=status.HTTP_403_FORBIDDEN,
             )
+        for key in ('logotype_url', 'coin_icon_url', 'story_image_url'):
+            if data.get(key):
+                data[key] = request.build_absolute_uri(data[key])
         return Response(BranchInfoSerializer(data).data)
 
 
