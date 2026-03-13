@@ -170,23 +170,14 @@ def get_coin_purchasers(
 def get_new_community_subscribers(
     branch_ids: list[int] | None, start_date: date, end_date: date
 ) -> int:
-    """Guests who subscribed to VK community via app AND visited (scanned QR) in the period."""
-    from django.db.models import Exists, OuterRef
-    from apps.tenant.branch.models import ClientVKStatus, ClientBranchVisit
-
-    visited = ClientBranchVisit.objects.filter(
-        client=OuterRef('client'),
-        visited_at__date__gte=start_date,
-        visited_at__date__lte=end_date,
-    )
-    if branch_ids:
-        visited = visited.filter(client__branch__in=branch_ids)
+    """Guests who subscribed to VK community via app in the period (by community_joined_at)."""
+    from apps.tenant.branch.models import ClientVKStatus
 
     qs = ClientVKStatus.objects.filter(
         community_via_app=True,
         community_joined_at__date__gte=start_date,
         community_joined_at__date__lte=end_date,
-    ).filter(Exists(visited))
+    )
     return _branch_filter(qs, branch_ids, 'client__branch__in').count()
 
 
@@ -195,23 +186,14 @@ def get_new_community_subscribers(
 def get_new_newsletter_subscribers(
     branch_ids: list[int] | None, start_date: date, end_date: date
 ) -> int:
-    """Guests who subscribed to VK newsletter via app AND visited (scanned QR) in the period."""
-    from django.db.models import Exists, OuterRef
-    from apps.tenant.branch.models import ClientVKStatus, ClientBranchVisit
-
-    visited = ClientBranchVisit.objects.filter(
-        client=OuterRef('client'),
-        visited_at__date__gte=start_date,
-        visited_at__date__lte=end_date,
-    )
-    if branch_ids:
-        visited = visited.filter(client__branch__in=branch_ids)
+    """Guests who subscribed to VK newsletter via app in the period (by newsletter_joined_at)."""
+    from apps.tenant.branch.models import ClientVKStatus
 
     qs = ClientVKStatus.objects.filter(
         newsletter_via_app=True,
         newsletter_joined_at__date__gte=start_date,
         newsletter_joined_at__date__lte=end_date,
-    ).filter(Exists(visited))
+    )
     return _branch_filter(qs, branch_ids, 'client__branch__in').count()
 
 
