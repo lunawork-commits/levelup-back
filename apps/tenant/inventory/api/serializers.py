@@ -1,0 +1,129 @@
+from rest_framework import serializers
+
+from apps.tenant.catalog.models import Product
+
+
+# ── Request ────────────────────────────────────────────────────────────────────
+
+class InventoryRequestSerializer(serializers.Serializer):
+    vk_id     = serializers.IntegerField()
+    branch_id = serializers.IntegerField()
+
+
+class SuperPrizeClaimSerializer(serializers.Serializer):
+    vk_id      = serializers.IntegerField()
+    branch_id  = serializers.IntegerField()
+    product_id = serializers.IntegerField()
+
+
+BirthdayPrizeClaimSerializer = SuperPrizeClaimSerializer
+
+
+class InventoryActivateSerializer(serializers.Serializer):
+    vk_id      = serializers.IntegerField()
+    branch_id  = serializers.IntegerField()
+    item_id    = serializers.IntegerField()
+    code       = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
+
+
+# ── Response ───────────────────────────────────────────────────────────────────
+
+class InventoryItemSerializer(serializers.Serializer):
+    """Single item in a guest's inventory."""
+    id                = serializers.IntegerField()
+    product_id        = serializers.IntegerField(source='product.pk')
+    product_name      = serializers.CharField(source='product.name')
+    product_image_url = serializers.SerializerMethodField()
+    acquired_from     = serializers.CharField()
+    status            = serializers.CharField()   # computed @property
+    duration          = serializers.IntegerField()
+    activated_at      = serializers.DateTimeField(allow_null=True)
+    expires_at        = serializers.DateTimeField(allow_null=True)
+    created_at        = serializers.DateTimeField()
+
+    def get_product_image_url(self, obj) -> str | None:
+        img = obj.product.image
+        return img.url if (img and img.name) else None
+
+
+class _SuperPrizeProductSerializer(serializers.Serializer):
+    """Minimal product representation inside a super prize entry."""
+    id        = serializers.IntegerField()
+    name      = serializers.CharField()
+    image_url = serializers.SerializerMethodField()
+
+    def get_image_url(self, obj) -> str | None:
+        return obj.image.url if (obj.image and obj.image.name) else None
+
+
+class SuperPrizeEntrySerializer(serializers.Serializer):
+    """
+    SuperPrizeEntry response.
+
+    - status == 'pending'  → product is null, available_products is populated
+    - status == 'claimed'  → product holds the chosen item, available_products is []
+    - status == 'issued'   → same as claimed
+    - status == 'expired'  → product is null, available_products is []
+    """
+    id                 = serializers.IntegerField()
+    acquired_from      = serializers.CharField()
+    status             = serializers.CharField()   # computed @property
+    created_at         = serializers.DateTimeField()
+    claimed_at         = serializers.DateTimeField(allow_null=True)
+    product            = serializers.SerializerMethodField()
+    available_products = serializers.SerializerMethodField()
+
+    def get_product(self, obj) -> dict | None:
+        if not obj.product:
+            return None
+        img = obj.product.image
+        return {
+            'id':        obj.product.pk,
+            'name':      obj.product.name,
+            'image_url': img.url if (img and img.name) else None,
+        }
+
+    def get_available_products(self, obj) -> list:
+        if obj.status != 'pending':
+            return []
+        products = (
+            Product.objects
+            .filter(branch=obj.client_branch.branch, is_super_prize=True, is_active=True)
+            .order_by('ordering', 'name')
+        )
+        return _SuperPrizeProductSerializer(products, many=True).data
+
+
+class BirthdayStatusSerializer(serializers.Serializer):
+    """
+    Birthday status for the frontend.
+
+    is_birthday_window — today is within ±5 days of birth_date
+    already_claimed    — a birthday prize was already claimed this calendar year
+    can_claim          — all conditions met (window + not claimed + birth_date established ≥30 days)
+    """
+    is_birthday_window = serializers.BooleanField()
+    already_claimed    = serializers.BooleanField()
+    can_claim          = serializers.BooleanField()
+
+
+class BirthdayProductSerializer(serializers.Serializer):
+    """Product available as a birthday prize."""
+    id        = serializers.IntegerField()
+    name      = serializers.CharField()
+    image_url = serializers.SerializerMethodField()
+    price     = serializers.IntegerField()
+
+    def get_image_url(self, obj) -> str | None:
+        return obj.image.url if (obj.image and obj.image.name) else None
+
+
+class InventoryCooldownSerializer(serializers.Serializer):
+    """INVENTORY cooldown state for a guest."""
+    is_active         = serializers.BooleanField()
+    expires_at        = serializers.DateTimeField()
+    seconds_remaining = serializers.SerializerMethodField()
+
+    def get_seconds_remaining(self, obj) -> int:
+        remaining = obj.remaining
+        return int(remaining.total_seconds()) if remaining else 0

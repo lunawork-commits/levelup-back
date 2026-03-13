@@ -1,0 +1,66 @@
+/* ── Subdomain field ─────────────────────────────────────────────────────── */
+
+.subdomain-wrapper {
+    display: inline-flex;
+    align-items: stretch;
+    max-width: 420px;
+    width: 100%;
+}
+
+.subdomain-wrapper .subdomain-input {
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    border-right: none !important;
+    flex: 1 1 140px;
+    min-width: 100px;
+    /* keep Django's own focus ring */
+}
+
+.subdomain-wrapper .subdomain-suffix {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 12px;
+    background: var(--darkened-bg, #f2f2f2);
+    border: 1px solid var(--border-color, #ccc);
+    border-left: none;
+    border-radius: 0 4px 4px 0;
+    color: var(--secondary, #555);
+    font-size: 13px;
+    font-family: var(--font-family-monospace, "Consolas", "Courier New", monospace);
+    letter-spacing: -0.2px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    user-select: none;
+    cursor: default;
+}
+
+/* Highlight suffix border when input is focused */
+.subdomain-wrapper:focus-within .subdomain-suffix {
+    border-color: var(--primary, #417690);
+}
+
+/* ── Domains inline table ────────────────────────────────────────────────── */
+
+#domains-group .tabular.inline-related thead th,
+.inline-group .tabular thead th {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--secondary, #666);
+    padding: 8px 10px;
+}
+
+#domains-group .form-row td,
+.inline-related .tabular td {
+    vertical-align: middle;
+    padding: 8px 10px;
+}
+
+/* ── list_display "Домен" column ─────────────────────────────────────────── */
+
+.field-primary_domain {
+    font-family: var(--font-family-monospace, monospace);
+    font-size: 13px;
+    color: var(--body-fg, #333);
+}

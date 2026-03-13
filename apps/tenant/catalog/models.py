@@ -1,0 +1,126 @@
+from django.db import models
+
+from apps.shared.base import TimeStampedModel
+
+
+class ProductCategory(TimeStampedModel):
+    """
+    Раздел каталога конкретной торговой точки.
+    Позволяет структурировать товары (еда, напитки, мерч и т.д.).
+    """
+
+    branch = models.ForeignKey(
+        'branch.Branch',
+        on_delete=models.CASCADE,
+        related_name='categories',
+        verbose_name='Торговая точка',
+    )
+    name = models.CharField(max_length=255, verbose_name='Название')
+    ordering = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Порядок',
+        help_text='Меньшее значение отображается выше.',
+        db_index=True,
+    )
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = 'Категория'
+        verbose_name_plural = 'Категории'
+        ordering = ['ordering', 'name']
+        indexes = [
+            models.Index(fields=['branch', 'ordering'], name='catalog_cat_branch_ord_idx'),
+        ]
+
+
+class Product(TimeStampedModel):
+    """
+    Подарок из каталога торговой точки.
+
+    Три сценария участия:
+      is_super_prize    — входит в пул суперпризов (выбор при достижении)
+      is_birthday_prize — предлагается гостю в день рождения
+      обычный товар     — доступен для покупки за баллы
+    Флаги не взаимоисключающие — товар может участвовать в нескольких сценариях.
+    """
+
+    branch = models.ForeignKey(
+        'branch.Branch',
+        on_delete=models.PROTECT,
+        related_name='products',
+        verbose_name='Торговая точка',
+    )
+    category = models.ForeignKey(
+        ProductCategory,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='products',
+        verbose_name='Категория',
+    )
+
+    # ── Основные поля ──────────────────────────────────────────────────────
+
+    name = models.CharField(max_length=255, verbose_name='Название')
+    description = models.TextField(blank=True, verbose_name='Описание')
+    image = models.ImageField(
+        upload_to='catalog/products/',
+        blank=True,
+        null=True,
+        verbose_name='Изображение',
+    )
+    price = models.PositiveIntegerField(
+        verbose_name='Цена (баллы)',
+        help_text='Количество баллов, которое списывается при покупке. 0 — бесплатно.',
+    )
+
+    # ── Специальные флаги ──────────────────────────────────────────────────
+
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name='Активен',
+        help_text='Неактивный товар не виден гостям.',
+    )
+    is_super_prize = models.BooleanField(
+        default=False,
+        verbose_name='Суперприз',
+        help_text='Входит в пул суперпризов — может быть выдан при достижении цели.',
+    )
+    is_birthday_prize = models.BooleanField(
+        default=False,
+        verbose_name='Подарок на ДР',
+        help_text='Доступен как поздравительный подарок в день рождения гостя.',
+    )
+
+    # ── Сортировка ─────────────────────────────────────────────────────────
+
+    ordering = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Порядок',
+        help_text='Меньшее значение отображается выше в списке.',
+        db_index=True,
+    )
+
+    def __str__(self):
+        return f'{self.name} ({self.price} ★)'
+
+    class Meta:
+        verbose_name = 'Подарок'
+        verbose_name_plural = 'Подарки'
+        ordering = ['ordering', 'name']
+        indexes = [
+            models.Index(
+                fields=['branch', 'is_active', 'ordering'],
+                name='catalog_prod_branch_active_idx',
+            ),
+            models.Index(
+                fields=['branch', 'is_super_prize'],
+                name='catalog_prod_branch_super_idx',
+            ),
+            models.Index(
+                fields=['branch', 'is_birthday_prize'],
+                name='catalog_prod_branch_bday_idx',
+            ),
+        ]

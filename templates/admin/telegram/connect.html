@@ -1,0 +1,234 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}Подключение: {{ bot_admin.name }} | {{ site_title }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'tenant_admin:index' %}">Главная</a>
+  &rsaquo; <a href="{% url 'tenant_admin:telegram_telegrambot_changelist' %}">Telegram-боты</a>
+  &rsaquo; <a href="{% url 'tenant_admin:telegram_telegrambot_change' bot.pk %}">{{ bot.name }}</a>
+  &rsaquo; Подключение: {{ bot_admin.name }}
+</div>
+{% endblock %}
+
+{% block content %}
+{% with wh=webhook_info.result %}
+<style>
+  .tg-card {
+    max-width: 600px;
+    background: var(--darkened-bg, #f8f8f8);
+    border: 1px solid var(--border-color, #ddd);
+    border-radius: 6px;
+    padding: 24px 28px;
+    margin-bottom: 18px;
+  }
+  .tg-card h2 { margin: 0 0 6px; font-size: 16px; color: var(--body-fg, #333); }
+  .tg-card .sub { color: var(--body-quiet-color, #888); font-size: 13px; margin: 0 0 18px; }
+
+  /* Webhook status */
+  .wh-row { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+  .wh-badge {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:5px 12px; border-radius:4px; font-size:13px; font-weight:600;
+  }
+  .wh-ok   { background:#d4edda; color:#1a7f3c; border:1px solid #b2dfca; }
+  .wh-warn { background:#fff3cd; color:#856404; border:1px solid #ffe08a; }
+  .wh-err  { background:#f8d7da; color:#842029; border:1px solid #f5c2c7; }
+  .wh-url  {
+    font-family:monospace; font-size:12px; word-break:break-all;
+    color:var(--body-quiet-color,#888); margin:4px 0 0 0;
+  }
+  .wh-error-msg {
+    margin-top:8px; padding:8px 12px; background:#f8d7da;
+    border:1px solid #f5c2c7; border-radius:4px;
+    font-size:13px; color:#842029;
+  }
+
+  /* Steps */
+  .step { display:flex; gap:14px; margin-bottom:18px; align-items:flex-start; }
+  .step-num {
+    flex-shrink:0; width:26px; height:26px; border-radius:50%;
+    background:var(--primary,#417690); color:#fff;
+    font-size:12px; font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .step-body { flex:1; padding-top:3px; }
+  .step-body p { margin:0 0 8px; font-size:14px; color:var(--body-fg,#333); }
+
+  .cmd-block {
+    display:flex; align-items:center; gap:8px;
+    background:var(--body-bg,#fff);
+    border:1px solid var(--border-color,#ddd);
+    border-radius:4px; padding:9px 12px;
+  }
+  .cmd-block code {
+    flex:1; font-family:monospace; font-size:13px;
+    color:var(--body-fg,#333); word-break:break-all; user-select:all;
+  }
+  .copy-btn {
+    flex-shrink:0; padding:4px 12px; font-size:12px;
+    border:1px solid var(--primary,#417690); color:var(--primary,#417690);
+    background:transparent; border-radius:3px; cursor:pointer;
+    transition:background .15s,color .15s;
+  }
+  .copy-btn:hover { background:var(--primary,#417690); color:#fff; }
+
+  .tg-link {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:7px 16px; background:#0088cc; color:#fff;
+    border-radius:4px; text-decoration:none; font-size:14px; font-weight:500;
+  }
+  .tg-link:hover { background:#0077b5; color:#fff; }
+
+  .connected-box {
+    display:flex; align-items:center; gap:10px;
+    padding:14px 18px; background:#f0fff4;
+    border:1px solid #b2f0c8; border-radius:6px;
+    color:#1a7f3c; font-size:15px; font-weight:500;
+  }
+  .connected-box .cid {
+    margin-left:auto; font-family:monospace; font-size:12px;
+    background:#d8f3e3; padding:2px 8px; border-radius:3px; color:#2d6a4f;
+  }
+  .actions-row { display:flex; gap:10px; margin-top:18px; flex-wrap:wrap; }
+</style>
+
+<h1>{{ title }}</h1>
+
+{% if messages %}
+  {% for msg in messages %}
+    <div class="messagelist">
+      <p class="{{ msg.tags }}">{{ msg }}</p>
+    </div>
+  {% endfor %}
+{% endif %}
+
+<!-- ── Webhook status ──────────────────────────────────────────────────── -->
+<div class="tg-card">
+  <h2>Статус webhook</h2>
+
+  {% if expected_webhook_url|slice:":5" != "https" %}
+    <div class="wh-row">
+      <span class="wh-badge wh-warn">&#9888; Локальная разработка</span>
+    </div>
+    <p style="font-size:13px;margin:6px 0 10px;color:var(--body-fg,#333);">
+      Telegram принимает webhook только на <strong>HTTPS + публичный домен</strong>.
+      Для локальной разработки используйте туннель:
+    </p>
+    <div class="cmd-block" style="margin-bottom:10px;">
+      <code>ngrok http 8000</code>
+      <button class="copy-btn" onclick="copyText(this,'ngrok http 8000')">Копировать</button>
+    </div>
+    <p style="font-size:12px;color:var(--body-quiet-color,#888);margin:0 0 12px;">
+      После запуска ngrok зайдите на страницу через HTTPS-домен от ngrok
+      и нажмите «Зарегистрировать webhook».
+    </p>
+  {% endif %}
+
+  {% if not webhook_info %}
+    <div class="wh-row">
+      <span class="wh-badge wh-err">&#10007; Не удалось подключиться к Telegram API</span>
+    </div>
+    <p class="wh-url">Проверьте API Token бота.</p>
+
+  {% elif wh.url == expected_webhook_url %}
+    <div class="wh-row">
+      <span class="wh-badge wh-ok">&#10003; Webhook зарегистрирован</span>
+    </div>
+    <p class="wh-url">{{ wh.url }}</p>
+    {% if wh.last_error_message %}
+      <div class="wh-error-msg">
+        <strong>Последняя ошибка Telegram:</strong> {{ wh.last_error_message }}
+        {% if wh.last_error_date %}
+          &mdash; <span style="font-size:12px;">{{ wh.last_error_date }}</span>
+        {% endif %}
+      </div>
+    {% endif %}
+
+  {% else %}
+    <div class="wh-row">
+      {% if wh.url %}
+        <span class="wh-badge wh-warn">&#9888; Зарегистрирован другой URL</span>
+      {% else %}
+        <span class="wh-badge wh-err">&#10007; Webhook не зарегистрирован</span>
+      {% endif %}
+    </div>
+    {% if wh.url %}
+      <p class="wh-url">Текущий:&nbsp; {{ wh.url }}</p>
+    {% endif %}
+    <p class="wh-url">Нужен:&nbsp; {{ expected_webhook_url }}</p>
+
+    <form method="post" style="margin-top:12px;">
+      {% csrf_token %}
+      <input type="hidden" name="register_webhook" value="1">
+      <button type="submit" class="button">Зарегистрировать webhook</button>
+    </form>
+  {% endif %}
+</div>
+
+<!-- ── Connection status ───────────────────────────────────────────────── -->
+<div class="tg-card">
+  <h2>{{ bot_admin.name }}</h2>
+  <p class="sub">Бот: <strong>@{{ bot.bot_username }}</strong></p>
+
+  {% if bot_admin.chat_id %}
+    <div class="connected-box">
+      <span>&#10003; Администратор подключён</span>
+      <span class="cid">chat_id:&nbsp;{{ bot_admin.chat_id }}</span>
+    </div>
+
+  {% else %}
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <p>Откройте бота в Telegram:</p>
+        <a href="https://t.me/{{ bot.bot_username }}" target="_blank" class="tg-link">
+          Открыть @{{ bot.bot_username }}
+        </a>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <p>Отправьте боту эту команду:</p>
+        <div class="cmd-block">
+          <code id="cmd">/start {{ bot_admin.verification_token }}</code>
+          <button class="copy-btn" onclick="copyCmd(this)">Копировать</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <p>После отправки нажмите «Проверить» — страница обновится.</p>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="actions-row">
+    {% if not bot_admin.chat_id %}
+      <button class="button" onclick="location.reload()">Проверить подключение</button>
+    {% endif %}
+    <a href="{% url 'tenant_admin:telegram_telegrambot_change' bot.pk %}" class="button default">
+      ← Назад к боту
+    </a>
+  </div>
+</div>
+{% endwith %}
+
+<script>
+function copyText(btn, text) {
+  if (!text) text = document.getElementById('cmd').textContent.trim();
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(function() {
+      btn.textContent = 'Скопировано!';
+      setTimeout(function() { btn.textContent = 'Копировать'; }, 2000);
+    });
+  }
+}
+function copyCmd(btn) { copyText(btn, null); }
+</script>
+{% endblock %}

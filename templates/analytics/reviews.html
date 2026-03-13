@@ -1,0 +1,227 @@
+{% extends "admin/base_site.html" %}
+{% block title %}Анализ отзывов — {{ block.super }}{% endblock %}
+
+{% block extrastyle %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+.pg-bg{background:#f5f6fa;min-height:100vh;padding:20px 24px 40px;}
+.branch-tab{text-decoration:none!important;}
+.branch-tab.active{background:#1a2744!important;color:#fff!important;border-color:#1a2744!important;}
+.period-btn{text-decoration:none!important;}
+.period-btn.active{background:#2e7d32!important;color:#fff!important;border-color:#2e7d32!important;}
+.sc-card{transition:transform .15s,box-shadow .15s;}
+.sc-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.12)!important;}
+.sc-val{font-size:2rem;font-weight:800;line-height:1;}
+.s-badge{display:inline-block;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:600;color:#fff;white-space:nowrap;}
+.sb-track{flex:1;height:10px;background:#f0f0f0;border-radius:5px;overflow:hidden;}
+.sb-fill{height:100%;border-radius:5px;}
+.rating-track{flex:1;height:8px;background:#f0f0f0;border-radius:4px;overflow:hidden;}
+.rating-fill{height:100%;background:#f59e0b;border-radius:4px;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pg-bg">
+
+  <!-- Top bar -->
+  <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-3">
+    <h5 class="fw-bold mb-0" style="color:#1a2744;">
+      Анализ отзывов —
+      {% if active_branches %}{% for b in active_branches %}{{ b.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+      {% else %}Все точки{% endif %}
+    </h5>
+    <div class="d-flex flex-wrap gap-1">
+      <a href="?{{ period_qs }}" class="btn btn-sm btn-outline-secondary rounded-pill branch-tab {% if not active_branch_ids %}active{% endif %}">Все точки</a>
+      {% for b in branches %}
+      <a href="?{{ period_qs }}&branches={{ b.id }}" class="btn btn-sm btn-outline-secondary rounded-pill branch-tab {% if b.id in active_branch_ids %}active{% endif %}">{{ b.name }}</a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Period bar -->
+  <div class="d-flex align-items-center flex-wrap gap-2 mb-3">
+    {% for key,label in period_choices %}
+    <a href="?period={{ key }}{% if active_branch_ids %}&branches={% for bid in active_branch_ids %}{{ bid }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}"
+       class="btn btn-sm btn-outline-secondary rounded-pill period-btn {% if active_period == key %}active{% endif %}">{{ label }}</a>
+    {% endfor %}
+    <span class="text-muted px-1">|</span>
+    <form method="get" class="d-flex align-items-center gap-2 flex-wrap">
+      {% if active_branch_ids %}<input type="hidden" name="branches" value="{% for bid in active_branch_ids %}{{ bid }}{% if not forloop.last %},{% endif %}{% endfor %}">{% endif %}
+      <span class="small text-muted">Период:</span>
+      <input type="date" name="start" value="{{ start }}" class="form-control form-control-sm" style="width:145px;">
+      <span class="text-muted">—</span>
+      <input type="date" name="end" value="{{ end }}" class="form-control form-control-sm" style="width:145px;">
+      <button type="submit" class="btn btn-sm btn-success">Применить</button>
+    </form>
+  </div>
+
+  <!-- Summary cards -->
+  {% with bp=active_branch_ids|join:"," %}
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="card shadow-sm sc-card h-100" style="border-top:3px solid #1a2744;">
+        <div class="card-body">
+          <div class="text-muted text-uppercase mb-2" style="font-size:10px;letter-spacing:.5px;">Всего обращений</div>
+          <div class="sc-val" style="color:#1a2744;">{{ total }}</div>
+          <div class="text-muted mt-1" style="font-size:10px;">{{ start_display }} — {{ end_display }}</div>
+        </div>
+      </div>
+    </div>
+    {% if avg_rating %}
+    <div class="col-6 col-md-4 col-xl-2">
+      <div class="card shadow-sm sc-card h-100" style="border-top:3px solid #f59e0b;">
+        <div class="card-body">
+          <div class="text-muted text-uppercase mb-2" style="font-size:10px;letter-spacing:.5px;">Средняя оценка</div>
+          <div class="sc-val" style="color:#f59e0b;">{{ avg_rating }}</div>
+          <div class="text-muted mt-1" style="font-size:10px;">из приложения</div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+    {% for d in sentiment_data %}{% if d.count %}
+    <div class="col-6 col-md-4 col-xl-2">
+      <a href="{% url 'analytics-reviews-detail' %}?sentiment={{ d.key }}&{{ period_qs }}{% if bp %}&branches={{ bp }}{% endif %}" class="text-decoration-none">
+        <div class="card shadow-sm sc-card h-100" style="border-top:3px solid {{ d.color }};">
+          <div class="card-body">
+            <div class="text-muted text-uppercase mb-2" style="font-size:10px;letter-spacing:.5px;">{{ d.label }}</div>
+            <div class="sc-val" style="color:{{ d.color }};">{{ d.count }}</div>
+            <div class="text-muted mt-1" style="font-size:10px;">Подробнее →</div>
+          </div>
+        </div>
+      </a>
+    </div>
+    {% endif %}{% endfor %}
+  </div>
+
+  <!-- Sentiment chart + sources -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-white py-2">
+          <span class="fw-bold text-uppercase small text-secondary" style="letter-spacing:.5px;">Тональность</span>
+        </div>
+        <div class="card-body">
+          {% if total %}
+          <div class="d-flex align-items-center gap-4 flex-wrap">
+            <div style="width:150px;height:150px;flex-shrink:0;">
+              <canvas id="sentimentChart"></canvas>
+            </div>
+            <div class="flex-grow-1">
+              {% for d in sentiment_data %}{% if d.count %}
+              <div class="d-flex align-items-center gap-2 mb-2">
+                <span style="width:10px;height:10px;border-radius:50%;background:{{ d.color }};flex-shrink:0;display:inline-block;"></span>
+                <span class="small text-muted" style="width:180px;flex-shrink:0;">{{ d.label }}</span>
+                <div class="sb-track">
+                  <div class="sb-fill" style="width:{% widthratio d.count total 100 %}%;background:{{ d.color }};"></div>
+                </div>
+                <span class="small text-muted ms-1">{{ d.count }}</span>
+              </div>
+              {% endif %}{% endfor %}
+            </div>
+          </div>
+          {% else %}
+          <p class="text-muted text-center py-4 small">Нет данных за выбранный период</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-header bg-white py-2">
+          <span class="fw-bold text-uppercase small text-secondary" style="letter-spacing:.5px;">Источники</span>
+        </div>
+        <div class="card-body">
+          <div class="d-flex flex-wrap gap-2 mb-4">
+            {% for source,cnt in source_counts.items %}
+            <div class="d-flex align-items-center gap-2 rounded-pill px-3 py-1 bg-light border">
+              <span style="width:10px;height:10px;border-radius:50%;background:{% if source == 'APP' %}#3b82f6{% else %}#4a76a8{% endif %};display:inline-block;"></span>
+              <span class="small text-muted">{% if source == 'APP' %}Приложение{% elif source == 'VK_MESSAGE' %}ВКонтакте{% else %}{{ source }}{% endif %}</span>
+              <span class="fw-bold small">{{ cnt }}</span>
+            </div>
+            {% empty %}
+            <span class="text-muted small">Нет данных</span>
+            {% endfor %}
+          </div>
+
+          {% if rating_list %}
+          <div class="fw-bold text-uppercase small text-secondary mb-3" style="letter-spacing:.5px;">Оценки (из приложения)</div>
+          {% for r in rating_list %}
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span style="font-size:13px;color:#f59e0b;width:80px;flex-shrink:0;letter-spacing:1px;">{{ r.stars }}</span>
+            <div class="rating-track">
+              <div class="rating-fill" style="width:{{ r.pct }}%;"></div>
+            </div>
+            <span class="small text-muted ms-1" style="width:24px;text-align:right;">{{ r.count }}</span>
+          </div>
+          {% endfor %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent conversations -->
+  {% if recent %}
+  <div class="card shadow-sm">
+    <div class="card-header bg-white py-2 d-flex align-items-center justify-content-between">
+      <span class="fw-bold text-uppercase small text-secondary" style="letter-spacing:.5px;">Последние обращения</span>
+      <span class="text-muted small">топ 20</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0" style="font-size:12px;">
+        <thead class="table-light">
+          <tr>
+            <th class="text-uppercase text-muted fw-semibold" style="font-size:10px;letter-spacing:.4px;">Дата</th>
+            <th class="text-uppercase text-muted fw-semibold" style="font-size:10px;letter-spacing:.4px;">Точка</th>
+            <th class="text-uppercase text-muted fw-semibold" style="font-size:10px;letter-spacing:.4px;">Гость</th>
+            <th class="text-uppercase text-muted fw-semibold" style="font-size:10px;letter-spacing:.4px;">Тональность</th>
+            <th class="text-uppercase text-muted fw-semibold" style="font-size:10px;letter-spacing:.4px;">ИИ-комментарий</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for conv in recent %}
+          <tr>
+            <td class="text-muted text-nowrap">{{ conv.last_message_at|date:"d.m.Y H:i" }}</td>
+            <td>{{ conv.branch.name }}</td>
+            <td>{% if conv.client %}{{ conv.client.client.first_name|default:"—" }}{% else %}VK {{ conv.vk_sender_id }}{% endif %}</td>
+            <td>
+              {% if conv.sentiment == 'POSITIVE' %}<span class="s-badge" style="background:#16a34a;">Позитивный</span>
+              {% elif conv.sentiment == 'NEGATIVE' %}<span class="s-badge" style="background:#dc2626;">Негативный</span>
+              {% elif conv.sentiment == 'PARTIALLY_NEGATIVE' %}<span class="s-badge" style="background:#f59e0b;">Частично негат.</span>
+              {% elif conv.sentiment == 'NEUTRAL' %}<span class="s-badge" style="background:#6b7280;">Нейтральный</span>
+              {% elif conv.sentiment == 'SPAM' %}<span class="s-badge" style="background:#9ca3af;">Спам</span>
+              {% else %}<span class="s-badge" style="background:#3b82f6;">Ожидает</span>
+              {% endif %}
+            </td>
+            <td class="text-muted">{{ conv.ai_comment|truncatechars:100 }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+  {% endwith %}
+
+</div>
+
+<script>
+(function(){
+  var data = {{ sentiment_json|safe }};
+  var hasData = data.some(function(d){return d.count > 0;});
+  var ctx = document.getElementById('sentimentChart');
+  if(!ctx || !hasData) return;
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: data.map(function(d){return d.label;}),
+      datasets:[{ data: data.map(function(d){return d.count;}), backgroundColor: data.map(function(d){return d.color;}), borderWidth: 2 }]
+    },
+    options: { plugins: {legend: {display: false}}, cutout: '65%', animation: {duration: 500} }
+  });
+})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %}

@@ -1,0 +1,114 @@
+{% extends "admin/index.html" %}
+{% load i18n %}
+
+{% block nav-sidebar %}
+  {% include "admin/nav_sidebar.html" %}
+{% endblock %}
+
+{% block sidebar %}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+#content{max-width:none!important;width:100%!important;}
+#content-main{max-width:none!important;width:100%!important;}
+.inf-wrap{margin:0 0 30px;}
+.inf-head{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;}
+.inf-title{font-size:28px;font-weight:900;color:#1a2744;line-height:1.2;}
+.inf-title span{color:#2e7d32;}
+.inf-subtitle{font-size:13px;color:#888;margin-top:4px;}
+.inf-btn{display:inline-block;padding:8px 22px;background:#2e7d32;color:#fff!important;text-decoration:none;border-radius:20px;font-size:13px;font-weight:600;}
+.inf-btn:hover{background:#1b5e20;color:#fff!important;}
+
+.inf-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:24px;}
+.inf-stat{background:#fff;border:1px solid #e8e8e8;border-radius:10px;padding:16px 20px;}
+.inf-stat-label{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#999;font-weight:600;}
+.inf-stat-val{font-size:28px;font-weight:800;color:#1a2744;margin:4px 0 2px;}
+.inf-stat-sub{font-size:11px;color:#aaa;}
+
+.inf-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;}
+@media(max-width:1100px){.inf-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:700px){.inf-grid{grid-template-columns:1fr;}}
+.inf-card{background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:10px;position:relative;}
+.inf-card-head{display:flex;align-items:flex-start;justify-content:space-between;}
+.inf-card-name{font-size:15px;font-weight:800;text-transform:uppercase;color:#1a2744;letter-spacing:.3px;}
+.inf-card-badge{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.3px;}
+.inf-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-left:6px;vertical-align:middle;}
+.inf-dot.active{background:#2e7d32;}
+.inf-dot.inactive{background:#d32f2f;}
+.inf-card-domain{font-size:12px;color:#888;display:flex;align-items:center;gap:4px;}
+.inf-card-domain::before{content:'';width:6px;height:6px;border-radius:50%;background:#aaa;flex-shrink:0;}
+.inf-card-paid{font-size:11px;color:#2e7d32;font-weight:500;}
+.inf-card-branches{font-size:12px;color:#999;padding:10px 0;border-top:1px solid #f0f0f0;margin-top:auto;}
+.inf-card-foot{display:flex;align-items:center;gap:8px;padding-top:10px;border-top:1px solid #f0f0f0;}
+.inf-card-link{flex:1;text-align:center;padding:7px 0;border:1px solid #ddd;border-radius:8px;color:#555;text-decoration:none;font-size:12px;font-weight:500;transition:all .15s;}
+.inf-card-link:hover{border-color:#1a2744;color:#1a2744;}
+.inf-card-edit{width:32px;height:32px;border-radius:8px;border:1px solid #ddd;display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:14px;transition:all .15s;}
+.inf-card-edit:hover{border-color:#e8a838;background:#fef9ee;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main" class="app-list">
+
+  <div class="inf-wrap">
+    <div class="inf-head">
+      <div>
+        <div class="inf-title">Клиентская <span>Инфраструктура</span></div>
+        <div class="inf-subtitle">Управление активными тенантами, доменами и точками</div>
+      </div>
+      {% if request.user.is_superuser %}<a href="{% url 'public_admin:clients_company_add' %}" class="inf-btn">+ Новый клиент</a>{% endif %}
+    </div>
+
+    <div class="inf-stats">
+      <div class="inf-stat">
+        <div class="inf-stat-label">Всего клиентов</div>
+        <div class="inf-stat-val">{{ infra_total }}</div>
+        <div class="inf-stat-sub">тенантов</div>
+      </div>
+      <div class="inf-stat">
+        <div class="inf-stat-label">Активных</div>
+        <div class="inf-stat-val">{{ infra_active }}</div>
+        <div class="inf-stat-sub">в работе</div>
+      </div>
+      <div class="inf-stat">
+        <div class="inf-stat-label">Всего точек</div>
+        <div class="inf-stat-val">{{ infra_branches }}</div>
+        <div class="inf-stat-sub">ресторанов</div>
+      </div>
+      <div class="inf-stat">
+        <div class="inf-stat-label">Доменов</div>
+        <div class="inf-stat-val">{{ infra_domains }}</div>
+        <div class="inf-stat-sub">настроено</div>
+      </div>
+    </div>
+
+    <div class="inf-grid">
+      {% for card in infra_cards %}
+      <div class="inf-card">
+        <div class="inf-card-head">
+          <div class="inf-card-name">{{ card.name }}</div>
+          <div class="inf-card-badge">Точки<span class="inf-dot {% if card.is_active %}active{% else %}inactive{% endif %}"></span></div>
+        </div>
+        <div class="inf-card-domain">{{ card.domain }}</div>
+        {% if card.paid_until %}
+        <div class="inf-card-paid">&#10003; Оплачено до {{ card.paid_until|date:"d.m.Y" }}</div>
+        {% endif %}
+        <div class="inf-card-branches">
+          {% if card.branch_count %}
+            {{ card.branch_count }} точ{{ card.branch_count|pluralize:"ка,ки,ек" }}
+          {% else %}
+            Нет настроенных точек
+          {% endif %}
+        </div>
+        <div class="inf-card-foot">
+          <a href="{{ card.admin_url }}" class="inf-card-link" target="_blank">Открыть управление &rarr;</a>
+          <a href="{% url 'public_admin:clients_company_change' card.id %}" class="inf-card-edit" title="Редактировать">&#9998;</a>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

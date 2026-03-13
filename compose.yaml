@@ -1,0 +1,113 @@
+
+services:
+
+  web:
+    build: .
+    container_name: web
+    restart: always
+    ports:
+      - "7000:7000"
+    env_file:
+      - .env/.env.dev
+    environment:
+      - POSTGRES_HOST=db
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    volumes:
+      - ./staticfiles:/app/staticfiles
+      - ./media:/app/media
+    networks:
+      - backend
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    container_name: database
+    restart: always
+    ports:
+      - 5432:5432
+    env_file:
+      - .env/.env.dev
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U levone"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - backend
+    command: redis-server --appendonly yes
+    volumes:
+      - ./redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  celery-worker:
+    build: .
+    container_name: celery-worker
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - .:/app
+      - ./media:/app/media
+    env_file:
+      - .env/.env.dev
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - POSTGRES_HOST=db
+    networks:
+      - backend
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A main worker --loglevel=info --concurrency=2
+
+  celery-beat:
+    build: .
+    container_name: celery-beat
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - .:/app
+    env_file:
+      - .env/.env.dev
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - POSTGRES_HOST=db
+    networks:
+      - backend
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A main beat --loglevel=info
+
+volumes:
+  postgres_data:
+
+
+networks:
+  backend:
+    driver: bridge

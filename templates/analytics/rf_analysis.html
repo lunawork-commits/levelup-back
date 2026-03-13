@@ -1,0 +1,779 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}RF-анализ — {{ block.super }}{% endblock %}
+
+{% block extrastyle %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --navy:   #1a2744;
+    --navy2:  #2d3a60;
+    --green:  #16a34a;
+    --blue:   #1d72b8;
+    --orange: #d97706;
+    --red:    #dc2626;
+    --purple: #7c3aed;
+    --teal:   #0d9488;
+    --card-radius: 12px;
+  }
+
+  .rf-wrap { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1e293b; max-width: 1300px; }
+
+  /* ── Page header ─────────────────────────────────────── */
+  .rf-header {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy2) 100%);
+    color: #fff;
+    padding: 22px 28px;
+    border-radius: var(--card-radius);
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .rf-header-left { display: flex; flex-direction: column; gap: 4px; }
+  .rf-header-title { font-size: 22px; font-weight: 700; letter-spacing: -.3px; }
+  .rf-header-meta { font-size: 12px; opacity: .65; }
+  .rf-header-back {
+    color: rgba(255,255,255,.7);
+    font-size: 12px;
+    text-decoration: none;
+    border: 1px solid rgba(255,255,255,.25);
+    padding: 5px 14px;
+    border-radius: 20px;
+    transition: all .15s;
+  }
+  .rf-header-back:hover { background: rgba(255,255,255,.1); color: #fff; }
+
+  /* ── Toolbar ─────────────────────────────────────────── */
+  .rf-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .rf-mode-group { display: flex; gap: 0; border-radius: 8px; overflow: hidden; border: 1px solid #d0d7de; }
+  .rf-mode-btn {
+    padding: 7px 18px;
+    background: #fff;
+    color: #555;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    border: none;
+    cursor: pointer;
+    transition: all .15s;
+    border-right: 1px solid #d0d7de;
+  }
+  .rf-mode-btn:last-child { border-right: none; }
+  .rf-mode-btn.active { background: var(--navy); color: #fff; }
+  .rf-mode-btn:hover:not(.active) { background: #f5f7fa; }
+
+  .branch-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+  .branch-tab {
+    padding: 5px 13px;
+    border-radius: 20px;
+    border: 1px solid #d0d7de;
+    background: #fff;
+    color: #555;
+    font-size: 11px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all .15s;
+  }
+  .branch-tab:hover { border-color: var(--navy); color: var(--navy); }
+  .branch-tab.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+
+  /* ── Summary cards ───────────────────────────────────── */
+  .summary-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  @media (max-width: 900px) { .summary-cards { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 480px) { .summary-cards { grid-template-columns: 1fr; } }
+
+  .sc {
+    background: #fff;
+    border-radius: var(--card-radius);
+    padding: 18px 20px;
+    border: 1px solid #e8edf3;
+    box-shadow: 0 2px 8px rgba(0,0,0,.04);
+    position: relative;
+    overflow: hidden;
+  }
+  .sc::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .sc-blue::before  { background: var(--blue); }
+  .sc-purple::before { background: var(--purple); }
+  .sc-orange::before { background: var(--orange); }
+  .sc-red::before   { background: var(--red); }
+
+  .sc-label { font-size: 11px; color: #8898aa; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+  .sc-value { font-size: 32px; font-weight: 800; line-height: 1; }
+  .sc-sub   { font-size: 11px; color: #aaa; margin-top: 4px; }
+  .sc-blue   .sc-value { color: var(--blue); }
+  .sc-purple .sc-value { color: var(--purple); }
+  .sc-orange .sc-value { color: var(--orange); }
+  .sc-red    .sc-value { color: var(--red); }
+
+  /* ── Main content grid ───────────────────────────────── */
+  .rf-content { display: grid; grid-template-columns: 1fr 360px; gap: 18px; align-items: start; }
+  @media (max-width: 1000px) { .rf-content { grid-template-columns: 1fr; } }
+
+  /* ── RF Matrix ───────────────────────────────────────── */
+  .rf-matrix-card {
+    background: #fff;
+    border-radius: var(--card-radius);
+    border: 1px solid #e8edf3;
+    box-shadow: 0 2px 8px rgba(0,0,0,.04);
+    overflow: hidden;
+  }
+  .rf-matrix-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 14px;
+    font-weight: 700;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .rf-matrix-header-sub { font-size: 11px; color: #aaa; font-weight: 400; }
+
+  .rf-matrix-body { padding: 16px 20px 20px; }
+
+  .rf-matrix-grid {
+    display: grid;
+    gap: 2px;
+  }
+  .rf-matrix-label-row {
+    display: contents;
+  }
+  .rf-matrix-f-header {
+    background: #f8fafc;
+    border-radius: 6px;
+    padding: 8px 4px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: #4b5563;
+  }
+  .rf-matrix-f-header .f-label { font-size: 14px; color: #1e293b; }
+  .rf-matrix-f-header .f-name  { font-size: 10px; color: #94a3b8; }
+  .rf-matrix-f-header .f-range { font-size: 9px; color: #cbd5e1; }
+
+  .rf-matrix-r-header {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0 8px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #4b5563;
+    text-align: right;
+  }
+  .rf-matrix-r-header .r-label { font-size: 16px; color: #1e293b; }
+  .rf-matrix-r-header .r-name  { font-size: 10px; color: #94a3b8; }
+  .rf-matrix-r-header .r-range { font-size: 9px; color: #cbd5e1; }
+
+  .rf-cell {
+    border-radius: 8px;
+    padding: 12px 10px;
+    cursor: pointer;
+    transition: all .15s;
+    position: relative;
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+  .rf-cell:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.12); z-index: 1; }
+  .rf-cell.selected { box-shadow: 0 0 0 3px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.12); transform: translateY(-2px); z-index: 2; }
+
+  .rf-cell-emoji  { font-size: 20px; line-height: 1; margin-bottom: 4px; }
+  .rf-cell-name   { font-size: 10px; font-weight: 600; color: rgba(0,0,0,.6); margin-bottom: 6px; line-height: 1.2; }
+  .rf-cell-count  { font-size: 22px; font-weight: 900; color: rgba(0,0,0,.75); line-height: 1; }
+  .rf-cell-pct    { font-size: 10px; color: rgba(0,0,0,.45); margin-top: 2px; }
+
+  /* ── Segment detail panel ────────────────────────────── */
+  .rf-detail-panel {
+    background: #fff;
+    border-radius: var(--card-radius);
+    border: 1px solid #e8edf3;
+    box-shadow: 0 2px 8px rgba(0,0,0,.04);
+    overflow: hidden;
+    position: sticky;
+    top: 20px;
+  }
+  .rf-detail-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .rf-detail-title { font-size: 14px; font-weight: 700; color: #1e293b; margin-bottom: 2px; }
+  .rf-detail-sub   { font-size: 11px; color: #aaa; }
+
+  .rf-detail-body { padding: 16px 20px; }
+  .rf-detail-segment-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 14px;
+    color: black;
+  }
+  .rf-detail-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .rf-detail-stat {
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 10px 12px;
+    text-align: center;
+  }
+  .rf-detail-stat-val  { font-size: 24px; font-weight: 800; color: #1e293b; }
+  .rf-detail-stat-label { font-size: 10px; color: #94a3b8; margin-top: 2px; }
+
+  .rf-detail-strategy {
+    font-size: 12px;
+    color: #64748b;
+    line-height: 1.6;
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 14px;
+    border-left: 3px solid #e2e8f0;
+  }
+  .rf-detail-strategy-title { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px; letter-spacing: .5px; }
+
+  .rf-detail-no-selection {
+    padding: 40px 20px;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 13px;
+  }
+  .rf-detail-no-selection .icon { font-size: 40px; margin-bottom: 10px; }
+
+  /* ── Guest list ──────────────────────────────────────── */
+  .guest-list-card {
+    background: #fff;
+    border-radius: var(--card-radius);
+    border: 1px solid #e8edf3;
+    box-shadow: 0 2px 8px rgba(0,0,0,.04);
+    overflow: hidden;
+    margin-top: 18px;
+    grid-column: 1 / -1;
+  }
+  .guest-list-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .guest-list-title { font-size: 13px; font-weight: 700; color: #1e293b; }
+  .guest-list-count { font-size: 12px; color: #94a3b8; background: #f1f5f9; padding: 3px 10px; border-radius: 10px; }
+
+  .guest-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .guest-table th {
+    text-align: left;
+    padding: 10px 14px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: #94a3b8;
+    border-bottom: 1px solid #f0f4f8;
+    background: #f8fafc;
+    font-weight: 600;
+  }
+  .guest-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #f8fafc;
+    vertical-align: middle;
+    color: #374151;
+  }
+  .guest-table tbody tr:hover td { background: #f8fbff; }
+  .guest-table tbody tr:last-child td { border-bottom: none; }
+  .guest-vk-id { font-size: 10px; color: #94a3b8; }
+  .guest-name  { font-weight: 600; color: #1e293b; }
+  .guest-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  /* ── Empty state ─────────────────────────────────────── */
+  .empty-state {
+    padding: 40px;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 13px;
+  }
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+
+  /* ── Migration section ───────────────────────────────── */
+  .migration-card {
+    background: #fff;
+    border-radius: var(--card-radius);
+    border: 1px solid #e8edf3;
+    box-shadow: 0 2px 8px rgba(0,0,0,.04);
+    overflow: hidden;
+    margin-top: 18px;
+  }
+  .migration-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .migration-title { font-size: 13px; font-weight: 700; color: #1e293b; }
+  .migration-link  { font-size: 11px; color: var(--blue); text-decoration: none; }
+  .migration-link:hover { text-decoration: underline; }
+  .migration-list  { padding: 12px 16px; display: flex; flex-direction: column; gap: 6px; }
+  .migration-row   {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    padding: 8px 12px;
+    background: #f8fafc;
+    border-radius: 8px;
+  }
+  .migration-from  { font-weight: 600; color: #c0392b; }
+  .migration-to    { font-weight: 600; color: #16a34a; }
+  .migration-arrow { color: #94a3b8; font-size: 14px; flex-shrink: 0; }
+  .migration-count {
+    margin-left: auto;
+    background: var(--navy);
+    color: #fff;
+    padding: 2px 9px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 700;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="rf-wrap">
+
+  <!-- ── Page header ─────────────────────────────────────── -->
+  <div class="rf-header">
+    <div class="rf-header-left">
+      <div class="rf-header-title">🎯 RF-Анализ гостей</div>
+      <div class="rf-header-meta">
+        {% if active_branches %}
+          {% for b in active_branches %}{{ b.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+        {% else %}
+          Все торговые точки
+        {% endif %}
+        &nbsp;·&nbsp; Обновлено: {{ updated_at }}
+      </div>
+    </div>
+    <a href="{% url 'analytics-general' %}" class="rf-header-back">← Общая статистика</a>
+  </div>
+
+  <!-- ── Toolbar ─────────────────────────────────────────── -->
+  <div class="rf-toolbar">
+    <!-- Mode switcher -->
+    <div class="rf-mode-group">
+      <a href="?mode=restaurant{% if active_branch_ids %}&branches={% for id in active_branch_ids %}{{ id }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}"
+         class="rf-mode-btn {% if active_mode == 'restaurant' %}active{% endif %}">
+        🍽 Кафе
+      </a>
+      <a href="?mode=delivery{% if active_branch_ids %}&branches={% for id in active_branch_ids %}{{ id }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}"
+         class="rf-mode-btn {% if active_mode == 'delivery' %}active{% endif %}">
+        🛵 Доставка
+      </a>
+    </div>
+
+    <!-- Migration link -->
+    <a href="{% url 'analytics-rf-migration' %}?mode={{ active_mode }}{% if active_branch_ids %}&branches={% for id in active_branch_ids %}{{ id }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}"
+       style="font-size:12px;color:var(--blue);text-decoration:none;padding:7px 14px;border:1px solid #d0d7de;border-radius:8px;background:#fff;">
+      📊 История миграций
+    </a>
+
+    <!-- Recalculate button -->
+    <button id="btn-recalc" onclick="recalcRF()"
+      style="font-size:12px;font-weight:600;padding:7px 16px;border:1px solid #d0d7de;border-radius:8px;background:#fff;cursor:pointer;color:#374151;transition:all .15s;">
+      🔄 Пересчитать
+    </button>
+    <span id="recalc-status" style="font-size:11px;color:#94a3b8;display:none;"></span>
+
+    <!-- Branch tabs -->
+    <div class="branch-tabs">
+      <a href="?mode={{ active_mode }}" class="branch-tab {% if not active_branch_ids %}active{% endif %}">Все</a>
+      {% for b in branches %}
+      <a href="?mode={{ active_mode }}&branches={{ b.id }}"
+         class="branch-tab {% if b.id in active_branch_ids %}active{% endif %}">{{ b.name }}</a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- ── Summary cards ───────────────────────────────────── -->
+  <div class="summary-cards">
+    <div class="sc sc-blue">
+      <div class="sc-label">Оцифровано гостей</div>
+      <div class="sc-value">{% if active_mode == 'delivery' %}{{ rf_delivery.summary.total }}{% else %}{{ rf.summary.total }}{% endif %}</div>
+      <div class="sc-sub">Всего в базе</div>
+    </div>
+    <div class="sc sc-purple">
+      <div class="sc-label">VIP-сегменты F3</div>
+      <div class="sc-value">{% if active_mode == 'delivery' %}{{ rf_delivery.summary.vip_f3 }}{% else %}{{ rf.summary.vip_f3 }}{% endif %}</div>
+      <div class="sc-sub">Частые гости</div>
+    </div>
+    <div class="sc sc-orange">
+      <div class="sc-label">Под угрозой R1</div>
+      <div class="sc-value">{% if active_mode == 'delivery' %}{{ rf_delivery.summary.at_risk }}{% else %}{{ rf.summary.at_risk }}{% endif %}</div>
+      <div class="sc-sub">Начинают остывать</div>
+    </div>
+    <div class="sc sc-red">
+      <div class="sc-label">Потерянные R0</div>
+      <div class="sc-value">{% if active_mode == 'delivery' %}{{ rf_delivery.summary.lost_r0 }}{% else %}{{ rf.summary.lost_r0 }}{% endif %}</div>
+      <div class="sc-sub">Не приходят давно</div>
+    </div>
+  </div>
+
+  <!-- ── Matrix + Detail panel ───────────────────────────── -->
+  <div class="rf-content">
+    <!-- RF Matrix -->
+    <div class="rf-matrix-card">
+      <div class="rf-matrix-header">
+        <span>RF-Матрица сегментов</span>
+        <span class="rf-matrix-header-sub">Нажмите на ячейку для просмотра гостей</span>
+      </div>
+      <div class="rf-matrix-body">
+        <div id="matrix-container"></div>
+      </div>
+    </div>
+
+    <!-- Detail panel -->
+    <div class="rf-detail-panel" id="detail-panel">
+      <div class="rf-detail-header">
+        <div class="rf-detail-title">Детали сегмента</div>
+        <div class="rf-detail-sub">Выберите ячейку матрицы</div>
+      </div>
+      <div id="detail-body">
+        <div class="rf-detail-no-selection">
+          <div class="icon">🎯</div>
+          <div>Кликните на ячейку матрицы,<br>чтобы увидеть детали сегмента</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Guest list (full width) -->
+    <div class="guest-list-card" id="guest-list-card" style="display:none;">
+      <div class="guest-list-header">
+        <div class="guest-list-title" id="guest-list-title">Гости сегмента</div>
+        <div class="guest-list-count" id="guest-list-count">0 гостей</div>
+      </div>
+      <div id="guest-list-body">
+        <div class="empty-state"><div class="icon">👥</div>Загрузка...</div>
+      </div>
+    </div>
+
+    <!-- Migration top flows -->
+    <div class="migration-card" style="grid-column: 1 / -1;">
+      <div class="migration-header">
+        <div class="migration-title">Топ миграций между сегментами (последние 30 дней)</div>
+        <a href="{% url 'analytics-rf-migration' %}?mode={{ active_mode }}{% if active_branch_ids %}&branches={% for id in active_branch_ids %}{{ id }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}"
+           class="migration-link">Полная история →</a>
+      </div>
+      {% if active_mode == 'delivery' %}
+        {% if rf_delivery.migrations %}
+        <div class="migration-list">
+          {% for m in rf_delivery.migrations|slice:":12" %}
+          <div class="migration-row">
+            <span class="migration-from">{{ m.from_emoji }} {{ m.from_name }}</span>
+            <span class="migration-arrow">→</span>
+            <span class="migration-to">{{ m.to_emoji }} {{ m.to_name }}</span>
+            <span class="migration-count">{{ m.count }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding:24px;"><div>Нет данных о миграциях за последние 30 дней</div></div>
+        {% endif %}
+      {% else %}
+        {% if rf.migrations %}
+        <div class="migration-list">
+          {% for m in rf.migrations|slice:":12" %}
+          <div class="migration-row">
+            <span class="migration-from">{{ m.from_emoji }} {{ m.from_name }}</span>
+            <span class="migration-arrow">→</span>
+            <span class="migration-to">{{ m.to_emoji }} {{ m.to_name }}</span>
+            <span class="migration-count">{{ m.count }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding:24px;"><div>Нет данных о миграциях за последние 30 дней</div></div>
+        {% endif %}
+      {% endif %}
+    </div>
+
+  </div><!-- /rf-content -->
+</div><!-- /rf-wrap -->
+
+<script>
+const RF_DATA = {{ rf_json|safe }};
+const RF_DELIVERY_DATA = {{ rf_delivery_json|safe }};
+const ACTIVE_MODE = "{{ active_mode }}";
+const BRANCH_PARAM = "{% if active_branch_ids %}branches={% for id in active_branch_ids %}{{ id }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}";
+
+const matrixData = ACTIVE_MODE === 'delivery' ? RF_DELIVERY_DATA : RF_DATA;
+
+// ── Build matrix grid ──────────────────────────────────────────────
+function buildMatrix() {
+  const { r_levels, f_levels, cells, total } = matrixData;
+  if (!r_levels || !r_levels.length) {
+    document.getElementById('matrix-container').innerHTML =
+      '<div class="empty-state"><div class="icon">📊</div>Нет данных. Запустите пересчёт RF-метрик.</div>';
+    return;
+  }
+
+  const cols = f_levels.length + 1; // +1 for R label column
+  const container = document.getElementById('matrix-container');
+
+  // CSS grid
+  container.style.display = 'grid';
+  container.style.gridTemplateColumns = `90px repeat(${f_levels.length}, 1fr)`;
+  container.style.gap = '6px';
+
+  // Header row: empty corner + F labels
+  const corner = document.createElement('div');
+  corner.style.cssText = 'display:flex;align-items:flex-end;justify-content:center;padding-bottom:8px;font-size:10px;color:#94a3b8;text-align:center;';
+  corner.innerHTML = '← F (частота)<br>R (давность) ↓';
+  container.appendChild(corner);
+
+  f_levels.forEach(fl => {
+    const el = document.createElement('div');
+    el.className = 'rf-matrix-f-header';
+    el.innerHTML = `<div class="f-label">${fl.label}</div><div class="f-name">${fl.name}</div><div class="f-range">${fl.range}</div>`;
+    container.appendChild(el);
+  });
+
+  // Data rows
+  r_levels.forEach(rl => {
+    // R label
+    const rLabel = document.createElement('div');
+    rLabel.className = 'rf-matrix-r-header';
+    rLabel.innerHTML = `<div class="r-label">${rl.label}</div><div class="r-name">${rl.name}</div><div class="r-range">${rl.range}</div>`;
+    container.appendChild(rLabel);
+
+    // Cells
+    f_levels.forEach(fl => {
+      const key = `${rl.r_score}_${fl.f_score}`;
+      const cell = cells[key] || { segment_emoji: '', segment_name: '—', count: 0, pct: 0, segment_color: '#e8e8e8', r_score: rl.r_score, f_score: fl.f_score, segment_strategy: '' };
+
+      const bg = cell.segment_color || '#e8e8e8';
+      // Lighten for background: add alpha
+      const el = document.createElement('div');
+      el.className = 'rf-cell';
+      el.style.background = bg + '22';
+      el.style.border = `2px solid ${bg}44`;
+      el.dataset.r = rl.r_score;
+      el.dataset.f = fl.f_score;
+      el.innerHTML = `
+        <div class="rf-cell-emoji">${cell.segment_emoji || ''}</div>
+        <div class="rf-cell-name">${cell.segment_name || '—'}</div>
+        <div class="rf-cell-count" style="color:${bg}">${cell.count}</div>
+        <div class="rf-cell-pct">${cell.pct}%</div>
+      `;
+      el.addEventListener('click', () => selectCell(rl.r_score, fl.f_score, cell, bg));
+      container.appendChild(el);
+    });
+  });
+}
+
+// ── Cell selection ─────────────────────────────────────────────────
+let selectedR = null, selectedF = null;
+
+function selectCell(r, f, cell, color) {
+  // Deselect previous
+  document.querySelectorAll('.rf-cell.selected').forEach(c => c.classList.remove('selected'));
+  // Select new
+  const el = document.querySelector(`.rf-cell[data-r="${r}"][data-f="${f}"]`);
+  if (el) el.classList.add('selected');
+
+  selectedR = r; selectedF = f;
+
+  // Update detail panel
+  const detailBody = document.getElementById('detail-body');
+  detailBody.innerHTML = `
+    <div style="padding:16px 20px;">
+      <div class="rf-detail-segment-badge" style="background:${color};">
+        ${cell.segment_emoji || ''} ${cell.segment_name || '—'}
+      </div>
+      <div class="rf-detail-stats">
+        <div class="rf-detail-stat">
+          <div class="rf-detail-stat-val" style="color:${color};">${cell.count}</div>
+          <div class="rf-detail-stat-label">Гостей</div>
+        </div>
+        <div class="rf-detail-stat">
+          <div class="rf-detail-stat-val" style="color:${color};">${cell.pct}%</div>
+          <div class="rf-detail-stat-label">Доля</div>
+        </div>
+        <div class="rf-detail-stat">
+          <div class="rf-detail-stat-val">R${r - 1}</div>
+          <div class="rf-detail-stat-label">Давность</div>
+        </div>
+        <div class="rf-detail-stat">
+          <div class="rf-detail-stat-val">F${f}</div>
+          <div class="rf-detail-stat-label">Частота</div>
+        </div>
+      </div>
+      ${cell.segment_strategy ? `
+        <div class="rf-detail-strategy">
+          <div class="rf-detail-strategy-title">📋 Стратегия</div>
+          ${cell.segment_strategy}
+        </div>
+      ` : ''}
+      ${cell.count > 0 ? `
+        <button onclick="loadGuests(${r}, ${f})"
+          style="width:100%;padding:9px;background:${color};color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">
+          👥 Показать гостей (${cell.count})
+        </button>
+      ` : ''}
+    </div>
+  `;
+}
+
+// ── Load guests ────────────────────────────────────────────────────
+function loadGuests(r, f) {
+  const card = document.getElementById('guest-list-card');
+  const body = document.getElementById('guest-list-body');
+  const title = document.getElementById('guest-list-title');
+  const count = document.getElementById('guest-list-count');
+
+  card.style.display = '';
+  body.innerHTML = '<div class="empty-state"><div class="icon">⏳</div>Загрузка гостей...</div>';
+  card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  const params = new URLSearchParams();
+  params.set('r_score', r);
+  params.set('f_score', f);
+  params.set('mode', ACTIVE_MODE);
+  if (BRANCH_PARAM) params.set('branch_ids', BRANCH_PARAM.replace('branches=', ''));
+
+  fetch(`/api/v1/analytics/rf/?${params.toString()}`)
+    .then(r => r.json())
+    .then(data => {
+      const guests = data.guests || [];
+      title.textContent = `Гости: ${data.segment_name || 'Сегмент'} (R${r-1} · F${f})`;
+      count.textContent = `${guests.length} чел.`;
+
+      if (!guests.length) {
+        body.innerHTML = '<div class="empty-state"><div class="icon">👥</div>Нет гостей в этом сегменте</div>';
+        return;
+      }
+
+      const rows = guests.map((g, i) => `
+        <tr>
+          <td style="color:#94a3b8;font-size:11px;">${i + 1}</td>
+          <td>
+            <div class="guest-name">${g.first_name || ''} ${g.last_name || ''}</div>
+            <div class="guest-vk-id">VK ID: ${g.vk_id}</div>
+          </td>
+          <td>${g.last_visit}</td>
+          <td>${g.frequency}</td>
+          <td>${g.recency_days} дн.</td>
+          <td style="font-weight:700;">${g.coins}</td>
+        </tr>
+      `).join('');
+
+      body.innerHTML = `
+        <table class="guest-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Гость</th>
+              <th>Последний визит</th>
+              <th>Визитов</th>
+              <th>Давность</th>
+              <th>Коины</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+    })
+    .catch(() => {
+      body.innerHTML = '<div class="empty-state"><div class="icon">⚠️</div>Ошибка загрузки</div>';
+    });
+}
+
+// ── Init ───────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', buildMatrix);
+
+// ── Recalculate RF ─────────────────────────────────────────────────
+function recalcRF() {
+  const btn    = document.getElementById('btn-recalc');
+  const status = document.getElementById('recalc-status');
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Считаем...';
+  btn.style.opacity = '0.6';
+  status.style.display = 'inline';
+  status.style.color   = '#94a3b8';
+  status.textContent   = 'Идёт пересчёт...';
+
+  const body = new URLSearchParams();
+  body.set('mode', ACTIVE_MODE);
+  if (BRANCH_PARAM) body.set('branch_ids', BRANCH_PARAM.replace('branches=', ''));
+
+  fetch('/api/v1/analytics/rf/recalculate/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': getCookie('csrftoken')},
+    body: body.toString(),
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.detail || data.non_field_errors) {
+        status.style.color = '#dc2626';
+        status.textContent = 'Ошибка: ' + (data.detail || JSON.stringify(data));
+      } else {
+        status.style.color = '#16a34a';
+        status.textContent = `✓ Готово: обновлено ${data.updated}, создано ${data.created}, миграций ${data.migrations} (${data.duration_ms} мс)`;
+        setTimeout(() => location.reload(), 1500);
+      }
+    })
+    .catch(() => {
+      status.style.color = '#dc2626';
+      status.textContent = 'Ошибка соединения';
+    })
+    .finally(() => {
+      btn.disabled = false;
+      btn.textContent = '🔄 Пересчитать';
+      btn.style.opacity = '1';
+    });
+}
+
+function getCookie(name) {
+  const m = document.cookie.match('(?:^|;)\\s*' + name + '=([^;]*)');
+  return m ? decodeURIComponent(m[1]) : '';
+}
+</script>
+{% endblock %}
