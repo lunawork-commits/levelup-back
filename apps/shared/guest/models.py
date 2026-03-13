@@ -21,7 +21,7 @@ class Client(TimeStampedModel):
     )
     first_name = models.CharField(max_length=255, blank=True, verbose_name='Имя', help_text='Берётся из VK API.')
     last_name = models.CharField(max_length=255, blank=True, verbose_name='Фамилия', help_text='Берётся из VK API.')
-    photo_url = models.URLField(blank=True, verbose_name='Фото', help_text='Ссылка на аватар из VK.')
+    photo_url = models.URLField(max_length=500, blank=True, verbose_name='Фото', help_text='Ссылка на аватар из VK.')
     gender = models.CharField(
         max_length=1,
         choices=Gender.choices,
