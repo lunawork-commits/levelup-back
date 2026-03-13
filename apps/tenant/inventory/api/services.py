@@ -205,6 +205,13 @@ def claim_super_prize(vk_id: int, branch_id: int, product_id: int) -> SuperPrize
         raise ProductNotFound
 
     entry.claim(product)
+
+    InventoryItem.objects.create(
+        client_branch=cb,
+        product=product,
+        acquired_from=AcquisitionSource.SUPER_PRIZE,
+    )
+
     return entry
 
 
