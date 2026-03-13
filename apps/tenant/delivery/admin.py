@@ -149,7 +149,7 @@ class DeliveryAdmin(admin.ModelAdmin):
         if not obj.activated_by_id:
             return mark_safe('<span style="color:var(--body-quiet-color,#aaa);">—</span>')
         c = obj.activated_by.client
-        return c.name or c.phone
+        return c.first_name or c.phone
 
     @admin.display(description='Статус')
     def status_display(self, obj):

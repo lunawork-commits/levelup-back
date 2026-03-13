@@ -432,7 +432,7 @@ class CooldownAdmin(admin.ModelAdmin):
     @admin.display(description='Гость', ordering='client__client__name')
     def client_col(self, obj):
         c = obj.client.client
-        return c.name or c.phone
+        return c.first_name or c.phone
 
     @admin.display(description='Точка', ordering='client__branch__name')
     def branch_col(self, obj):

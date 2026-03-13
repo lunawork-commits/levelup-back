@@ -85,7 +85,7 @@ class ClientAttemptAdmin(admin.ModelAdmin):
     @admin.display(description='Гость', ordering='client__client__name')
     def client_col(self, obj):
         c = obj.client.client
-        return c.name or c.phone
+        return c.fist_name or c.phone
 
     @admin.display(description='Точка', ordering='client__branch__name')
     def branch_col(self, obj):
@@ -96,5 +96,5 @@ class ClientAttemptAdmin(admin.ModelAdmin):
         if not obj.served_by_id:
             return mark_safe(f'<span style="{_NONE_STYLE}">—</span>')
         c = obj.served_by.client
-        label = c.name or c.phone
+        label = c.first_name or c.phone
         return format_html('<span style="{}">👤 {}</span>', _EMPLOYEE_STYLE, label)
