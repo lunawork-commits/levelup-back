@@ -142,7 +142,7 @@ class GuestRFScoreAdmin(admin.ModelAdmin):
     )
     list_display_links = ('client_col',)
     list_filter = ('segment', RScoreFilter, FScoreFilter, 'client__branch')
-    search_fields = ('client__client__name', 'client__client__phone')
+    search_fields = ('client__client__first_name', 'client__client__last_name')
     list_select_related = ('client__client', 'client__branch', 'segment')
     readonly_fields = ('calculated_at',)
 
@@ -164,10 +164,10 @@ class GuestRFScoreAdmin(admin.ModelAdmin):
             'client__client', 'client__branch', 'segment',
         )
 
-    @admin.display(description='Гость', ordering='client__client__name')
+    @admin.display(description='Гость', ordering='client__client__first_name')
     def client_col(self, obj):
         c = obj.client.client
-        return c.first_name or c.phone
+        return c.first_name or f'vk{c.vk_id}'
 
     @admin.display(description='Точка', ordering='client__branch__name')
     def branch_col(self, obj):
@@ -197,7 +197,7 @@ class RFMigrationLogAdmin(admin.ModelAdmin):
     )
     list_display_links = ('client_col',)
     list_filter = ('from_segment', 'to_segment', 'client__branch')
-    search_fields = ('client__client__name', 'client__client__phone')
+    search_fields = ('client__client__first_name', 'client__client__last_name')
     list_select_related = ('client__client', 'client__branch', 'from_segment', 'to_segment')
     date_hierarchy = 'created_at'
     readonly_fields = ('created_at',)
@@ -210,10 +210,10 @@ class RFMigrationLogAdmin(admin.ModelAdmin):
             'client__client', 'client__branch', 'from_segment', 'to_segment',
         )
 
-    @admin.display(description='Гость', ordering='client__client__name')
+    @admin.display(description='Гость', ordering='client__client__first_name')
     def client_col(self, obj):
         c = obj.client.client
-        return c.first_name or c.phone
+        return c.first_name or f'vk{c.vk_id}'
 
     @admin.display(description='Точка', ordering='client__branch__name')
     def branch_col(self, obj):

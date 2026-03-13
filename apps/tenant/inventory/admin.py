@@ -131,8 +131,8 @@ class InventoryItemAdmin(admin.ModelAdmin):
         'product__category',
     )
     search_fields = (
-        'client_branch__client__name',
-        'client_branch__client__phone',
+        'client_branch__client__first_name',
+        'client_branch__client__last_name',
         'product__name',
     )
     list_select_related = (
@@ -314,8 +314,8 @@ class SuperPrizeEntryAdmin(admin.ModelAdmin):
         'client_branch__branch',
     )
     search_fields = (
-        'client_branch__client__name',
-        'client_branch__client__phone',
+        'client_branch__client__first_name',
+        'client_branch__client__last_name',
         'product__name',
     )
     list_select_related = (

@@ -70,7 +70,7 @@ class DeliveryAdmin(admin.ModelAdmin):
     )
     list_display_links = ('code_col',)
     list_filter = (DeliveryStatusFilter, 'order_source', 'branch')
-    search_fields = ('code', 'short_code', 'activated_by__client__name', 'activated_by__client__phone')
+    search_fields = ('code', 'short_code', 'activated_by__client__first_name', 'activated_by__client__last_name')
     list_select_related = ('branch', 'activated_by__client')
     date_hierarchy = 'created_at'
     readonly_fields = (
@@ -144,7 +144,7 @@ class DeliveryAdmin(admin.ModelAdmin):
                 )
         return mark_safe('<span style="color:var(--body-quiet-color,#aaa);">—</span>')
 
-    @admin.display(description='Активировал', ordering='activated_by__client__name')
+    @admin.display(description='Активировал', ordering='activated_by__client__first_name')
     def activated_by_col(self, obj):
         if not obj.activated_by_id:
             return mark_safe('<span style="color:var(--body-quiet-color,#aaa);">—</span>')

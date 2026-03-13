@@ -402,7 +402,7 @@ class CooldownAdmin(admin.ModelAdmin):
     )
     list_display_links = ('client_col',)
     list_filter = (CooldownStatusFilter, 'feature', 'client__branch')
-    search_fields = ('client__client__name', 'client__client__phone')
+    search_fields = ('client__client__first_name', 'client__client__last_name')
     list_select_related = ('client__client', 'client__branch')
     readonly_fields = ('last_activated_at', 'expires_at', 'created_at', 'updated_at')
     actions = ['action_reset_cooldown']
@@ -429,10 +429,10 @@ class CooldownAdmin(admin.ModelAdmin):
 
     # ── List columns ──────────────────────────────────────────────────────
 
-    @admin.display(description='Гость', ordering='client__client__name')
+    @admin.display(description='Гость', ordering='client__client__first_name')
     def client_col(self, obj):
         c = obj.client.client
-        return c.first_name or c.phone
+        return c.first_name or f'vk{c.vk_id}'
 
     @admin.display(description='Точка', ordering='client__branch__name')
     def branch_col(self, obj):
