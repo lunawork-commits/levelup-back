@@ -493,7 +493,7 @@ class CoinTransaction(models.Model):
 
     client = models.ForeignKey(
         ClientBranch,
-        on_delete=models.PROTECT,
+        on_delete=models.CASCADE,
         related_name='transactions',
         verbose_name='Гость',
     )
