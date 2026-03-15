@@ -507,6 +507,7 @@ class CoinTransactionAdmin(admin.ModelAdmin):
     search_fields = ('client__client__first_name', 'client__client__last_name', 'description')
     list_select_related = ('client__client', 'client__branch')
     date_hierarchy = 'created_at'
+    autocomplete_fields = ('client',)
     readonly_fields = ('created_at',)
 
     def get_readonly_fields(self, request, obj=None):
