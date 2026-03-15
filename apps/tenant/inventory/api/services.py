@@ -268,7 +268,7 @@ def activate_item(
     try:
         item = (
             InventoryItem.objects
-            .select_for_update()
+            .select_for_update(of=('self',))
             .select_related('product')
             .get(pk=item_id, client_branch=cb)
         )
