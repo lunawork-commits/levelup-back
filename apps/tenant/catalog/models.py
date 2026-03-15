@@ -37,8 +37,9 @@ class ProductCategory(TimeStampedModel):
 
 class Product(TimeStampedModel):
     """
-    Подарок из каталога торговой точки.
+    Подарок из каталога.
 
+    Создаётся один раз и подключается к нужным торговым точкам через ProductBranch.
     Три сценария участия:
       is_super_prize    — входит в пул суперпризов (выбор при достижении)
       is_birthday_prize — предлагается гостю в день рождения
@@ -46,19 +47,12 @@ class Product(TimeStampedModel):
     Флаги не взаимоисключающие — товар может участвовать в нескольких сценариях.
     """
 
-    branch = models.ForeignKey(
+    branches = models.ManyToManyField(
         'branch.Branch',
-        on_delete=models.PROTECT,
+        through='ProductBranch',
         related_name='products',
-        verbose_name='Торговая точка',
-    )
-    category = models.ForeignKey(
-        ProductCategory,
-        on_delete=models.SET_NULL,
-        null=True,
+        verbose_name='Торговые точки',
         blank=True,
-        related_name='products',
-        verbose_name='Категория',
     )
 
     # ── Основные поля ──────────────────────────────────────────────────────
@@ -78,11 +72,6 @@ class Product(TimeStampedModel):
 
     # ── Специальные флаги ──────────────────────────────────────────────────
 
-    is_active = models.BooleanField(
-        default=True,
-        verbose_name='Активен',
-        help_text='Неактивный товар не виден гостям.',
-    )
     is_super_prize = models.BooleanField(
         default=False,
         verbose_name='Суперприз',
@@ -94,33 +83,72 @@ class Product(TimeStampedModel):
         help_text='Доступен как поздравительный подарок в день рождения гостя.',
     )
 
-    # ── Сортировка ─────────────────────────────────────────────────────────
-
-    ordering = models.PositiveIntegerField(
-        default=0,
-        verbose_name='Порядок',
-        help_text='Меньшее значение отображается выше в списке.',
-        db_index=True,
-    )
-
     def __str__(self):
         return f'{self.name} ({self.price} ★)'
 
     class Meta:
         verbose_name = 'Подарок'
         verbose_name_plural = 'Подарки'
-        ordering = ['ordering', 'name']
+        ordering = ['name']
+        indexes = [
+            models.Index(fields=['is_super_prize'],   name='catalog_prod_super_idx'),
+            models.Index(fields=['is_birthday_prize'], name='catalog_prod_bday_idx'),
+        ]
+
+
+class ProductBranch(models.Model):
+    """
+    Подключение подарка к конкретной торговой точке.
+    Хранит per-branch настройки: категорию, порядок и видимость в каталоге.
+    """
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name='branch_assignments',
+        verbose_name='Подарок',
+    )
+    branch = models.ForeignKey(
+        'branch.Branch',
+        on_delete=models.CASCADE,
+        related_name='product_assignments',
+        verbose_name='Торговая точка',
+    )
+    category = models.ForeignKey(
+        ProductCategory,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='product_assignments',
+        verbose_name='Категория',
+    )
+    ordering = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Порядок',
+        help_text='Меньшее значение отображается выше в списке.',
+        db_index=True,
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name='Активен',
+        help_text='Неактивный товар скрыт в каталоге призов (магазине), но остаётся доступен как суперприз и именинный приз.',
+    )
+
+    def __str__(self):
+        return f'{self.product.name} → {self.branch}'
+
+    class Meta:
+        verbose_name = 'Назначение в точку'
+        verbose_name_plural = 'Назначения в точки'
+        unique_together = [('product', 'branch')]
+        ordering = ['ordering']
         indexes = [
             models.Index(
                 fields=['branch', 'is_active', 'ordering'],
-                name='catalog_prod_branch_active_idx',
+                name='catalog_pb_branch_active_idx',
             ),
             models.Index(
-                fields=['branch', 'is_super_prize'],
-                name='catalog_prod_branch_super_idx',
-            ),
-            models.Index(
-                fields=['branch', 'is_birthday_prize'],
-                name='catalog_prod_branch_bday_idx',
+                fields=['branch', 'product'],
+                name='catalog_pb_branch_product_idx',
             ),
         ]

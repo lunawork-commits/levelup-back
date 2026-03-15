@@ -170,7 +170,9 @@ class InventoryItem(TimeStampedModel):
     )
     product = models.ForeignKey(
         'catalog.Product',
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='inventory_items',
         verbose_name='Приз',
     )

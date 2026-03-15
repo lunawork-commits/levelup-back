@@ -2,6 +2,14 @@
 {% load i18n %}
 
 {% block title %}История миграции — {{ block.super }}{% endblock %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Главная</a>
+  &rsaquo; <a href="{% url 'analytics-general' %}">Аналитика</a>
+  &rsaquo; <a href="{% url 'analytics-rf' %}">RF-анализ</a>
+  &rsaquo; История миграции
+</div>
+{% endblock %}
 
 {% block extrastyle %}
 <style>

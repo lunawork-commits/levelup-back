@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 
 from django.db import transaction
+from django.db.models import F
 from django.utils import timezone
 
 from apps.tenant.branch.models import (
@@ -200,7 +201,7 @@ def claim_super_prize(vk_id: int, branch_id: int, product_id: int) -> SuperPrize
 
     try:
         product = Product.objects.get(
-            pk=product_id, branch=cb.branch, is_super_prize=True, is_active=True,
+            pk=product_id, branch_assignments__branch=cb.branch, is_super_prize=True,
         )
     except Product.DoesNotExist:
         raise ProductNotFound
@@ -347,8 +348,9 @@ def get_birthday_products(vk_id: int, branch_id: int):
 
     return (
         Product.objects
-        .filter(branch=cb.branch, is_birthday_prize=True, is_active=True)
-        .order_by('ordering', 'name')
+        .filter(branch_assignments__branch=cb.branch, is_birthday_prize=True)
+        .annotate(branch_ordering=F('branch_assignments__ordering'))
+        .order_by('branch_ordering', 'name')
     )
 
 
@@ -365,7 +367,7 @@ def claim_birthday_prize(vk_id: int, branch_id: int, product_id: int) -> Invento
         NotBirthdayWindow  — not within ±5 days of birthday
         BirthdayTooRecent  — birth_date set less than 30 days ago (anti-abuse)
         AlreadyClaimed     — already claimed a birthday prize this year
-        ProductNotFound    — product not found, inactive, or not a birthday prize
+        ProductNotFound    — product not found or not a birthday prize
     """
     try:
         cb = (
@@ -389,7 +391,7 @@ def claim_birthday_prize(vk_id: int, branch_id: int, product_id: int) -> Invento
 
     try:
         product = Product.objects.get(
-            pk=product_id, branch=cb.branch, is_birthday_prize=True, is_active=True,
+            pk=product_id, branch_assignments__branch=cb.branch, is_birthday_prize=True,
         )
     except Product.DoesNotExist:
         raise ProductNotFound

@@ -50,10 +50,13 @@ class SuperPrizeRewardSerializer(serializers.Serializer):
     available_products = serializers.SerializerMethodField()
 
     def get_available_products(self, obj) -> list:
+        from django.db.models import F
+        branch = obj.client_branch.branch
         products = (
             Product.objects
-            .filter(branch=obj.client_branch.branch, is_super_prize=True, is_active=True)
-            .order_by('ordering', 'name')
+            .filter(branch_assignments__branch=branch, is_super_prize=True)
+            .annotate(branch_ordering=F('branch_assignments__ordering'))
+            .order_by('branch_ordering', 'name')
         )
         return SuperPrizeProductSerializer(products, many=True, context=self.context).data
 

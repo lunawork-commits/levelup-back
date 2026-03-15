@@ -128,7 +128,7 @@ class InventoryItemAdmin(admin.ModelAdmin):
         StatusFilter,
         'acquired_from',
         'client_branch__branch',
-        'product__category',
+        'product__branch_assignments__category',
     )
     search_fields = (
         'client_branch__client__first_name',

@@ -4,7 +4,7 @@ from django.utils.html import format_html, mark_safe
 
 from apps.shared.config.admin_sites import tenant_admin
 
-from .models import Product, ProductCategory
+from .models import Product, ProductBranch, ProductCategory
 
 
 # ── Style constants ───────────────────────────────────────────────────────────
@@ -19,19 +19,31 @@ _PRICE_STYLE = _BADGE + 'background:#e3f2fd;color:#0d47a1;border:1px solid #bbde
 _FREE_STYLE  = _BADGE + 'background:#e8f5e9;color:#1b5e20;border:1px solid #c8e6c9;'
 
 
-# ── ProductCategory admin ─────────────────────────────────────────────────────
+# ── Inlines ───────────────────────────────────────────────────────────────────
 
-class ProductInline(admin.TabularInline):
-    model = Product
+class ProductBranchInline(admin.TabularInline):
+    """Manages per-branch settings of a product (used inside ProductAdmin)."""
+    model = ProductBranch
+    extra = 1
+    fields = ('branch', 'category', 'ordering', 'is_active')
+    ordering = ('branch', 'ordering')
+
+
+class ProductBranchFromCategoryInline(admin.TabularInline):
+    """Shows product assignments that belong to this category (used inside ProductCategoryAdmin)."""
+    model = ProductBranch
+    fk_name = 'category'
     extra = 0
-    fields = ('name', 'price', 'is_active', 'is_super_prize', 'is_birthday_prize', 'ordering')
-    ordering = ('ordering', 'name')
+    fields = ('product', 'branch', 'ordering', 'is_active')
+    ordering = ('ordering',)
     show_change_link = True
 
 
+# ── ProductCategory admin ─────────────────────────────────────────────────────
+
 @admin.register(ProductCategory, site=tenant_admin)
 class ProductCategoryAdmin(admin.ModelAdmin):
-    inlines = [ProductInline]
+    inlines = [ProductBranchFromCategoryInline]
     list_display = ('name', 'branch', 'products_count', 'ordering', 'updated_at')
     list_filter = ('branch',)
     search_fields = ('name',)
@@ -39,7 +51,7 @@ class ProductCategoryAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(
-            products_count=Count('products'),
+            products_count=Count('product_assignments'),
         )
 
     @admin.display(description='Товаров', ordering='products_count')
@@ -51,17 +63,15 @@ class ProductCategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Product, site=tenant_admin)
 class ProductAdmin(admin.ModelAdmin):
+    inlines = [ProductBranchInline]
     list_display = (
-        'image_thumb', 'name', 'branch', 'category',
-        'price_badge', 'flags_badges', 'is_active', 'ordering', 'updated_at',
+        'image_thumb', 'name', 'branches_display',
+        'price_badge', 'flags_badges', 'updated_at',
     )
     list_display_links = ('image_thumb', 'name')
-    list_filter = ('branch', 'category', 'is_active', 'is_super_prize', 'is_birthday_prize')
+    list_filter = ('branches', 'is_super_prize', 'is_birthday_prize')
     search_fields = ('name', 'description')
-    list_select_related = ('branch', 'category')
-    list_editable = ('is_active', 'ordering')
     actions = [
-        'activate_products', 'deactivate_products',
         'mark_super_prize', 'unmark_super_prize',
         'mark_birthday_prize', 'unmark_birthday_prize',
     ]
@@ -69,13 +79,13 @@ class ProductAdmin(admin.ModelAdmin):
 
     fieldsets = (
         (None, {
-            'fields': ('branch', 'category', 'name', 'description'),
+            'fields': ('name', 'description'),
         }),
         ('Изображение', {
             'fields': ('image', 'image_preview'),
         }),
         ('Параметры', {
-            'fields': ('price', 'ordering', 'is_active'),
+            'fields': ('price',),
         }),
         ('Сценарии выдачи', {
             'fields': ('is_super_prize', 'is_birthday_prize'),
@@ -93,9 +103,16 @@ class ProductAdmin(admin.ModelAdmin):
     # ── Queryset ──────────────────────────────────────────────────────────
 
     def get_queryset(self, request):
-        return super().get_queryset(request).select_related('branch', 'category')
+        return super().get_queryset(request).prefetch_related('branches')
 
     # ── List columns ──────────────────────────────────────────────────────
+
+    @admin.display(description='Точки')
+    def branches_display(self, obj):
+        names = [str(b) for b in obj.branches.all()]
+        if not names:
+            return mark_safe('<span style="color:var(--body-quiet-color,#aaa);font-size:12px;">—</span>')
+        return ', '.join(names)
 
     @admin.display(description='')
     def image_thumb(self, obj):
@@ -144,14 +161,6 @@ class ProductAdmin(admin.ModelAdmin):
         return '—'
 
     # ── Actions ───────────────────────────────────────────────────────────
-
-    @admin.action(description='Активировать')
-    def activate_products(self, request, queryset):
-        self.message_user(request, f'Активировано: {queryset.update(is_active=True)}')
-
-    @admin.action(description='Деактивировать')
-    def deactivate_products(self, request, queryset):
-        self.message_user(request, f'Деактивировано: {queryset.update(is_active=False)}')
 
     @admin.action(description='Добавить флаг «Суперприз»')
     def mark_super_prize(self, request, queryset):

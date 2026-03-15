@@ -29,7 +29,7 @@ class ProductSerializer(serializers.Serializer):
     price            = serializers.IntegerField()
     is_super_prize   = serializers.BooleanField()
     is_birthday_prize = serializers.BooleanField()
-    category_id      = serializers.IntegerField(source='category.id', allow_null=True)
+    category_id      = serializers.SerializerMethodField()
     category_name    = serializers.SerializerMethodField()
 
     def get_image_url(self, obj) -> str | None:
@@ -38,8 +38,11 @@ class ProductSerializer(serializers.Serializer):
         request = self.context.get('request')
         return request.build_absolute_uri(obj.image.url) if request else obj.image.url
 
+    def get_category_id(self, obj) -> int | None:
+        return getattr(obj, 'branch_category_id', None)
+
     def get_category_name(self, obj) -> str | None:
-        return obj.category.name if obj.category else None
+        return getattr(obj, 'branch_category_name', None)
 
 
 class CooldownResponseSerializer(serializers.Serializer):

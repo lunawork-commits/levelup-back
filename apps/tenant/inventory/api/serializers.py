@@ -96,10 +96,13 @@ class SuperPrizeEntrySerializer(serializers.Serializer):
     def get_available_products(self, obj) -> list:
         if obj.status != 'pending':
             return []
+        from django.db.models import F as _F
+        branch = obj.client_branch.branch
         products = (
             Product.objects
-            .filter(branch=obj.client_branch.branch, is_super_prize=True, is_active=True)
-            .order_by('ordering', 'name')
+            .filter(branch_assignments__branch=branch, is_super_prize=True)
+            .annotate(branch_ordering=_F('branch_assignments__ordering'))
+            .order_by('branch_ordering', 'name')
         )
         return _SuperPrizeProductSerializer(products, many=True, context=self.context).data
 

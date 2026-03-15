@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import F
 from django.utils import timezone
 
 from apps.tenant.branch.models import (
@@ -74,9 +75,14 @@ def get_active_products(branch_id: int):
 
     return (
         Product.objects
-        .filter(branch=branch, is_active=True)
-        .select_related('category')
-        .order_by('category__ordering', 'ordering', 'name')
+        .filter(branch_assignments__branch=branch, branch_assignments__is_active=True)
+        .annotate(
+            branch_category_id=F('branch_assignments__category_id'),
+            branch_category_name=F('branch_assignments__category__name'),
+            branch_category_ordering=F('branch_assignments__category__ordering'),
+            branch_ordering=F('branch_assignments__ordering'),
+        )
+        .order_by('branch_category_ordering', 'branch_ordering', 'name')
     )
 
 
@@ -153,7 +159,9 @@ def buy_product(vk_id: int, branch_id: int, product_id: int) -> InventoryItem:
     # 3. Validate product
     try:
         product = Product.objects.get(
-            pk=product_id, branch=client_branch.branch, is_active=True,
+            pk=product_id,
+            branch_assignments__branch=client_branch.branch,
+            branch_assignments__is_active=True,
         )
     except Product.DoesNotExist:
         raise ProductNotFound
