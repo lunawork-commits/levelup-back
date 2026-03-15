@@ -197,12 +197,17 @@ def update_client_profile(
     birth_date=None,
     community_via_app: bool | None = None,
     newsletter_via_app: bool | None = None,
+    is_community_member: bool | None = None,
+    is_newsletter_subscriber: bool | None = None,
 ) -> ClientBranch:
     """
     Partially updates a client profile. Only non-None fields are written.
 
       first_name / last_name / photo_url → guest.Client
       birth_date                         → ClientBranch
+      is_community_member=True/False     → ClientVKStatus.sync() — факт подписки из VK Bridge,
+                                           без атрибуции (pre-existing → via_app=False)
+      is_newsletter_subscriber=True/False→ то же для рассылки
       community_via_app=True             → ClientVKStatus.mark_subscribed(community=True)
       newsletter_via_app=True            → ClientVKStatus.mark_subscribed(newsletter=True)
 
@@ -235,6 +240,22 @@ def update_client_profile(
     if cl_updates:
         client.save(update_fields=cl_updates)
 
+    # Sync membership status from VK Bridge (app init) — no attribution change
+    if is_community_member is not None or is_newsletter_subscriber is not None:
+        current = getattr(profile, 'vk_status', None)
+        ClientVKStatus.sync(
+            profile,
+            is_member=(
+                is_community_member if is_community_member is not None
+                else (current.is_community_member if current else False)
+            ),
+            is_subscriber=(
+                is_newsletter_subscriber if is_newsletter_subscriber is not None
+                else (current.is_newsletter_subscriber if current else False)
+            ),
+        )
+
+    # Attribution: user explicitly joined via app
     if community_via_app or newsletter_via_app:
         vk_status, _ = ClientVKStatus.objects.get_or_create(client=profile)
         vk_status.mark_subscribed(

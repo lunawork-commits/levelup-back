@@ -114,9 +114,12 @@ class ClientUpdateRequestSerializer(serializers.Serializer):
     photo_url  = serializers.URLField(required=False, allow_null=True)
     # ClientBranch
     birth_date = serializers.DateField(required=False, allow_null=True)
-    # VK subscriptions
+    # VK subscriptions — attribution (user clicked Join in app)
     community_via_app  = serializers.BooleanField(required=False, allow_null=True)
     newsletter_via_app = serializers.BooleanField(required=False, allow_null=True)
+    # VK subscriptions — current status from VK Bridge (sent on app init, no attribution)
+    is_community_member      = serializers.BooleanField(required=False, allow_null=True)
+    is_newsletter_subscriber = serializers.BooleanField(required=False, allow_null=True)
 
 
 class BranchIdRequestSerializer(serializers.Serializer):

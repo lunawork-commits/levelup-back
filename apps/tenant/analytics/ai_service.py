@@ -90,8 +90,9 @@ def analyze_message(text: str, source: str = '') -> dict:
             'Добавьте: ANTHROPIC_API_KEY = "sk-ant-..."'
         )
 
-    import anthropic
-    client = anthropic.Anthropic(api_key=api_key)
+    import os, anthropic
+    proxy_url = os.getenv('AI_PROXY_URL', '')
+    client = anthropic.Anthropic(api_key=api_key, base_url=proxy_url) if proxy_url else anthropic.Anthropic(api_key=api_key)
 
     source_note = f'[Источник: {source}] ' if source else ''
     user_message = f'{source_note}Сообщение гостя:\n\n{text}'
