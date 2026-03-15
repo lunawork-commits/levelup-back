@@ -240,14 +240,13 @@ class TenantAdminSite(AdminSite):
             return JsonResponse({'error': 'ANTHROPIC_API_KEY не настроен'}, status=500)
 
         try:
-            import httpx
             import anthropic
 
             proxy_url = os.getenv('AI_PROXY_URL', '')
             if proxy_url:
                 client = anthropic.Anthropic(
                     api_key=api_key,
-                    http_client=httpx.Client(proxy=proxy_url, timeout=30),
+                    base_url=proxy_url,
                 )
             else:
                 client = anthropic.Anthropic(api_key=api_key)

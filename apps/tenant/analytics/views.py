@@ -423,8 +423,15 @@ class ReviewsAIReplyView(View):
             return JsonResponse({'error': 'AI не настроен (ANTHROPIC_API_KEY)'}, status=500)
 
         try:
-            import anthropic
-            ai_client = anthropic.Anthropic(api_key=api_key)
+            import os, anthropic
+            proxy_url = os.getenv('AI_PROXY_URL', '')
+            if proxy_url:
+                ai_client = anthropic.Anthropic(
+                    api_key=api_key,
+                    base_url=proxy_url,
+                )
+            else:
+                ai_client = anthropic.Anthropic(api_key=api_key)
             msg = ai_client.messages.create(
                 model='claude-haiku-4-5-20251001',
                 max_tokens=512,
