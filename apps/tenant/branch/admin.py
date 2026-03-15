@@ -507,7 +507,12 @@ class CoinTransactionAdmin(admin.ModelAdmin):
     search_fields = ('client__client__first_name', 'client__client__last_name', 'description')
     list_select_related = ('client__client', 'client__branch')
     date_hierarchy = 'created_at'
-    readonly_fields = ('client', 'type', 'source', 'amount', 'description', 'created_at')
+    readonly_fields = ('created_at',)
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj:  # редактирование существующей — всё заблокировано
+            return ('client', 'type', 'source', 'amount', 'description', 'created_at')
+        return ('created_at',)  # создание — только системные поля
 
     fieldsets = (
         (None, {
@@ -524,6 +529,26 @@ class CoinTransactionAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return request.user.is_superuser
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        actions.pop('delete_selected', None)
+        return actions
+
+    def delete_view(self, request, object_id, extra_context=None):
+        from django.contrib import messages as _messages
+        from django.http import HttpResponseRedirect
+        from django.urls import reverse
+        try:
+            return super().delete_view(request, object_id, extra_context)
+        except NotImplementedError as e:
+            self.message_user(request, str(e), level=_messages.ERROR)
+            url = reverse(
+                f'{self.admin_site.name}:'
+                f'{self.model._meta.app_label}_{self.model._meta.model_name}_change',
+                args=[object_id],
+            )
+            return HttpResponseRedirect(url)
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related(
