@@ -718,9 +718,11 @@ class ClientVKStatus(models.Model):
                 self.is_community_member = True
                 self.community_joined_at = now
                 update_fields += ['is_community_member', 'community_joined_at']
-            # Всегда ставим via_app=True — даже если group_join Callback уже обогнал нас
-            # и is_community_member уже True. Атрибуция важнее идемпотентности.
-            if self.community_via_app is not True:
+            # Ставим via_app=True только если значение None (источник ещё неизвестен).
+            # False = подписан до приложения (pre-existing) — не перебиваем.
+            # Это также покрывает race condition: group_join Callback не трогает via_app,
+            # оставляет None, и PATCH успешно проставляет True.
+            if self.community_via_app is None:
                 self.community_via_app = True
                 update_fields += ['community_via_app']
 
@@ -730,7 +732,7 @@ class ClientVKStatus(models.Model):
                 self.newsletter_joined_at = now
                 update_fields += ['is_newsletter_subscriber', 'newsletter_joined_at']
             # Аналогично для рассылки
-            if self.newsletter_via_app is not True:
+            if self.newsletter_via_app is None:
                 self.newsletter_via_app = True
                 update_fields += ['newsletter_via_app']
 
