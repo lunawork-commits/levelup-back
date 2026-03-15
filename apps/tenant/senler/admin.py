@@ -34,6 +34,20 @@ class SenlerConfigAdmin(admin.ModelAdmin):
                 '<b>messages</b>.'
             ),
         }),
+        ('Callback API', {
+            'fields': ['vk_callback_confirmation', 'vk_callback_secret'],
+            'description': (
+                'Настройте в VK: Управление → Работа с API → Callback API. '
+                'Укажите адрес <b>/api/v1/vk/callback/</b> и скопируйте строку подтверждения сюда. '
+                'Секретный ключ — произвольная строка, одинаковая здесь и в VK. '
+                '<b>Обязательно заполните секрет</b> — иначе эндпоинт принимает запросы от кого угодно.'
+            ),
+        }),
+        ('Служебное', {
+            'fields': ['longpoll_ts'],
+            'classes': ['collapse'],
+            'description': 'Автоматически обновляется системой. Не редактировать вручную.',
+        }),
         ('Заметки', {
             'fields': ['notes'],
             'classes': ['collapse'],
