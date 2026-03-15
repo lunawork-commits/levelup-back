@@ -269,11 +269,12 @@ class VKCallbackView(APIView):
 
         # ── Confirmation handshake ────────────────────────────────────────────
         if event == 'confirmation':
+            from django.http import HttpResponse
             try:
                 config = SenlerConfig.objects.get(vk_group_id=group_id)
-                return Response(config.vk_callback_confirmation or 'ok')
+                return HttpResponse(config.vk_callback_confirmation or 'ok', content_type='text/plain')
             except SenlerConfig.DoesNotExist:
-                return Response('ok')
+                return HttpResponse('ok', content_type='text/plain')
 
         # ── Secret check ─────────────────────────────────────────────────────
         try:
