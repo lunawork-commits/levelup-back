@@ -88,6 +88,15 @@ class SenlerConfig(TimeStampedModel):
         help_text='Произвольная строка — вводится в VK и проверяется при входящих событиях.',
     )
 
+    # ── Long Poll catchup ─────────────────────────────────────────────────────
+    longpoll_ts = models.CharField(
+        max_length=32,
+        blank=True,
+        default='',
+        verbose_name='Long Poll ts',
+        help_text='Последний обработанный ts VK Group Long Poll. Используется для catchup после простоя.',
+    )
+
     notes = models.TextField(
         blank=True,
         verbose_name='Заметки',

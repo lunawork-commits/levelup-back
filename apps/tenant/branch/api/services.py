@@ -468,3 +468,76 @@ def send_vk_reply(
     conversation.save(update_fields=['is_replied', 'has_unread', 'last_message_at'])
 
     return msg
+
+
+# ── VK membership events ───────────────────────────────────────────────────────
+
+_MEMBERSHIP_EVENTS = frozenset({'group_join', 'group_leave', 'message_allow', 'message_deny'})
+
+
+def apply_vk_membership_event(
+    group_id: int,
+    vk_user_id: int,
+    event_type: str,
+) -> bool:
+    """
+    Обновляет ClientVKStatus на основе события VK Callback/LongPoll.
+
+    Обрабатывает:
+      group_join     → is_community_member=True
+      group_leave    → is_community_member=False (сбрасывает joined_at и via_app)
+      message_allow  → is_newsletter_subscriber=True
+      message_deny   → is_newsletter_subscriber=False (сбрасывает joined_at и via_app)
+
+    Returns True если запись была обновлена, False если гость не найден в системе
+    или состояние уже актуально.
+    """
+    if event_type not in _MEMBERSHIP_EVENTS:
+        return False
+
+    from apps.tenant.senler.models import SenlerConfig
+
+    config = SenlerConfig.objects.select_related('branch').filter(vk_group_id=group_id).first()
+    if config is None:
+        return False
+
+    try:
+        cb = ClientBranch.objects.select_related('client').get(
+            branch=config.branch,
+            client__vk_id=vk_user_id,
+        )
+    except ClientBranch.DoesNotExist:
+        return False  # Гость не в нашей системе — игнорируем
+
+    now = timezone.now()
+    vk_status, _ = ClientVKStatus.objects.get_or_create(client=cb)
+    update_fields: list[str] = []
+
+    if event_type == 'group_join' and not vk_status.is_community_member:
+        vk_status.is_community_member = True
+        vk_status.community_joined_at = now
+        # via_app не трогаем: если уже mark_subscribed() ставил True — сохраняем
+        update_fields += ['is_community_member', 'community_joined_at']
+
+    elif event_type == 'group_leave' and vk_status.is_community_member:
+        vk_status.is_community_member = False
+        vk_status.community_joined_at = None
+        vk_status.community_via_app = None
+        update_fields += ['is_community_member', 'community_joined_at', 'community_via_app']
+
+    elif event_type == 'message_allow' and not vk_status.is_newsletter_subscriber:
+        vk_status.is_newsletter_subscriber = True
+        vk_status.newsletter_joined_at = now
+        update_fields += ['is_newsletter_subscriber', 'newsletter_joined_at']
+
+    elif event_type == 'message_deny' and vk_status.is_newsletter_subscriber:
+        vk_status.is_newsletter_subscriber = False
+        vk_status.newsletter_joined_at = None
+        vk_status.newsletter_via_app = None
+        update_fields += ['is_newsletter_subscriber', 'newsletter_joined_at', 'newsletter_via_app']
+
+    if update_fields:
+        vk_status.save(update_fields=update_fields)
+        return True
+
+    return False

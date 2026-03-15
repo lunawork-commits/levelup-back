@@ -301,4 +301,16 @@ class VKCallbackView(APIView):
                     text=text,
                 )
 
+        # ── Membership events ─────────────────────────────────────────────────
+        elif event in ('group_join', 'group_leave', 'message_allow', 'message_deny'):
+            from apps.tenant.branch.api.services import apply_vk_membership_event
+            obj = data.get('object', {})
+            vk_user_id = obj.get('user_id')
+            if vk_user_id and vk_user_id > 0:
+                apply_vk_membership_event(
+                    group_id=group_id,
+                    vk_user_id=vk_user_id,
+                    event_type=event,
+                )
+
         return Response('ok')

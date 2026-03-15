@@ -248,3 +248,254 @@ def poll_all_vk_messages_task() -> dict:
         logger.warning('VK poll all errors: %s', total_err)
 
     return {'new_messages': total_new, 'errors': total_err}
+
+
+# ── VK membership catchup via Long Poll ───────────────────────────────────────
+
+_MEMBERSHIP_EVENTS = frozenset({'group_join', 'group_leave', 'message_allow', 'message_deny'})
+
+
+def longpoll_catchup_branch(branch_id: int) -> dict:
+    """
+    Получает пропущенные события подписки/отписки через VK Group Long Poll API.
+
+    Алгоритм:
+      1. Запрашивает свежий Long Poll-сервер (groups.getLongPollServer).
+      2. Если сохранённый ts пуст — только сохраняет текущий ts (первый запуск).
+      3. Если ts совпадает — новых событий нет.
+      4. Если ts расходится — делает запрос к Long Poll с сохранённым ts:
+           • Успех      → обрабатывает membership-события, обновляет ts.
+           • failed=1   → ts устарел (слишком большой пропуск). Падаем на
+                          bulk-sync через groups.isMember — запускает management-
+                          command sync_vk_status асинхронно.
+           • failed=2/3 → ключ протух, обновляем ts без catchup.
+
+    Returns: {'events_processed': int, 'ts_updated': bool, 'errors': list[str]}
+    """
+    from apps.tenant.senler.models import SenlerConfig
+    from apps.tenant.branch.api.services import apply_vk_membership_event
+
+    try:
+        config = SenlerConfig.objects.get(branch_id=branch_id, is_active=True)
+    except SenlerConfig.DoesNotExist:
+        return {'events_processed': 0, 'ts_updated': False, 'errors': ['SenlerConfig not found']}
+
+    if not config.vk_community_token:
+        return {'events_processed': 0, 'ts_updated': False, 'errors': ['vk_community_token not set']}
+
+    token    = config.vk_community_token
+    group_id = config.vk_group_id
+    errors: list[str] = []
+
+    # Step 1 — свежий Long Poll сервер
+    try:
+        lp = _vk_call('groups.getLongPollServer', token, group_id=group_id)
+    except RuntimeError as e:
+        return {'events_processed': 0, 'ts_updated': False, 'errors': [str(e)]}
+
+    server    = lp['server']
+    key       = lp['key']
+    ts_fresh  = str(lp['ts'])
+    ts_stored = config.longpoll_ts or ''
+
+    # Step 2 — первый запуск: просто запоминаем ts
+    if not ts_stored:
+        config.longpoll_ts = ts_fresh
+        config.save(update_fields=['longpoll_ts'])
+        logger.info('VK LongPoll first run: saved ts=%s group=%s', ts_fresh, group_id)
+        return {'events_processed': 0, 'ts_updated': True, 'errors': []}
+
+    # Step 3 — ts не изменился: новых событий нет
+    if ts_stored == ts_fresh:
+        return {'events_processed': 0, 'ts_updated': False, 'errors': []}
+
+    # Step 4 — запрашиваем события с момента ts_stored
+    lp_url = f'{server}?act=a_check&key={key}&ts={ts_stored}&wait=1'
+    try:
+        with urllib.request.urlopen(lp_url, timeout=10) as resp:
+            data = json.loads(resp.read())
+    except Exception as e:
+        errors.append(f'LongPoll request error: {e}')
+        config.longpoll_ts = ts_fresh
+        config.save(update_fields=['longpoll_ts'])
+        return {'events_processed': 0, 'ts_updated': True, 'errors': errors}
+
+    failed = data.get('failed')
+
+    if failed == 1:
+        # ts слишком старый — события потеряны, нужен bulk-sync
+        new_ts = str(data.get('ts', ts_fresh))
+        config.longpoll_ts = new_ts
+        config.save(update_fields=['longpoll_ts'])
+        logger.warning(
+            'VK LongPoll ts too old (gap too large) for group %s — '
+            'falling back to bulk membership sync', group_id,
+        )
+        # Запускаем bulk sync асинхронно чтобы не блокировать beat
+        vk_bulk_membership_sync_task.delay(branch_id)
+        return {
+            'events_processed': 0, 'ts_updated': True,
+            'errors': [f'LongPoll ts too old for group {group_id}, bulk sync scheduled'],
+        }
+
+    if failed in (2, 3):
+        # Ключ протух — обновляем ts, при следующем запуске всё будет нормально
+        config.longpoll_ts = ts_fresh
+        config.save(update_fields=['longpoll_ts'])
+        return {'events_processed': 0, 'ts_updated': True, 'errors': [f'LongPoll key expired (failed={failed})']}
+
+    # Step 5 — обрабатываем пойманные события
+    events_processed = 0
+    for update in data.get('updates', []):
+        event_type = update.get('type')
+        if event_type not in _MEMBERSHIP_EVENTS:
+            continue
+        obj        = update.get('object', {})
+        vk_user_id = obj.get('user_id')
+        if not vk_user_id:
+            continue
+        try:
+            updated = apply_vk_membership_event(
+                group_id=group_id,
+                vk_user_id=vk_user_id,
+                event_type=event_type,
+            )
+            if updated:
+                events_processed += 1
+        except Exception as e:
+            errors.append(f'{event_type} uid={vk_user_id}: {e}')
+
+    new_ts = str(data.get('ts', ts_fresh))
+    config.longpoll_ts = new_ts
+    config.save(update_fields=['longpoll_ts'])
+
+    if events_processed:
+        logger.info(
+            'VK LongPoll catchup group=%s: %d membership events processed',
+            group_id, events_processed,
+        )
+
+    return {'events_processed': events_processed, 'ts_updated': True, 'errors': errors}
+
+
+@shared_task(name='apps.tenant.branch.tasks.vk_membership_catchup_task')
+def vk_membership_catchup_task() -> dict:
+    """
+    Celery Beat task: catchup пропущенных membership-событий VK для всех тенантов.
+    Запускается каждые 5 минут.
+
+    В штатном режиме (Callback работает) — находит 0 событий, просто обновляет ts.
+    После простоя — забирает group_join/group_leave/message_allow/message_deny
+    которые пришли пока сервер был недоступен.
+    """
+    from django_tenants.utils import get_tenant_model, schema_context
+
+    TenantModel      = get_tenant_model()
+    total_events     = 0
+    total_errors: list[str] = []
+
+    for tenant in TenantModel.objects.exclude(schema_name='public'):
+        with schema_context(tenant.schema_name):
+            from apps.tenant.senler.models import SenlerConfig
+            seen_groups: set[int] = set()
+            for cfg in SenlerConfig.objects.filter(is_active=True):
+                if cfg.vk_group_id in seen_groups:
+                    continue
+                seen_groups.add(cfg.vk_group_id)
+                result = longpoll_catchup_branch(cfg.branch_id)
+                total_events += result['events_processed']
+                total_errors.extend(
+                    f'[{tenant.schema_name}/branch={cfg.branch_id}] {e}'
+                    for e in result['errors']
+                )
+
+    if total_errors:
+        logger.warning('VK membership catchup errors: %s', total_errors)
+
+    return {'events_processed': total_events, 'errors': total_errors}
+
+
+@shared_task(
+    name='apps.tenant.branch.tasks.vk_bulk_membership_sync_task',
+    bind=True,
+    max_retries=2,
+    default_retry_delay=120,
+)
+def vk_bulk_membership_sync_task(self, branch_id: int) -> dict:
+    """
+    Fallback: если Long Poll ts протух (пропуск > лимита VK), делаем полную
+    синхронизацию статуса подписки через groups.isMember для всех гостей ветки.
+    Повторяет логику management-команды sync_vk_status для одной точки.
+    """
+    from apps.tenant.senler.models import SenlerConfig
+    from apps.tenant.branch.models import ClientBranch, ClientVKStatus
+    from django.utils import timezone
+
+    try:
+        config = SenlerConfig.objects.select_related('branch').get(branch_id=branch_id)
+    except SenlerConfig.DoesNotExist:
+        return {'synced': 0, 'errors': ['SenlerConfig not found']}
+
+    token    = config.vk_community_token
+    group_id = config.vk_group_id
+
+    if not token:
+        return {'synced': 0, 'errors': ['vk_community_token not set']}
+
+    vk_ids = list(
+        ClientBranch.objects
+        .filter(branch=config.branch)
+        .exclude(client__vk_id__isnull=True)
+        .values_list('client__vk_id', 'id')
+    )
+
+    if not vk_ids:
+        return {'synced': 0, 'errors': []}
+
+    errors: list[str] = []
+    synced = 0
+    now    = timezone.now()
+    BATCH  = 500
+
+    for i in range(0, len(vk_ids), BATCH):
+        batch = vk_ids[i:i + BATCH]
+        user_ids_str = ','.join(str(uid) for uid, _ in batch)
+        try:
+            resp = _vk_call('groups.isMember', token, group_id=group_id, user_ids=user_ids_str, extended=0)
+        except RuntimeError as e:
+            errors.append(f'batch {i}: {e}')
+            continue
+
+        # resp is a list: [{"user_id": ..., "member": 0|1}, ...]
+        member_set = {item['user_id'] for item in (resp if isinstance(resp, list) else []) if item.get('member')}
+
+        for vk_id, cb_id in batch:
+            is_member = vk_id in member_set
+            try:
+                vk_status, _ = ClientVKStatus.objects.get_or_create(
+                    client_id=cb_id,
+                    defaults={
+                        'is_community_member':  is_member,
+                        'community_joined_at':  now if is_member else None,
+                        'community_via_app':    False if is_member else None,
+                    },
+                )
+                if not _:
+                    update_fields: list[str] = []
+                    if is_member and not vk_status.is_community_member:
+                        vk_status.is_community_member = True
+                        vk_status.community_joined_at = now
+                        update_fields += ['is_community_member', 'community_joined_at']
+                    elif not is_member and vk_status.is_community_member:
+                        vk_status.is_community_member = False
+                        vk_status.community_joined_at = None
+                        vk_status.community_via_app   = None
+                        update_fields += ['is_community_member', 'community_joined_at', 'community_via_app']
+                    if update_fields:
+                        vk_status.save(update_fields=update_fields)
+                        synced += 1
+            except Exception as e:
+                errors.append(f'vk_id={vk_id}: {e}')
+
+    logger.info('VK bulk membership sync branch=%s: synced=%d', branch_id, synced)
+    return {'synced': synced, 'errors': errors}

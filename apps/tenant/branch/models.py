@@ -713,17 +713,26 @@ class ClientVKStatus(models.Model):
         now = timezone.now()
         update_fields = []
 
-        if community and not self.is_community_member:
-            self.is_community_member = True
-            self.community_joined_at = now
-            self.community_via_app = True
-            update_fields += ['is_community_member', 'community_joined_at', 'community_via_app']
+        if community:
+            if not self.is_community_member:
+                self.is_community_member = True
+                self.community_joined_at = now
+                update_fields += ['is_community_member', 'community_joined_at']
+            # Всегда ставим via_app=True — даже если group_join Callback уже обогнал нас
+            # и is_community_member уже True. Атрибуция важнее идемпотентности.
+            if self.community_via_app is not True:
+                self.community_via_app = True
+                update_fields += ['community_via_app']
 
-        if newsletter and not self.is_newsletter_subscriber:
-            self.is_newsletter_subscriber = True
-            self.newsletter_joined_at = now
-            self.newsletter_via_app = True
-            update_fields += ['is_newsletter_subscriber', 'newsletter_joined_at', 'newsletter_via_app']
+        if newsletter:
+            if not self.is_newsletter_subscriber:
+                self.is_newsletter_subscriber = True
+                self.newsletter_joined_at = now
+                update_fields += ['is_newsletter_subscriber', 'newsletter_joined_at']
+            # Аналогично для рассылки
+            if self.newsletter_via_app is not True:
+                self.newsletter_via_app = True
+                update_fields += ['newsletter_via_app']
 
         if update_fields:
             self.save(update_fields=update_fields)
