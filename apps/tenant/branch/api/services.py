@@ -182,8 +182,70 @@ def register_or_get_client(
     # Record visit: atomic, 6-hour cooldown
     ClientBranchVisit.record_visit(profile)
 
+    # ── Sync VK membership status on first registration ──────────────────
+    if created:
+        _sync_vk_status_on_register(profile)
+
     # Re-fetch with all relations and fresh balance annotation
     return _profile_qs().get(pk=profile.pk), created
+
+
+def _sync_vk_status_on_register(profile: ClientBranch) -> None:
+    """
+    При первой регистрации проверяет через VK API:
+      - groups.isMember              → is_community_member
+      - messages.isMessagesFromGroupAllowed → is_newsletter_subscriber
+
+    Если SenlerConfig или токен не настроен — молча пропускает.
+    """
+    import json
+    import logging
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+
+    from apps.tenant.senler.models import SenlerConfig
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        config = SenlerConfig.objects.get(branch=profile.branch)
+    except SenlerConfig.DoesNotExist:
+        return
+
+    token = config.vk_community_token
+    group_id = config.vk_group_id
+    if not token or not group_id:
+        return
+
+    vk_id = profile.client.vk_id
+
+    def _vk_call(method, **params):
+        params['access_token'] = token
+        params['v'] = '5.131'
+        url = f'https://api.vk.com/method/{method}?' + urllib.parse.urlencode(params)
+        with urllib.request.urlopen(url, timeout=10) as resp:
+            data = json.loads(resp.read())
+        if 'error' in data:
+            raise RuntimeError(data['error'].get('error_msg', ''))
+        return data.get('response', {})
+
+    is_member = False
+    is_subscriber = False
+
+    try:
+        resp = _vk_call('groups.isMember', group_id=group_id, user_id=vk_id)
+        is_member = bool(resp) if isinstance(resp, int) else bool(resp.get('member', 0))
+    except Exception as e:
+        logger.warning('VK sync on register groups.isMember vk_id=%s: %s', vk_id, e)
+
+    try:
+        resp = _vk_call('messages.isMessagesFromGroupAllowed', group_id=group_id, user_id=vk_id)
+        is_subscriber = bool(resp.get('is_allowed', 0))
+    except Exception as e:
+        logger.warning('VK sync on register isMessagesFromGroupAllowed vk_id=%s: %s', vk_id, e)
+
+    ClientVKStatus.sync(profile, is_member=is_member, is_subscriber=is_subscriber)
 
 
 @transaction.atomic
