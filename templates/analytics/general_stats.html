@@ -50,6 +50,7 @@ a,a:hover,a:focus,a:visited{text-decoration:none!important; color: black}
 .mc-card{border-radius:10px!important;border:none!important;box-shadow:0 1px 6px rgba(0,0,0,.07)!important;transition:transform .15s,box-shadow .15s;height:100%;}
 .mc-link{display:block;color:inherit;height:100%;}
 .mc-link:hover .mc-card,.mc-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.13)!important;}
+.col-sm-6:hover{z-index:10;position:relative;}
 
 .mc-label{font-size:12px;font-weight:600;color:#374151;margin-bottom:10px;line-height:1.35;}
 .mc-val{font-size:2.4rem;font-weight:900;line-height:1;}
@@ -69,7 +70,7 @@ a,a:hover,a:focus,a:visited{text-decoration:none!important; color: black}
 
 /* Tooltip */
 .tip-btn{position:absolute;top:10px;right:10px;width:18px;height:18px;border-radius:50%;background:#e5e7eb;color:#6b7280;font-size:11px;display:flex;align-items:center;justify-content:center;cursor:help;z-index:2;font-weight:700;}
-.tip-box{display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);width:340px;background:var(--navy);color:#fff;font-size:11px;font-weight:500;padding:9px 12px;border-radius:8px;z-index:30;line-height:1.6;white-space:normal;}
+.tip-box{display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);width:340px;background:var(--navy);color:#fff;font-size:11px;font-weight:500;padding:9px 12px;border-radius:8px;z-index:40;line-height:1.6;white-space:normal;pointer-events:none;}
 .mc-card:hover .tip-box,.card:hover .tip-box{display:block;}
 
 /* Charts section */
