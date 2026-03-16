@@ -73,6 +73,24 @@ def check_members(group_id: int, user_ids: list[int], token: str) -> dict[int, b
     return result
 
 
+def check_messages_allowed(group_id: int, user_ids: list[int], token: str) -> dict[int, bool]:
+    """Returns {vk_id: is_allowed} via messages.isMessagesFromGroupAllowed (per user)."""
+    result = {}
+    for vk_id in user_ids:
+        try:
+            resp = _vk_call(
+                'messages.isMessagesFromGroupAllowed',
+                token,
+                group_id=group_id,
+                user_id=vk_id,
+            )
+            result[vk_id] = bool(resp.get('is_allowed', 0))
+        except RuntimeError:
+            result[vk_id] = False
+        time.sleep(0.35)
+    return result
+
+
 def sync_schema(schema: str, group_id: int, token: str, dry_run: bool, stdout, style):
     from django.utils import timezone
     from apps.tenant.branch.models import ClientBranch, ClientVKStatus
@@ -94,68 +112,110 @@ def sync_schema(schema: str, group_id: int, token: str, dry_run: bool, stdout, s
             if vk_id:
                 vk_id_to_cbs.setdefault(vk_id, []).append(cb)
 
+        all_vk_ids = list(vk_id_to_cbs.keys())
+
+        # ── Community membership ──────────────────────────────────────────
         stdout.write(
-            f'  [{schema}] Querying VK for {len(vk_id_to_cbs)} users '
-            f'in group {group_id}...'
+            f'  [{schema}] Checking community membership for '
+            f'{len(all_vk_ids)} users in group {group_id}...'
         )
 
         try:
-            member_map = check_members(group_id, list(vk_id_to_cbs.keys()), token)
+            member_map = check_members(group_id, all_vk_ids, token)
         except RuntimeError as e:
-            stdout.write(style.ERROR(f'  [{schema}] {e}'))
+            stdout.write(style.ERROR(f'  [{schema}] groups.isMember error: {e}'))
             return
 
-        subscribed_vk  = sum(1 for v in member_map.values() if v)
+        subscribed_vk = sum(1 for v in member_map.values() if v)
         stdout.write(
-            f'  [{schema}] VK says: {subscribed_vk} subscribed, '
+            f'  [{schema}] Community: {subscribed_vk} subscribed, '
             f'{len(member_map) - subscribed_vk} not subscribed'
         )
 
+        # ── Newsletter (messages allowed) ────────────────────────────────
+        stdout.write(
+            f'  [{schema}] Checking newsletter (messages allowed) for '
+            f'{len(all_vk_ids)} users...'
+        )
+
+        allowed_map = check_messages_allowed(group_id, all_vk_ids, token)
+
+        allowed_vk = sum(1 for v in allowed_map.values() if v)
+        stdout.write(
+            f'  [{schema}] Newsletter: {allowed_vk} allowed, '
+            f'{len(allowed_map) - allowed_vk} not allowed'
+        )
+
+        # ── Apply changes ────────────────────────────────────────────────
         now = timezone.now()
-        added = removed = kept = 0
+        comm_added = comm_removed = comm_kept = 0
+        news_added = news_removed = news_kept = 0
 
         for vk_id, client_branches in vk_id_to_cbs.items():
-            is_member_vk = member_map.get(vk_id, False)
+            is_member = member_map.get(vk_id, False)
+            is_allowed = allowed_map.get(vk_id, False)
 
             for cb in client_branches:
                 vk_status, _ = ClientVKStatus.objects.get_or_create(client=cb)
-                old_member   = vk_status.is_community_member
+                update_fields: list[str] = []
 
-                if is_member_vk and not old_member:
-                    # VK: subscribed — DB: not → add
-                    added += 1
+                # Community
+                if is_member and not vk_status.is_community_member:
+                    comm_added += 1
                     if not dry_run:
-                        vk_status.is_community_member  = True
-                        vk_status.community_joined_at  = vk_status.community_joined_at or now
-                        # via_app=False — we know they're subscribed but NOT how
+                        vk_status.is_community_member = True
+                        vk_status.community_joined_at = vk_status.community_joined_at or now
                         if vk_status.community_via_app is None:
                             vk_status.community_via_app = False
-                        vk_status.save(update_fields=[
-                            'is_community_member',
-                            'community_joined_at',
-                            'community_via_app',
-                        ])
-
-                elif not is_member_vk and old_member:
-                    # VK: not subscribed — DB: says yes → remove
-                    removed += 1
+                        update_fields += [
+                            'is_community_member', 'community_joined_at', 'community_via_app',
+                        ]
+                elif not is_member and vk_status.is_community_member:
+                    comm_removed += 1
                     if not dry_run:
                         vk_status.is_community_member = False
                         vk_status.community_joined_at = None
-                        vk_status.community_via_app   = None
-                        vk_status.save(update_fields=[
-                            'is_community_member',
-                            'community_joined_at',
-                            'community_via_app',
-                        ])
+                        vk_status.community_via_app = None
+                        update_fields += [
+                            'is_community_member', 'community_joined_at', 'community_via_app',
+                        ]
                 else:
-                    kept += 1
+                    comm_kept += 1
+
+                # Newsletter
+                if is_allowed and not vk_status.is_newsletter_subscriber:
+                    news_added += 1
+                    if not dry_run:
+                        vk_status.is_newsletter_subscriber = True
+                        vk_status.newsletter_joined_at = vk_status.newsletter_joined_at or now
+                        if vk_status.newsletter_via_app is None:
+                            vk_status.newsletter_via_app = False
+                        update_fields += [
+                            'is_newsletter_subscriber', 'newsletter_joined_at', 'newsletter_via_app',
+                        ]
+                elif not is_allowed and vk_status.is_newsletter_subscriber:
+                    news_removed += 1
+                    if not dry_run:
+                        vk_status.is_newsletter_subscriber = False
+                        vk_status.newsletter_joined_at = None
+                        vk_status.newsletter_via_app = None
+                        update_fields += [
+                            'is_newsletter_subscriber', 'newsletter_joined_at', 'newsletter_via_app',
+                        ]
+                else:
+                    news_kept += 1
+
+                if update_fields and not dry_run:
+                    vk_status.save(update_fields=update_fields)
 
         suffix = ' [DRY RUN — nothing written]' if dry_run else ''
         stdout.write(style.SUCCESS(
-            f'  [{schema}] Result: +{added} fixed as subscribed, '
-            f'-{removed} removed (unsubscribed in VK), '
-            f'{kept} already correct{suffix}'
+            f'  [{schema}] Community: +{comm_added} added, '
+            f'-{comm_removed} removed, {comm_kept} ok{suffix}'
+        ))
+        stdout.write(style.SUCCESS(
+            f'  [{schema}] Newsletter: +{news_added} added, '
+            f'-{news_removed} removed, {news_kept} ok{suffix}'
         ))
 
 
