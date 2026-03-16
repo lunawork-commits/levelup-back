@@ -240,7 +240,7 @@ function generateAI(convId, btn) {
   fetch('{% url "analytics-reviews-ai-reply" %}', {
     method: 'POST',
     headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCsrf()},
-    body: JSON.stringify({conv_id: convId}),
+    body: JSON.stringify({conv_id: convId, draft: document.getElementById('reply-text-' + convId).value.trim()}),
   })
   .then(r => r.json())
   .then(data => {

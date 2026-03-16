@@ -399,6 +399,7 @@ class ReviewsAIReplyView(View):
         try:
             body    = _json.loads(request.body)
             conv_id = int(body.get('conv_id', 0))
+            draft   = str(body.get('draft', '')).strip()
         except (ValueError, TypeError, _json.JSONDecodeError):
             return JsonResponse({'error': 'Неверный запрос'}, status=400)
 
@@ -432,16 +433,30 @@ class ReviewsAIReplyView(View):
                 )
             else:
                 ai_client = anthropic.Anthropic(api_key=api_key)
-            msg = ai_client.messages.create(
-                model='claude-haiku-4-5-20251001',
-                max_tokens=512,
-                system=(
+            if draft:
+                system_prompt = (
+                    'Ты — помощник администратора ресторана/кафе. '
+                    'Администратор написал черновик ответа гостю. '
+                    'Улучши этот черновик: сделай его более вежливым, профессиональным и грамотным, '
+                    'сохраняя смысл и основную идею администратора. '
+                    'Ответ должен быть коротким (2-4 предложения), дружелюбным и по существу. '
+                    'Возвращай только текст ответа без кавычек и пояснений.'
+                )
+                user_content = f'История диалога:\n\n{conv_text}\n\nЧерновик ответа администратора:\n{draft}'
+            else:
+                system_prompt = (
                     'Ты — помощник администратора ресторана/кафе. '
                     'Составь вежливый и профессиональный ответ на отзыв гостя от имени заведения. '
                     'Ответ должен быть коротким (2-4 предложения), дружелюбным и по существу. '
                     'Возвращай только текст ответа без кавычек и пояснений.'
-                ),
-                messages=[{'role': 'user', 'content': f'История диалога:\n\n{conv_text}'}],
+                )
+                user_content = f'История диалога:\n\n{conv_text}'
+
+            msg = ai_client.messages.create(
+                model='claude-haiku-4-5-20251001',
+                max_tokens=512,
+                system=system_prompt,
+                messages=[{'role': 'user', 'content': user_content}],
             )
             suggestion = msg.content[0].text.strip()
         except Exception as e:
