@@ -1092,6 +1092,11 @@ def get_stat_clients(
         base = base.filter(branch__in=branch_ids)
 
     if metric == 'qr_scans':
+        from django.db.models import Exists, OuterRef
+        from apps.tenant.game.models import ClientAttempt
+        from apps.tenant.branch.models import TestimonialMessage
+        from apps.tenant.delivery.models import Delivery
+
         qs = ClientBranchVisit.objects.filter(
             visited_at__date__gte=start_date,
             visited_at__date__lte=end_date,
@@ -1101,7 +1106,20 @@ def get_stat_clients(
         return base.filter(
             pk__in=qs.values('client_id'),
         ).filter(
-            Q(vk_status__community_via_app=True) | Q(vk_status__newsletter_via_app=True),
+            _Q(vk_status__community_via_app=True)
+            | _Q(vk_status__newsletter_via_app=True)
+            | _Q(vk_status__is_story_uploaded=True)
+            | Exists(ClientAttempt.objects.filter(client=OuterRef('pk')))
+            | Exists(TestimonialMessage.objects.filter(
+                conversation__client=OuterRef('pk'),
+                source=TestimonialMessage.Source.APP,
+            ))
+            | Exists(Delivery.objects.filter(activated_by=OuterRef('pk')))
+            | Exists(CoinTransaction.objects.filter(
+                client=OuterRef('pk'),
+                type=TransactionType.EXPENSE,
+                source=TransactionSource.SHOP,
+            ))
         )
 
     if metric == 'total_vk_subscribers':
