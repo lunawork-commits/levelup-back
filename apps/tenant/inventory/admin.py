@@ -177,7 +177,7 @@ class InventoryItemAdmin(admin.ModelAdmin):
 
     @admin.display(description='')
     def product_thumb(self, obj):
-        if obj.product.image:
+        if obj.product and obj.product.image:
             return format_html(
                 '<img src="{}" style="width:40px;height:40px;'
                 'object-fit:cover;border-radius:6px;'

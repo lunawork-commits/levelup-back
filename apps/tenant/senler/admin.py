@@ -35,10 +35,10 @@ class SenlerConfigAdmin(admin.ModelAdmin):
             ),
         }),
         ('Callback API', {
-            'fields': ['vk_callback_confirmation', 'vk_callback_secret'],
+            'fields': ['_callback_url', 'vk_callback_confirmation', 'vk_callback_secret'],
             'description': (
                 'Настройте в VK: Управление → Работа с API → Callback API. '
-                'Укажите адрес <b>/api/v1/vk/callback/</b> и скопируйте строку подтверждения сюда. '
+                'Скопируйте URL ниже в поле «Адрес» в настройках Callback API вашей группы. '
                 'Секретный ключ — произвольная строка, одинаковая здесь и в VK. '
                 '<b>Обязательно заполните секрет</b> — иначе эндпоинт принимает запросы от кого угодно.'
             ),
@@ -53,6 +53,24 @@ class SenlerConfigAdmin(admin.ModelAdmin):
             'classes': ['collapse'],
         }),
     ]
+
+    readonly_fields = ['_callback_url']
+
+    def _callback_url(self, obj):
+        from django.db import connection
+        domain = connection.tenant.domains.filter(is_primary=True).first()
+        if domain:
+            url = f'https://{domain.domain}/api/v1/vk/callback/'
+        else:
+            url = '/api/v1/vk/callback/'
+        return format_html(
+            '<input type="text" value="{}" readonly '
+            'style="font-family:monospace;width:420px;background:#f5f5f5;border:1px solid #ccc;'
+            'padding:6px 10px;border-radius:4px;cursor:text;" '
+            'onclick="this.select()" />',
+            url,
+        )
+    _callback_url.short_description = 'URL для Callback API'
 
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
