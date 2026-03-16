@@ -76,15 +76,21 @@
   </div>
 
   <!-- Summary -->
-  <p class="small text-muted mb-3">
-    <strong class="text-dark">{{ total }}</strong> обращений &nbsp;·&nbsp; {{ start_display }} — {{ end_display }}
-  </p>
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+    <p class="small text-muted mb-0">
+      <strong class="text-dark">{{ total }}</strong> обращений &nbsp;·&nbsp; {{ start_display }} — {{ end_display }}
+    </p>
+    <label class="form-check form-switch mb-0 d-flex align-items-center gap-2" style="cursor:pointer;">
+      <input type="checkbox" class="form-check-input" id="hide-replied" onchange="toggleReplied()">
+      <span class="small text-muted">Скрыть отвеченные</span>
+    </label>
+  </div>
 
   <!-- Conversation cards -->
   {% if conversations %}
   <div class="d-flex flex-column gap-3">
     {% for conv in conversations %}
-    <div class="card shadow-sm{% if conv.has_unread and not conv.is_replied %} needs-reply{% endif %}" id="card-{{ conv.id }}">
+    <div class="card shadow-sm{% if conv.has_unread and not conv.is_replied %} needs-reply{% endif %}" id="card-{{ conv.id }}" data-replied="{% if conv.is_replied %}1{% else %}0{% endif %}">
 
       <!-- Card header -->
       <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2 py-2">
@@ -217,12 +223,18 @@ function sendReply(convId) {
       ta.value = '';
       setStatus(convId, '✓ Отправлено', '#16a34a');
       // Update replied badge
-      const header = document.querySelector(`#card-${convId} .card-header`);
+      const card = document.getElementById('card-' + convId);
+      card.dataset.replied = '1';
+      const header = card.querySelector('.card-header');
       if (header && !header.querySelector('.text-success')) {
         const badge = document.createElement('span');
         badge.className = 'small text-success';
         badge.textContent = '✓ отвечено';
         header.querySelector('.d-flex').appendChild(badge);
+      }
+      // Hide if filter is active
+      if (document.getElementById('hide-replied').checked) {
+        card.style.display = 'none';
       }
     } else {
       setStatus(convId, '✗ ' + (data.error || 'Ошибка'), '#dc2626');
@@ -253,6 +265,13 @@ function generateAI(convId, btn) {
   })
   .catch(() => setStatus(convId, '✗ Сетевая ошибка', '#dc2626'))
   .finally(() => { btn.disabled = false; btn.textContent = orig; });
+}
+
+function toggleReplied() {
+  const hide = document.getElementById('hide-replied').checked;
+  document.querySelectorAll('.card[data-replied="1"]').forEach(card => {
+    card.style.display = hide ? 'none' : '';
+  });
 }
 
 // Scroll all chats to bottom on load
