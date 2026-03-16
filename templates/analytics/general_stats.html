@@ -69,7 +69,7 @@ a,a:hover,a:focus,a:visited{text-decoration:none!important; color: black}
 
 /* Tooltip */
 .tip-btn{position:absolute;top:10px;right:10px;width:18px;height:18px;border-radius:50%;background:#e5e7eb;color:#6b7280;font-size:11px;display:flex;align-items:center;justify-content:center;cursor:help;z-index:2;font-weight:700;}
-.tip-box{display:none;position:absolute;bottom:calc(100% + 6px);left:0;right:0;background:var(--navy);color:#fff;font-size:11px;font-weight:500;padding:9px 12px;border-radius:8px;z-index:30;line-height:1.6;}
+.tip-box{display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);width:340px;background:var(--navy);color:#fff;font-size:11px;font-weight:500;padding:9px 12px;border-radius:8px;z-index:30;line-height:1.6;white-space:normal;}
 .mc-card:hover .tip-box,.card:hover .tip-box{display:block;}
 
 /* Charts section */
@@ -165,7 +165,7 @@ a,a:hover,a:focus,a:visited{text-decoration:none!important; color: black}
           <div class="card-body">
             <div class="mc-label">📱 Отсканировали QR-код</div>
             <div class="mc-val c-green">{{ stats.qr_scans }}</div>
-            <div class="tip-box">1 скан за 6 часов на одного гостя за период.</div>
+            <div class="tip-box">Сколько раз гости отсканировали QR-код в заведении за выбранный период. Это основной показатель того, сколько людей реально взаимодействуют с приложением на месте. У одного гостя не может быть больше одного сканирования за 6 часов — это защита от случайных повторных сканов. Если гость пришёл утром и вечером — это 2 сканирования.</div>
           </div>
         </div>
       </a>
@@ -179,7 +179,7 @@ a,a:hover,a:focus,a:visited{text-decoration:none!important; color: black}
             <div class="mc-label">📬 Гостей в рассылке</div>
             <div class="mc-val c-blue">{{ stats.total_vk_subscribers }}</div>
             <div class="mc-sub">За всё время</div>
-            <div class="tip-box">Подписались на рассылку или сообщество ВК через приложение.</div>
+            <div class="tip-box">Сколько всего уникальных людей подписались на рассылку ВК именно через наше приложение за всё время работы. Эта цифра не зависит от выбранного периода — она всегда показывает общий итог. Те, кто разрешал сообщения от сообщества ещё до того, как начал пользоваться приложением, сюда не попадают — считаются только те, кого реально привело приложение.</div>
           </div>
         </div>
       </a>
@@ -192,7 +192,7 @@ a,a:hover,a:focus,a:visited{text-decoration:none!important; color: black}
           <div class="card-body">
             <div class="mc-label">🎁 Новые в группе + получили подарок</div>
             <div class="mc-val c-green">{{ stats.new_group_with_gift }}</div>
-            <div class="tip-box">Подписались через приложение И получили первый суперприз из игры.</div>
+            <div class="tip-box">Гости, которые за выбранный период одновременно выполнили два условия. Первое — они получили свой самый первый в жизни суперприз через игру в приложении (то есть раньше никогда не выигрывали, это их первая победа). Второе — они подписались на группу ВК, или разрешили рассылку, или сделали и то и другое, причём именно через наше приложение (не были подписаны заранее).</div>
           </div>
         </div>
       </a>
@@ -205,7 +205,7 @@ a,a:hover,a:focus,a:visited{text-decoration:none!important; color: black}
           <div class="card-body">
             <div class="mc-label">🔄 Вернулись и сыграли повторно</div>
             <div class="mc-val c-teal">{{ stats.repeat_game_players }}</div>
-            <div class="tip-box">Гости, игравшие минимум в 2 разных дня за период.</div>
+            <div class="tip-box">Гости, которые за выбранный период играли в приложение минимум в два разных календарных дня. Важно: если гость сыграл 10 раз за один день — это считается одним визитом, не повторным. Засчитывается только когда человек ушёл и вернулся в другой день. Например, сыграл в понедельник и четверг — это повторный визит. Сыграл утром и вечером в понедельник — это нет.</div>
           </div>
         </div>
       </a>
@@ -218,7 +218,7 @@ a,a:hover,a:focus,a:visited{text-decoration:none!important; color: black}
           <div class="card-body">
             <div class="mc-label">💰 Купили подарки за баллы</div>
             <div class="mc-val c-purple">{{ stats.coin_purchasers }}</div>
-            <div class="tip-box">Потратили монеты в магазине хотя бы раз за период.</div>
+            <div class="tip-box">Сколько уникальных гостей потратили свои монеты (баллы) в магазине приложения хотя бы один раз за период. Если один гость купил 5 разных призов — он считается один раз.</div>
           </div>
         </div>
       </a>
@@ -231,7 +231,7 @@ a,a:hover,a:focus,a:visited{text-decoration:none!important; color: black}
           <div class="card-body">
             <div class="mc-label">📬 Подписались в сообщество ВК</div>
             <div class="mc-val c-blue">{{ stats.new_community_subscribers }}</div>
-            <div class="tip-box">Подписались на группу ВК именно через приложение.</div>
+            <div class="tip-box">Сколько гостей подписались на группу ВК именно через наше приложение за выбранный период. Система при первом входе гостя в приложение проверяет через VK API — был ли он уже подписан на группу. Если был подписан заранее (например, подписался сам через ВК, до того как узнал о приложении) — он не считается. Считаются только те, кто подписался именно потому, что приложение его попросило.</div>
           </div>
         </div>
       </a>
@@ -244,7 +244,7 @@ a,a:hover,a:focus,a:visited{text-decoration:none!important; color: black}
           <div class="card-body">
             <div class="mc-label">📨 Подписались на рассылку ВК</div>
             <div class="mc-val c-blue">{{ stats.new_newsletter_subscribers }}</div>
-            <div class="tip-box">Разрешили отправку сообщений от сообщества через приложение.</div>
+            <div class="tip-box">Аналогично предыдущей метрике, но про рассылку (разрешение на отправку сообщений от сообщества). Считаются только те, кто разрешил сообщения именно через наше приложение за выбранный период. Те, кто разрешал раньше сам — не считаются.</div>
           </div>
         </div>
       </a>
@@ -256,7 +256,7 @@ a,a:hover,a:focus,a:visited{text-decoration:none!important; color: black}
         <div class="card-body">
           <div class="mc-label">🎂 Поздравлений с ДР отправлено</div>
           <div class="mc-val {% if stats.birthday_greetings_sent > 0 %}c-orange{% else %}c-grey{% endif %}">{{ stats.birthday_greetings_sent }}</div>
-          <div class="tip-box">Уникальные гости, получившие ДР-поздравление (за 7д, 1д, в ДР).</div>
+          <div class="tip-box">Сколько уникальных гостей получили хотя бы одно поздравительное сообщение с днём рождения за период. Система отправляет до трёх сообщений каждому имениннику: за 7 дней до ДР, за 1 день и в сам день рождения. Но даже если гость получил все три сообщения — он считается как одно поздравление, потому что метрика считает людей, а не сообщения.</div>
         </div>
       </div>
     </div>
@@ -268,7 +268,7 @@ a,a:hover,a:focus,a:visited{text-decoration:none!important; color: black}
           <div class="card-body">
             <div class="mc-label">🎁 Пришли отметить день рождения</div>
             <div class="mc-val {% if stats.birthday_celebrants > 0 %}c-orange{% else %}c-grey{% endif %}">{{ stats.birthday_celebrants }}</div>
-            <div class="tip-box">Активировали ДР-приз через код дня персонала.</div>
+            <div class="tip-box">Сколько уникальных гостей реально пришли в заведение, ввели код дня у персонала и активировали свой подарок ко дню рождения. Код дня — это ежедневный код, который знает только персонал на месте. Без ввода этого кода подарок не активируется. То есть если в метрике стоит цифра — значит эти люди точно были в заведении физически.</div>
           </div>
         </div>
       </a>
@@ -283,7 +283,7 @@ a,a:hover,a:focus,a:visited{text-decoration:none!important; color: black}
             {% if stats.message_open_rate %}{{ stats.message_open_rate }}%{% else %}—{% endif %}
           </div>
           <div class="mc-sub">Прочитано / Доставлено</div>
-          <div class="tip-box">% прочитанных из всех отправленных. Обновляется через VK API.</div>
+          <div class="tip-box">Какой процент от всех отправленных сообщений был прочитан гостями за период. Формула: прочитанные ÷ отправленные × 100%. Статус «прочитано» обновляется автоматически через VK API каждые 2 минуты, поэтому свежие рассылки могут показывать заниженный процент — нужно подождать.</div>
         </div>
       </div>
     </div>
@@ -295,7 +295,7 @@ a,a:hover,a:focus,a:visited{text-decoration:none!important; color: black}
           <div class="card-body">
             <div class="mc-label">📖 Опубликовали истории в ВК</div>
             <div class="mc-val {% if stats.vk_stories_publishers > 0 %}c-teal{% else %}c-grey{% endif %}">{{ stats.vk_stories_publishers }}</div>
-            <div class="tip-box">Опубликовали сторис ВК через приложение за период.</div>
+            <div class="tip-box">Сколько уникальных гостей опубликовали сторис (историю) в ВК через приложение за выбранный период. Фильтр идёт по дате публикации сторис — если гость зарегистрировался месяц назад, но сторис опубликовал сегодня, он попадёт в метрику за сегодня.</div>
           </div>
         </div>
       </a>
@@ -307,7 +307,7 @@ a,a:hover,a:focus,a:visited{text-decoration:none!important; color: black}
         <div class="card-body">
           <div class="mc-label">➡️ Перешли из историй ВК</div>
           <div class="mc-val {% if stats.stories_referrals > 0 %}c-teal{% else %}c-grey{% endif %}">{{ stats.stories_referrals }}</div>
-          <div class="tip-box">Новые гости, зарегистрировавшиеся по реферальной ссылке из сторис.</div>
+          <div class="tip-box">Сколько новых гостей пришли по реферальной ссылке из сторис других гостей и зарегистрировались за период. То есть гость А опубликовал сторис со ссылкой → гость Б перешёл по ней и зарегистрировался → гость Б попадает в эту метрику.</div>
         </div>
       </div>
     </div>
@@ -319,7 +319,7 @@ a,a:hover,a:focus,a:visited{text-decoration:none!important; color: black}
           <div class="mc-label">👥 Гостей по POS-системе</div>
           <div class="mc-val c-grey" id="stat-pos-guests"><span class="slow-skeleton"></span></div>
           <div class="mc-sub">IIKO / Dooglys</div>
-          <div class="tip-box">Количество гостей по данным кассовой системы.</div>
+          <div class="tip-box">Количество гостей из кассовой системы (IIKO или Dooglys) за период. Это реальное количество посетителей заведения по данным кассы. Данные подгружаются из внешних систем и могут приходить с небольшой задержкой.</div>
         </div>
       </div>
     </div>
@@ -331,7 +331,7 @@ a,a:hover,a:focus,a:visited{text-decoration:none!important; color: black}
           <div class="mc-label">🔄 Индекс сканирования</div>
           <div class="mc-val c-grey" id="stat-scan-index"><span class="slow-skeleton"></span></div>
           <div class="mc-sub">QR ÷ POS × 100%</div>
-          <div class="tip-box">Доля реальных гостей, «оцифрованных» через приложение.</div>
+          <div class="tip-box">QR-сканирования ÷ гости POS-системы × 100%. Показывает, какую долю реальных гостей заведения удалось оцифровать через приложение.</div>
         </div>
       </div>
     </div>
