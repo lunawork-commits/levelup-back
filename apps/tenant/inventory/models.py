@@ -254,7 +254,8 @@ class InventoryItem(TimeStampedModel):
     # ── Meta ──────────────────────────────────────────────────────────────────
 
     def __str__(self):
-        return f'{self.product.name} — {self.client_branch}'
+        name = self.product.name if self.product else '(удалён)'
+        return f'{name} — {self.client_branch}'
 
     class Meta:
         verbose_name = 'Приз гостя'
