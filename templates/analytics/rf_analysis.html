@@ -207,8 +207,37 @@
     justify-content: center;
     text-align: center;
   }
-  .rf-cell:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.12); z-index: 1; }
+  .rf-cell:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.12); z-index: 10; }
   .rf-cell.selected { box-shadow: 0 0 0 3px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.12); transform: translateY(-2px); z-index: 2; }
+
+  .rf-cell-tip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 300px;
+    background: var(--navy);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 10px 14px;
+    border-radius: 8px;
+    line-height: 1.6;
+    white-space: normal;
+    z-index: 30;
+    pointer-events: none;
+  }
+  .rf-cell-tip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: var(--navy);
+  }
+  .rf-cell:hover .rf-cell-tip { display: block; }
 
   .rf-cell-emoji  { font-size: 20px; line-height: 1; margin-bottom: 4px; }
   .rf-cell-name   { font-size: 10px; font-weight: 600; color: rgba(0,0,0,.6); margin-bottom: 6px; line-height: 1.2; }
@@ -608,6 +637,7 @@ function buildMatrix() {
         <div class="rf-cell-name">${cell.segment_name || '—'}</div>
         <div class="rf-cell-count" style="color: black">${cell.count}</div>
         <div class="rf-cell-pct">${cell.pct}%</div>
+        ${cell.segment_strategy ? `<div class="rf-cell-tip"><strong>📋 Стратегия:</strong><br>${cell.segment_strategy}</div>` : ''}
       `;
       el.addEventListener('click', () => selectCell(rl.r_score, fl.f_score, cell, bg));
       container.appendChild(el);
