@@ -457,50 +457,53 @@ def handle_vk_incoming_message(
     text: str,
 ) -> list[TestimonialMessage]:
     """
-    Создаёт сообщение типа VK_MESSAGE в тредах всех точек, привязанных к группе.
-    Идентификация: SenlerConfig.vk_group_id → Branch (может быть несколько).
+    Создаёт сообщение типа VK_MESSAGE в одном треде, привязанном к группе.
+    Если у группы несколько точек — выбирает ту, где у отправителя уже есть тред,
+    иначе первую.  Это предотвращает дублирование отзывов по точкам.
     Возвращает пустой список если сообщение уже было обработано или конфиг не найден.
     """
     from django.utils import timezone
     from apps.tenant.senler.models import SenlerConfig
 
-    configs = SenlerConfig.objects.select_related('branch').filter(vk_group_id=group_id)
-    if not configs.exists():
+    configs = list(
+        SenlerConfig.objects.select_related('branch').filter(vk_group_id=group_id)
+    )
+    if not configs:
         return []
 
     vk_sender_id = str(from_id)
     vk_msg_id_str = str(message_id)
-    created_messages = []
 
-    for config in configs:
-        branch = config.branch
-        # Deduplication per branch: use branch-scoped vk_message_id
-        conv = _get_or_create_conversation(branch, vk_sender_id)
+    # Global dedup: skip if this VK message was already processed
+    if TestimonialMessage.objects.filter(vk_message_id=vk_msg_id_str).exists():
+        return []
 
-        if TestimonialMessage.objects.filter(
-            conversation__branch=branch,
-            vk_message_id=vk_msg_id_str,
-        ).exists():
-            continue
+    # Route to a single branch: prefer one where sender already has a conversation
+    branches = [c.branch for c in configs]
+    existing_conv = TestimonialConversation.objects.filter(
+        branch__in=branches,
+        vk_sender_id=vk_sender_id,
+    ).order_by('-last_message_at').first()
 
-        msg = TestimonialMessage.objects.create(
-            conversation=conv,
-            source=TestimonialMessage.Source.VK_MESSAGE,
-            text=text,
-            vk_message_id=vk_msg_id_str,
-        )
+    branch = existing_conv.branch if existing_conv else branches[0]
+    conv = _get_or_create_conversation(branch, vk_sender_id)
 
-        conv.has_unread = True
-        conv.is_replied = False
-        conv.last_message_at = timezone.now()
-        conv.save(update_fields=['has_unread', 'is_replied', 'last_message_at'])
+    msg = TestimonialMessage.objects.create(
+        conversation=conv,
+        source=TestimonialMessage.Source.VK_MESSAGE,
+        text=text,
+        vk_message_id=vk_msg_id_str,
+    )
 
-        from apps.tenant.analytics.ai_service import analyze_and_save
-        analyze_and_save(conv.id, text, TestimonialMessage.Source.VK_MESSAGE)
+    conv.has_unread = True
+    conv.is_replied = False
+    conv.last_message_at = timezone.now()
+    conv.save(update_fields=['has_unread', 'is_replied', 'last_message_at'])
 
-        created_messages.append(msg)
+    from apps.tenant.analytics.ai_service import analyze_and_save
+    analyze_and_save(conv.id, text, TestimonialMessage.Source.VK_MESSAGE)
 
-    return created_messages
+    return [msg]
 
 
 def send_vk_reply(
