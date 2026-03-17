@@ -213,4 +213,211 @@
 })();
 </script>
 {% endif %}
+
+{% if loyalupp_widget %}
+<div style="
+  margin-top: 24px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,.05);
+">
+  <div style="
+    background: linear-gradient(135deg, #6a1b9a, #9c27b0);
+    color: #fff;
+    padding: 12px 20px;
+    font-size: 14px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  ">
+    🌐 LoyalUpp
+  </div>
+
+  <div style="padding: 16px 20px;">
+    <p style="font-size: 13px; color: #555; margin: 0 0 16px;">
+      Генерация ссылок и QR-кодов для LoyalUpp.
+      Номер стола вводится вручную при каждой генерации.
+    </p>
+
+    <table style="width:100%; border-collapse:collapse; font-size:13px;">
+      <tr>
+        <td style="width:160px; vertical-align:top; padding: 8px 0; color:#666; font-weight:600;">
+          LoyalUpp (ссылка и QR-код):
+        </td>
+        <td style="padding: 0 0 0 16px;">
+          <div style="
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 16px;
+            background: #fafafa;
+            max-width: 480px;
+          ">
+            <div style="font-weight:700; font-size:13px; margin-bottom:4px;">
+              🌐 LoyalUpp — генерация ссылки и QR-кода
+            </div>
+            <div style="font-size:11px; color:#6a1b9a; margin-bottom:14px;" id="lu-link-preview">
+              Ссылка: company={{ loyalupp_widget.company_id }}&branch={{ loyalupp_widget.branch_id }}&table=N
+            </div>
+
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+              <label style="font-size:13px; font-weight:600; white-space:nowrap;">Номер стола:</label>
+              <input
+                type="number"
+                id="lu-table-input"
+                placeholder="Введите номер"
+                min="1"
+                style="
+                  border: 1px solid #ccc;
+                  border-radius: 5px;
+                  padding: 6px 10px;
+                  font-size: 13px;
+                  width: 140px;
+                  outline: none;
+                "
+                oninput="luUpdateLink()"
+              >
+            </div>
+
+            <div
+              id="lu-link-display"
+              style="
+                font-size: 12px;
+                color: #888;
+                background: #f0f0f0;
+                border: 1px solid #e0e0e0;
+                border-radius: 5px;
+                padding: 7px 10px;
+                margin-bottom: 12px;
+                word-break: break-all;
+                min-height: 32px;
+              "
+            >— укажите номер стола выше</div>
+
+            <div id="lu-qr-container" style="margin-bottom:12px; display:none;">
+              <div id="lu-qr-canvas"></div>
+            </div>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+              <button
+                type="button"
+                onclick="luCopyLink(this)"
+                style="
+                  background: #6a1b9a;
+                  color: #fff;
+                  border: none;
+                  border-radius: 6px;
+                  padding: 8px 16px;
+                  font-size: 13px;
+                  font-weight: 600;
+                  cursor: pointer;
+                "
+                onmouseover="this.style.background='#4a148c'"
+                onmouseout="this.style.background='#6a1b9a'"
+              >📋 Копировать ссылку</button>
+
+              <button
+                type="button"
+                onclick="luDownloadQr()"
+                style="
+                  background: #2e7d32;
+                  color: #fff;
+                  border: none;
+                  border-radius: 6px;
+                  padding: 8px 16px;
+                  font-size: 13px;
+                  font-weight: 600;
+                  cursor: pointer;
+                "
+                onmouseover="this.style.background='#1b5e20'"
+                onmouseout="this.style.background='#2e7d32'"
+              >📱 Скачать QR-код</button>
+            </div>
+          </div>
+        </td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<script>
+(function () {
+  var COMPANY_ID = {{ loyalupp_widget.company_id }};
+  var BRANCH_ID  = {{ loyalupp_widget.branch_id }};
+
+  var currentLink = '';
+  var qrInstance  = null;
+
+  function buildLink(table) {
+    return 'https://loyalupp.ru/#/?company=' + COMPANY_ID + '&branch=' + BRANCH_ID + '&table=' + table;
+  }
+
+  window.luUpdateLink = function () {
+    var table = document.getElementById('lu-table-input').value.trim();
+    var display = document.getElementById('lu-link-display');
+    var preview = document.getElementById('lu-link-preview');
+    var qrWrap  = document.getElementById('lu-qr-container');
+    var qrEl    = document.getElementById('lu-qr-canvas');
+
+    if (!table) {
+      currentLink = '';
+      display.textContent = '— укажите номер стола выше';
+      display.style.color = '#888';
+      preview.textContent = 'Ссылка: company=' + COMPANY_ID + '&branch=' + BRANCH_ID + '&table=N';
+      qrWrap.style.display = 'none';
+      return;
+    }
+
+    currentLink = buildLink(table);
+    display.textContent = currentLink;
+    display.style.color = '#4a148c';
+    preview.textContent = 'Ссылка: company=' + COMPANY_ID + '&branch=' + BRANCH_ID + '&table=' + table;
+
+    qrEl.innerHTML = '';
+    qrInstance = new QRCode(qrEl, {
+      text: currentLink,
+      width: 180,
+      height: 180,
+      colorDark: '#000',
+      colorLight: '#fff',
+      correctLevel: QRCode.CorrectLevel.M,
+    });
+    qrWrap.style.display = 'block';
+  };
+
+  window.luCopyLink = function (btn) {
+    if (!currentLink) {
+      alert('Сначала введите номер стола.');
+      return;
+    }
+    navigator.clipboard.writeText(currentLink).then(function () {
+      var orig = btn.textContent;
+      btn.textContent = '✓ Скопировано!';
+      setTimeout(function () { btn.textContent = orig; }, 1800);
+    }).catch(function () {
+      prompt('Скопируйте ссылку вручную:', currentLink);
+    });
+  };
+
+  window.luDownloadQr = function () {
+    if (!currentLink) {
+      alert('Сначала введите номер стола.');
+      return;
+    }
+    var canvas = document.querySelector('#lu-qr-canvas canvas');
+    if (!canvas) {
+      alert('QR-код ещё не сгенерирован — введите номер стола.');
+      return;
+    }
+    var table = document.getElementById('lu-table-input').value.trim();
+    var a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = 'loyalupp_branch' + BRANCH_ID + '_table' + table + '.png';
+    a.click();
+  };
+})();
+</script>
+{% endif %}
 {% endblock %}

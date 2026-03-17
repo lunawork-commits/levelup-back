@@ -127,7 +127,7 @@ class DomainInline(admin.TabularInline):
 @admin.register(Company, site=public_admin)
 class CompanyAdmin(admin.ModelAdmin):
     inlines = [DomainInline]
-    list_display = ('name', 'client_id', 'schema_name', 'primary_domain', 'is_active', 'paid_until', 'config_link')
+    list_display = ('name', 'client_id', 'schema_name', 'primary_domain', 'is_active', 'paid_until', 'config_link', 'admin_link')
     list_filter = ('is_active',)
     search_fields = ('name', 'schema_name')
 
@@ -181,4 +181,12 @@ class CompanyAdmin(admin.ModelAdmin):
         if hasattr(obj, 'config'):
             url = reverse('public_admin:config_clientconfig_change', args=[obj.config.pk])
             return format_html('<a href="{}">Настроить →</a>', url)
+        return '—'
+
+    @admin.display(description='Перейти')
+    def admin_link(self, obj):
+        domain = next((d for d in obj.domains.all() if d.is_primary), None)
+        if domain:
+            url = f'https://{domain.domain}/admin'
+            return format_html('<a href="{}" target="_blank">Перейти →</a>', url)
         return '—'

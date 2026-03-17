@@ -76,6 +76,10 @@ class BranchAdmin(admin.ModelAdmin):
                     'company_id': tenant.client_id if tenant else '',
                     'branch_id': obj.branch_id,
                 }
+                extra_context['loyalupp_widget'] = {
+                    'company_id': tenant.client_id if tenant else '',
+                    'branch_id': obj.branch_id,
+                }
         return super().change_view(request, object_id, form_url, extra_context)
 
     def get_queryset(self, request):
