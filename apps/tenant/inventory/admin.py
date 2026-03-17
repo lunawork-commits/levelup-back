@@ -194,7 +194,7 @@ class InventoryItemAdmin(admin.ModelAdmin):
 
     @admin.display(description='Приз', ordering='product__name')
     def product_col(self, obj):
-        return obj.product.name
+        return obj.product.name if obj.product else 'Удалено'
 
     @admin.display(description='Гость', ordering='client_branch__client__name')
     def client_col(self, obj):
