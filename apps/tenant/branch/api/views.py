@@ -387,3 +387,46 @@ class VKIDProxyView(APIView):
                 {'error': 'proxy_error', 'detail': str(e)},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
+
+
+class VKAuthBounceView(APIView):
+    """
+    GET /api/v1/vk-auth-bounce/?url=<encoded_vk_url>
+
+    «Трамплин» для OAuth redirect на id.vk.ru.
+    Отвечает 302-редиректом на VK.
+
+    Зачем: если фронтенд делает location.assign('https://id.vk.ru/authorize?...'),
+    iOS Universal Links / Android Intent Filters перехватывают URL и открывают
+    приложение VK вместо браузера. А VK in-app WebView не может завершить
+    подтверждение → «Нет подключения к сети».
+
+    Server-side 302 redirect НЕ перехватывается universal links —
+    браузер остаётся в браузере и открывает id.vk.ru нормально.
+    """
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request):
+        from django.http import HttpResponseRedirect
+        from urllib.parse import urlparse
+
+        url = request.query_params.get('url', '')
+
+        if not url:
+            return Response(
+                {'error': 'missing_url'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Безопасность: разрешаем redirect ТОЛЬКО на домены VK
+        parsed = urlparse(url)
+        allowed_hosts = {'id.vk.ru', 'id.vk.com', 'oauth.vk.com', 'login.vk.com'}
+        if parsed.hostname not in allowed_hosts:
+            logger.warning('VK auth bounce: blocked redirect to %s', parsed.hostname)
+            return Response(
+                {'error': 'forbidden_host'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        return HttpResponseRedirect(url)

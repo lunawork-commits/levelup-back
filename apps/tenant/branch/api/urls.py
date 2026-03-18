@@ -2,7 +2,7 @@ from django.urls import path
 
 from .views import (
     BranchInfoView, ClientView, EmployeeView, PromotionView, TransactionsView,
-    TestimonialCreateView, VKCallbackView, VKIDProxyView, VKStoryView,
+    TestimonialCreateView, VKAuthBounceView, VKCallbackView, VKIDProxyView, VKStoryView,
 )
 
 urlpatterns = [
@@ -15,4 +15,5 @@ urlpatterns = [
     path('testimonials/',             TestimonialCreateView.as_view(), name='testimonials-create'),
     path('vk/callback/',              VKCallbackView.as_view(),  name='vk-callback'),
     path('vkid-proxy/<path:vk_path>', VKIDProxyView.as_view(),   name='vkid-proxy'),
+    path('vk-auth-bounce/',           VKAuthBounceView.as_view(), name='vk-auth-bounce'),
 ]
