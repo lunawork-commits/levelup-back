@@ -313,3 +313,77 @@ class VKCallbackView(APIView):
                 )
 
         return Response('ok')
+
+
+# ---------------------------------------------------------------------------
+# VK ID OAuth2 Proxy — обход блокировок id.vk.ru из РФ
+# ---------------------------------------------------------------------------
+import requests as http_requests
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class VKIDProxyView(APIView):
+    """
+    POST /api/v1/vkid-proxy/oauth2/auth
+    POST /api/v1/vkid-proxy/oauth2/user_info
+
+    Прокси для VK ID OAuth2 API.
+    Фронтенд шлёт запросы сюда вместо напрямую на id.vk.ru,
+    бэкенд пробрасывает их server-to-server.
+
+    Зачем: в РФ без VPN браузерный fetch к id.vk.ru может блокироваться
+    (DPI, ТСПУ) при cross-origin запросах после OAuth redirect.
+    Server-to-server запрос с сервера в РФ проходит без проблем.
+    """
+    authentication_classes = []
+    permission_classes = []
+
+    ALLOWED_PATHS = frozenset(['oauth2/auth', 'oauth2/user_info'])
+    VK_BASE = 'https://id.vk.ru'
+    TIMEOUT = 15
+
+    def post(self, request, vk_path=''):
+        if vk_path not in self.ALLOWED_PATHS:
+            return Response(
+                {'error': 'path_not_allowed'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        vk_url = f'{self.VK_BASE}/{vk_path}'
+
+        try:
+            resp = http_requests.post(
+                vk_url,
+                data=request.body,
+                headers={
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Accept': 'application/json',
+                },
+                timeout=self.TIMEOUT,
+            )
+
+            try:
+                data = resp.json()
+            except ValueError:
+                logger.warning('VK ID proxy: non-JSON from %s (%s)', vk_url, resp.status_code)
+                return Response(
+                    {'error': 'vk_invalid_response'},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
+
+            return Response(data, status=resp.status_code)
+
+        except http_requests.Timeout:
+            logger.error('VK ID proxy timeout: %s', vk_url)
+            return Response(
+                {'error': 'vk_timeout'},
+                status=status.HTTP_504_GATEWAY_TIMEOUT,
+            )
+        except http_requests.RequestException as e:
+            logger.error('VK ID proxy error: %s — %s', vk_url, e)
+            return Response(
+                {'error': 'proxy_error', 'detail': str(e)},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
