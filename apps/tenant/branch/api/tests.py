@@ -798,17 +798,17 @@ class VkOauthExchangeTest(TestCase):
 
     @patch('apps.tenant.branch.api.services.settings')
     def test_raises_when_app_id_not_configured(self, mock_settings):
-        mock_settings.VK_MINI_APP_ID = None
+        mock_settings.VK_WEB_APP_ID = None
 
         with self.assertRaises(VKAuthError) as ctx:
             vk_oauth_exchange('code', 'dev', 'verifier', 'https://x.com/cb')
 
-        self.assertIn('VK_MINI_APP_ID', str(ctx.exception))
+        self.assertIn('VK_WEB_APP_ID', str(ctx.exception))
 
     @patch('urllib.request.urlopen')
     @patch('apps.tenant.branch.api.services.settings')
     def test_returns_user_data_on_success(self, mock_settings, mock_urlopen):
-        mock_settings.VK_MINI_APP_ID = 53418653
+        mock_settings.VK_WEB_APP_ID = 53418653
         mock_urlopen.side_effect = _urlopen_mock(_VK_TOKEN_OK, _VK_USER_OK).side_effect
 
         result = vk_oauth_exchange('code', 'dev', 'verifier', 'https://x.com/cb')
@@ -821,7 +821,7 @@ class VkOauthExchangeTest(TestCase):
     @patch('urllib.request.urlopen')
     @patch('apps.tenant.branch.api.services.settings')
     def test_calls_vk_auth_then_user_info(self, mock_settings, mock_urlopen):
-        mock_settings.VK_MINI_APP_ID = 53418653
+        mock_settings.VK_WEB_APP_ID = 53418653
         mock_urlopen.side_effect = _urlopen_mock(_VK_TOKEN_OK, _VK_USER_OK).side_effect
 
         vk_oauth_exchange('code', 'dev', 'verifier', 'https://x.com/cb')
@@ -835,7 +835,7 @@ class VkOauthExchangeTest(TestCase):
     @patch('urllib.request.urlopen')
     @patch('apps.tenant.branch.api.services.settings')
     def test_raises_on_vk_error_response(self, mock_settings, mock_urlopen):
-        mock_settings.VK_MINI_APP_ID = 53418653
+        mock_settings.VK_WEB_APP_ID = 53418653
         error_resp = {'error': 'invalid_client', 'error_description': 'Bad code'}
         mock_urlopen.side_effect = _urlopen_mock(error_resp).side_effect
 
@@ -847,7 +847,7 @@ class VkOauthExchangeTest(TestCase):
     @patch('urllib.request.urlopen')
     @patch('apps.tenant.branch.api.services.settings')
     def test_raises_when_access_token_missing(self, mock_settings, mock_urlopen):
-        mock_settings.VK_MINI_APP_ID = 53418653
+        mock_settings.VK_WEB_APP_ID = 53418653
         incomplete = {'user_id': 123456}  # no access_token
         mock_urlopen.side_effect = _urlopen_mock(incomplete).side_effect
 
@@ -859,7 +859,7 @@ class VkOauthExchangeTest(TestCase):
     @patch('urllib.request.urlopen')
     @patch('apps.tenant.branch.api.services.settings')
     def test_raises_when_user_id_missing(self, mock_settings, mock_urlopen):
-        mock_settings.VK_MINI_APP_ID = 53418653
+        mock_settings.VK_WEB_APP_ID = 53418653
         incomplete = {'access_token': 'tok'}  # no user_id
         mock_urlopen.side_effect = _urlopen_mock(incomplete).side_effect
 
@@ -871,7 +871,7 @@ class VkOauthExchangeTest(TestCase):
     @patch('urllib.request.urlopen')
     @patch('apps.tenant.branch.api.services.settings')
     def test_raises_on_network_error(self, mock_settings, mock_urlopen):
-        mock_settings.VK_MINI_APP_ID = 53418653
+        mock_settings.VK_WEB_APP_ID = 53418653
         mock_urlopen.side_effect = OSError('Connection refused')
 
         with self.assertRaises(VKAuthError) as ctx:
@@ -882,7 +882,7 @@ class VkOauthExchangeTest(TestCase):
     @patch('urllib.request.urlopen')
     @patch('apps.tenant.branch.api.services.settings')
     def test_raises_on_user_info_network_error(self, mock_settings, mock_urlopen):
-        mock_settings.VK_MINI_APP_ID = 53418653
+        mock_settings.VK_WEB_APP_ID = 53418653
         # First call succeeds (token exchange), second fails (user_info)
         token_mock = MagicMock()
         token_mock.__enter__ = MagicMock(return_value=token_mock)
@@ -898,7 +898,7 @@ class VkOauthExchangeTest(TestCase):
     @patch('urllib.request.urlopen')
     @patch('apps.tenant.branch.api.services.settings')
     def test_missing_user_in_info_response_returns_empty_strings(self, mock_settings, mock_urlopen):
-        mock_settings.VK_MINI_APP_ID = 53418653
+        mock_settings.VK_WEB_APP_ID = 53418653
         # user_info returns empty user dict
         empty_user = {'user': {}}
         mock_urlopen.side_effect = _urlopen_mock(_VK_TOKEN_OK, empty_user).side_effect

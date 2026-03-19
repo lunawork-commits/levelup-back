@@ -40,9 +40,9 @@ def vk_oauth_exchange(
     import urllib.parse
     import urllib.request
 
-    app_id = getattr(settings, 'VK_MINI_APP_ID', None)
+    app_id = getattr(settings, 'VK_WEB_APP_ID', None)
     if not app_id:
-        raise VKAuthError('VK_MINI_APP_ID не настроен')
+        raise VKAuthError('VK_WEB_APP_ID не настроен')
 
     # ── Шаг 1: обмен кода на токен ───────────────────────────────────────────
     token_body = urllib.parse.urlencode({
