@@ -6,9 +6,11 @@ View tests:     mock service layer, test HTTP status codes and routing.
 Serializer tests: mock domain objects, test field presence and output shape.
 """
 
-from unittest.mock import MagicMock, patch
+import json
+from unittest.mock import MagicMock, call, patch
 
 from django.test import TestCase
+from django.urls import reverse, resolve
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
@@ -20,14 +22,54 @@ from .serializers import (
     CoinTransactionSerializer,
     EmployeeSerializer,
     PromotionSerializer,
+    VKAuthRequestSerializer,
 )
 from .services import (
-    BranchInactive, BranchNotFound, ClientBlocked, ClientNotFound,
+    BranchInactive, BranchNotFound, ClientBlocked, ClientNotFound, VKAuthError,
     get_branch_info, get_client_profile,
     get_employees, get_promotions, get_transactions,
-    register_or_get_client, update_client_profile,
+    register_or_get_client, update_client_profile, vk_oauth_exchange, vk_web_auth,
 )
-from .views import BranchInfoView, ClientView, EmployeeView, PromotionView, TransactionsView
+from .views import BranchInfoView, ClientView, EmployeeView, PromotionView, TransactionsView, VKAuthView
+
+
+# ── Helpers ────────────────────────────────────────────────────────────────────
+
+def _urlopen_mock(*response_dicts):
+    """
+    Builds a mock for urllib.request.urlopen that works as a context manager
+    and returns each response_dict as JSON bytes on successive calls.
+    """
+    side_effects = []
+    for d in response_dicts:
+        m = MagicMock()
+        m.__enter__ = MagicMock(return_value=m)
+        m.__exit__ = MagicMock(return_value=False)
+        m.read.return_value = json.dumps(d).encode()
+        side_effects.append(m)
+    mock = MagicMock(side_effect=side_effects)
+    return mock
+
+
+_VK_TOKEN_OK = {
+    'access_token': 'tok_abc123',
+    'user_id': 123456,
+}
+_VK_USER_OK = {
+    'user': {
+        'user_id': '123456',
+        'first_name': 'Иван',
+        'last_name': 'Иванов',
+        'avatar': 'https://vk.com/photo.jpg',
+    }
+}
+_VK_AUTH_PAYLOAD = {
+    'code': 'AUTH_CODE',
+    'device_id': 'DEV_ID',
+    'code_verifier': 'VERIFIER_STRING',
+    'redirect_uri': 'https://example.com/callback',
+    'branch_id': 42,
+}
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -171,12 +213,13 @@ class RegisterOrGetClientTest(TestCase):
         with self.assertRaises(ClientBlocked):
             register_or_get_client(vk_id=111, branch_id=1)
 
+    @patch('apps.tenant.branch.api.services._sync_vk_status_on_register')
     @patch('apps.tenant.branch.api.services.ClientBranchVisit.record_visit')
     @patch('apps.tenant.branch.api.services._profile_qs')
     @patch('apps.tenant.branch.api.services.ClientBranch.objects')
     @patch('apps.tenant.branch.api.services.Client.objects')
     @patch('apps.tenant.branch.api.services.Branch.objects')
-    def test_returns_created_true_for_new_client(self, mock_br, mock_cl, mock_cb, mock_pqs, mock_visit):
+    def test_returns_created_true_for_new_client(self, mock_br, mock_cl, mock_cb, mock_pqs, mock_visit, mock_sync):
         mock_br.get.return_value = MagicMock(is_active=True)
         mock_cl.get_or_create.return_value = (MagicMock(is_active=True), True)
         raw = MagicMock()
@@ -205,12 +248,13 @@ class RegisterOrGetClientTest(TestCase):
 
         self.assertFalse(created)
 
+    @patch('apps.tenant.branch.api.services._sync_vk_status_on_register')
     @patch('apps.tenant.branch.api.services.ClientBranchVisit.record_visit')
     @patch('apps.tenant.branch.api.services._profile_qs')
     @patch('apps.tenant.branch.api.services.ClientBranch.objects')
     @patch('apps.tenant.branch.api.services.Client.objects')
     @patch('apps.tenant.branch.api.services.Branch.objects')
-    def test_records_visit(self, mock_br, mock_cl, mock_cb, mock_pqs, mock_visit):
+    def test_records_visit(self, mock_br, mock_cl, mock_cb, mock_pqs, mock_visit, mock_sync):
         mock_br.get.return_value = MagicMock(is_active=True)
         mock_cl.get_or_create.return_value = (MagicMock(is_active=True), True)
         raw = MagicMock()
@@ -746,3 +790,307 @@ class CoinTransactionSerializerTest(TestCase):
         for f in ('id', 'type', 'source', 'amount', 'description', 'created_at'):
             with self.subTest(field=f):
                 self.assertIn(f, fields)
+
+
+# ── Service: vk_oauth_exchange ────────────────────────────────────────────────
+
+class VkOauthExchangeTest(TestCase):
+
+    @patch('apps.tenant.branch.api.services.settings')
+    def test_raises_when_app_id_not_configured(self, mock_settings):
+        mock_settings.VK_MINI_APP_ID = None
+
+        with self.assertRaises(VKAuthError) as ctx:
+            vk_oauth_exchange('code', 'dev', 'verifier', 'https://x.com/cb')
+
+        self.assertIn('VK_MINI_APP_ID', str(ctx.exception))
+
+    @patch('urllib.request.urlopen')
+    @patch('apps.tenant.branch.api.services.settings')
+    def test_returns_user_data_on_success(self, mock_settings, mock_urlopen):
+        mock_settings.VK_MINI_APP_ID = 53418653
+        mock_urlopen.side_effect = _urlopen_mock(_VK_TOKEN_OK, _VK_USER_OK).side_effect
+
+        result = vk_oauth_exchange('code', 'dev', 'verifier', 'https://x.com/cb')
+
+        self.assertEqual(result['user_id'], 123456)
+        self.assertEqual(result['first_name'], 'Иван')
+        self.assertEqual(result['last_name'], 'Иванов')
+        self.assertEqual(result['photo_url'], 'https://vk.com/photo.jpg')
+
+    @patch('urllib.request.urlopen')
+    @patch('apps.tenant.branch.api.services.settings')
+    def test_calls_vk_auth_then_user_info(self, mock_settings, mock_urlopen):
+        mock_settings.VK_MINI_APP_ID = 53418653
+        mock_urlopen.side_effect = _urlopen_mock(_VK_TOKEN_OK, _VK_USER_OK).side_effect
+
+        vk_oauth_exchange('code', 'dev', 'verifier', 'https://x.com/cb')
+
+        self.assertEqual(mock_urlopen.call_count, 2)
+        first_url = mock_urlopen.call_args_list[0][0][0].full_url
+        second_url = mock_urlopen.call_args_list[1][0][0].full_url
+        self.assertIn('id.vk.ru/oauth2/auth', first_url)
+        self.assertIn('id.vk.ru/oauth2/user_info', second_url)
+
+    @patch('urllib.request.urlopen')
+    @patch('apps.tenant.branch.api.services.settings')
+    def test_raises_on_vk_error_response(self, mock_settings, mock_urlopen):
+        mock_settings.VK_MINI_APP_ID = 53418653
+        error_resp = {'error': 'invalid_client', 'error_description': 'Bad code'}
+        mock_urlopen.side_effect = _urlopen_mock(error_resp).side_effect
+
+        with self.assertRaises(VKAuthError) as ctx:
+            vk_oauth_exchange('bad_code', 'dev', 'verifier', 'https://x.com/cb')
+
+        self.assertIn('Bad code', str(ctx.exception))
+
+    @patch('urllib.request.urlopen')
+    @patch('apps.tenant.branch.api.services.settings')
+    def test_raises_when_access_token_missing(self, mock_settings, mock_urlopen):
+        mock_settings.VK_MINI_APP_ID = 53418653
+        incomplete = {'user_id': 123456}  # no access_token
+        mock_urlopen.side_effect = _urlopen_mock(incomplete).side_effect
+
+        with self.assertRaises(VKAuthError) as ctx:
+            vk_oauth_exchange('code', 'dev', 'verifier', 'https://x.com/cb')
+
+        self.assertIn('access_token', str(ctx.exception))
+
+    @patch('urllib.request.urlopen')
+    @patch('apps.tenant.branch.api.services.settings')
+    def test_raises_when_user_id_missing(self, mock_settings, mock_urlopen):
+        mock_settings.VK_MINI_APP_ID = 53418653
+        incomplete = {'access_token': 'tok'}  # no user_id
+        mock_urlopen.side_effect = _urlopen_mock(incomplete).side_effect
+
+        with self.assertRaises(VKAuthError) as ctx:
+            vk_oauth_exchange('code', 'dev', 'verifier', 'https://x.com/cb')
+
+        self.assertIn('user_id', str(ctx.exception))
+
+    @patch('urllib.request.urlopen')
+    @patch('apps.tenant.branch.api.services.settings')
+    def test_raises_on_network_error(self, mock_settings, mock_urlopen):
+        mock_settings.VK_MINI_APP_ID = 53418653
+        mock_urlopen.side_effect = OSError('Connection refused')
+
+        with self.assertRaises(VKAuthError) as ctx:
+            vk_oauth_exchange('code', 'dev', 'verifier', 'https://x.com/cb')
+
+        self.assertIn('Ошибка обмена кода VK', str(ctx.exception))
+
+    @patch('urllib.request.urlopen')
+    @patch('apps.tenant.branch.api.services.settings')
+    def test_raises_on_user_info_network_error(self, mock_settings, mock_urlopen):
+        mock_settings.VK_MINI_APP_ID = 53418653
+        # First call succeeds (token exchange), second fails (user_info)
+        token_mock = MagicMock()
+        token_mock.__enter__ = MagicMock(return_value=token_mock)
+        token_mock.__exit__ = MagicMock(return_value=False)
+        token_mock.read.return_value = json.dumps(_VK_TOKEN_OK).encode()
+        mock_urlopen.side_effect = [token_mock, OSError('Timeout')]
+
+        with self.assertRaises(VKAuthError) as ctx:
+            vk_oauth_exchange('code', 'dev', 'verifier', 'https://x.com/cb')
+
+        self.assertIn('Ошибка получения профиля VK', str(ctx.exception))
+
+    @patch('urllib.request.urlopen')
+    @patch('apps.tenant.branch.api.services.settings')
+    def test_missing_user_in_info_response_returns_empty_strings(self, mock_settings, mock_urlopen):
+        mock_settings.VK_MINI_APP_ID = 53418653
+        # user_info returns empty user dict
+        empty_user = {'user': {}}
+        mock_urlopen.side_effect = _urlopen_mock(_VK_TOKEN_OK, empty_user).side_effect
+
+        result = vk_oauth_exchange('code', 'dev', 'verifier', 'https://x.com/cb')
+
+        self.assertEqual(result['first_name'], '')
+        self.assertEqual(result['last_name'], '')
+        self.assertEqual(result['photo_url'], '')
+
+
+# ── Serializer: VKAuthRequestSerializer ──────────────────────────────────────
+
+class VKAuthRequestSerializerTest(TestCase):
+
+    def _valid_data(self, **overrides):
+        data = dict(_VK_AUTH_PAYLOAD)
+        data.update(overrides)
+        return data
+
+    def test_valid_data_passes(self):
+        s = VKAuthRequestSerializer(data=self._valid_data())
+        self.assertTrue(s.is_valid(), s.errors)
+
+    def test_has_all_required_fields(self):
+        for field in ('code', 'device_id', 'code_verifier', 'redirect_uri', 'branch_id'):
+            with self.subTest(field=field):
+                self.assertIn(field, VKAuthRequestSerializer().fields)
+
+    def test_missing_code_is_invalid(self):
+        s = VKAuthRequestSerializer(data=self._valid_data(code=''))
+        self.assertFalse(s.is_valid())
+        self.assertIn('code', s.errors)
+
+    def test_missing_device_id_is_invalid(self):
+        data = self._valid_data()
+        del data['device_id']
+        s = VKAuthRequestSerializer(data=data)
+        self.assertFalse(s.is_valid())
+        self.assertIn('device_id', s.errors)
+
+    def test_missing_code_verifier_is_invalid(self):
+        data = self._valid_data()
+        del data['code_verifier']
+        s = VKAuthRequestSerializer(data=data)
+        self.assertFalse(s.is_valid())
+        self.assertIn('code_verifier', s.errors)
+
+    def test_missing_redirect_uri_is_invalid(self):
+        data = self._valid_data()
+        del data['redirect_uri']
+        s = VKAuthRequestSerializer(data=data)
+        self.assertFalse(s.is_valid())
+        self.assertIn('redirect_uri', s.errors)
+
+    def test_invalid_redirect_uri_format(self):
+        s = VKAuthRequestSerializer(data=self._valid_data(redirect_uri='not-a-url'))
+        self.assertFalse(s.is_valid())
+        self.assertIn('redirect_uri', s.errors)
+
+    def test_missing_branch_id_is_invalid(self):
+        data = self._valid_data()
+        del data['branch_id']
+        s = VKAuthRequestSerializer(data=data)
+        self.assertFalse(s.is_valid())
+        self.assertIn('branch_id', s.errors)
+
+    def test_birth_date_is_optional(self):
+        data = self._valid_data()
+        data.pop('birth_date', None)
+        s = VKAuthRequestSerializer(data=data)
+        self.assertTrue(s.is_valid(), s.errors)
+        self.assertIsNone(s.validated_data['birth_date'])
+
+    def test_birth_date_parsed_when_provided(self):
+        s = VKAuthRequestSerializer(data=self._valid_data(birth_date='1990-05-15'))
+        self.assertTrue(s.is_valid(), s.errors)
+        import datetime
+        self.assertEqual(s.validated_data['birth_date'], datetime.date(1990, 5, 15))
+
+
+# ── View: VKAuthView ──────────────────────────────────────────────────────────
+
+class VKAuthViewTest(TestCase):
+
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        self.view = VKAuthView.as_view()
+
+    def _post(self, data=None):
+        payload = dict(_VK_AUTH_PAYLOAD) if data is None else data
+        return self.view(self.factory.post('/', payload, format='json'))
+
+    @patch('apps.tenant.branch.api.views.vk_web_auth')
+    def test_returns_201_for_new_guest(self, mock_auth):
+        mock_auth.return_value = (_profile_mock(), True)
+        self.assertEqual(self._post().status_code, status.HTTP_201_CREATED)
+
+    @patch('apps.tenant.branch.api.views.vk_web_auth')
+    def test_returns_200_for_existing_guest(self, mock_auth):
+        mock_auth.return_value = (_profile_mock(), False)
+        self.assertEqual(self._post().status_code, status.HTTP_200_OK)
+
+    @patch('apps.tenant.branch.api.views.vk_web_auth')
+    def test_response_contains_client_profile_fields(self, mock_auth):
+        mock_auth.return_value = (_profile_mock(), True)
+        data = self._post().data
+        for field in ('vk_id', 'first_name', 'last_name', 'coins_balance', 'is_employee'):
+            with self.subTest(field=field):
+                self.assertIn(field, data)
+
+    @patch('apps.tenant.branch.api.views.vk_web_auth')
+    def test_returns_400_on_vk_auth_error(self, mock_auth):
+        mock_auth.side_effect = VKAuthError('Неверный code')
+        response = self._post()
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('detail', response.data)
+        self.assertIn('Неверный code', response.data['detail'])
+
+    @patch('apps.tenant.branch.api.views.vk_web_auth')
+    def test_returns_404_on_branch_not_found(self, mock_auth):
+        mock_auth.side_effect = BranchNotFound
+        response = self._post()
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertIn('detail', response.data)
+
+    @patch('apps.tenant.branch.api.views.vk_web_auth')
+    def test_returns_403_on_branch_inactive(self, mock_auth):
+        mock_auth.side_effect = BranchInactive
+        response = self._post()
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn('detail', response.data)
+
+    @patch('apps.tenant.branch.api.views.vk_web_auth')
+    def test_returns_403_on_client_blocked(self, mock_auth):
+        mock_auth.side_effect = ClientBlocked
+        response = self._post()
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn('detail', response.data)
+
+    def test_returns_400_when_code_missing(self):
+        data = dict(_VK_AUTH_PAYLOAD)
+        del data['code']
+        self.assertEqual(self._post(data).status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_returns_400_when_device_id_missing(self):
+        data = dict(_VK_AUTH_PAYLOAD)
+        del data['device_id']
+        self.assertEqual(self._post(data).status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_returns_400_when_code_verifier_missing(self):
+        data = dict(_VK_AUTH_PAYLOAD)
+        del data['code_verifier']
+        self.assertEqual(self._post(data).status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_returns_400_when_redirect_uri_missing(self):
+        data = dict(_VK_AUTH_PAYLOAD)
+        del data['redirect_uri']
+        self.assertEqual(self._post(data).status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_returns_400_when_redirect_uri_invalid(self):
+        data = dict(_VK_AUTH_PAYLOAD, redirect_uri='not-a-url')
+        self.assertEqual(self._post(data).status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_returns_400_when_branch_id_missing(self):
+        data = dict(_VK_AUTH_PAYLOAD)
+        del data['branch_id']
+        self.assertEqual(self._post(data).status_code, status.HTTP_400_BAD_REQUEST)
+
+    @patch('apps.tenant.branch.api.views.vk_web_auth')
+    def test_passes_all_params_to_vk_web_auth(self, mock_auth):
+        mock_auth.return_value = (_profile_mock(), True)
+        self._post()
+        mock_auth.assert_called_once_with(
+            code='AUTH_CODE',
+            device_id='DEV_ID',
+            code_verifier='VERIFIER_STRING',
+            redirect_uri='https://example.com/callback',
+            branch_id=42,
+            birth_date=None,
+        )
+
+
+# ── URL routing: vk-auth ──────────────────────────────────────────────────────
+
+class VKAuthUrlTest(TestCase):
+
+    def test_vk_auth_url_resolves_to_view(self):
+        url = reverse('vk-auth')
+        resolved = resolve(url)
+        self.assertEqual(resolved.func.view_class, VKAuthView)
+
+    def test_vk_auth_url_pattern(self):
+        url = reverse('vk-auth')
+        self.assertEqual(url, '/api/v1/vk/auth/')

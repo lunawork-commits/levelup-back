@@ -14,15 +14,17 @@ from .serializers import (
     EmployeeSerializer,
     PromotionSerializer,
     TestimonialCreateSerializer,
+    VKAuthRequestSerializer,
     VKStoryRequestSerializer,
     VKStoryResponseSerializer,
 )
 from .services import (
-    BranchInactive, BranchNotFound, ClientBlocked, ClientNotFound,
+    BranchInactive, BranchNotFound, ClientBlocked, ClientNotFound, VKAuthError,
+    VKCallbackConfirmation, VKCallbackForbidden,
     get_branch_info, get_client_profile,
     get_employees, get_promotions, get_transactions,
-    handle_vk_incoming_message, register_or_get_client,
-    submit_app_review, update_client_profile, upload_story,
+    handle_vk_callback, register_or_get_client,
+    submit_app_review, update_client_profile, upload_story, vk_web_auth,
 )
 
 
@@ -224,16 +226,8 @@ class TestimonialCreateView(APIView):
     def post(self, request: Request) -> Response:
         s = TestimonialCreateSerializer(data=request.data)
         s.is_valid(raise_exception=True)
-        d = s.validated_data
         try:
-            submit_app_review(
-                vk_id=d['vk_id'],
-                branch_id=d['branch_id'],
-                review=d['review'],
-                rating=d.get('rating'),
-                phone=d.get('phone', ''),
-                table=d.get('table'),
-            )
+            submit_app_review(**s.validated_data)
         except BranchNotFound:
             return Response(
                 {'detail': 'Торговая точка не найдена или неактивна.'},
@@ -257,176 +251,63 @@ class VKCallbackView(APIView):
     permission_classes      = []
 
     def post(self, request: Request) -> Response:
-        from apps.tenant.senler.models import SenlerConfig
-
-        data     = request.data
-        event    = data.get('type')
-        group_id = data.get('group_id')
-        secret   = data.get('secret', '')
-
-        if not group_id:
-            return Response('ok')
-
-        # ── Confirmation handshake ────────────────────────────────────────────
-        if event == 'confirmation':
-            from django.http import HttpResponse
-            config = SenlerConfig.objects.filter(vk_group_id=group_id).first()
-            if config:
-                return HttpResponse(config.vk_callback_confirmation or 'ok', content_type='text/plain')
-            return HttpResponse('ok', content_type='text/plain')
-
-        # ── Secret check ─────────────────────────────────────────────────────
-        config = SenlerConfig.objects.filter(vk_group_id=group_id).first()
-        if not config:
-            return Response('ok')
-
-        if config.vk_callback_secret and secret != config.vk_callback_secret:
+        from django.http import HttpResponse
+        try:
+            handle_vk_callback(request.data)
+        except VKCallbackConfirmation as e:
+            return HttpResponse(e.code, content_type='text/plain')
+        except VKCallbackForbidden:
             return Response(status=status.HTTP_403_FORBIDDEN)
-
-        # ── New incoming message ──────────────────────────────────────────────
-        if event == 'message_new':
-            msg_obj = data.get('object', {})
-            message = msg_obj.get('message', msg_obj)   # VK API 5.103+
-            from_id    = message.get('from_id')
-            message_id = message.get('id')
-            text       = (message.get('text') or '').strip()
-
-            # Skip outgoing messages (from_id < 0 means sent by the community/bot)
-            if from_id and from_id > 0 and message_id and text:
-                handle_vk_incoming_message(
-                    group_id=group_id,
-                    from_id=from_id,
-                    message_id=message_id,
-                    text=text,
-                )
-
-        # ── Membership events ─────────────────────────────────────────────────
-        elif event in ('group_join', 'group_leave', 'message_allow', 'message_deny'):
-            from apps.tenant.branch.api.services import apply_vk_membership_event
-            obj = data.get('object', {})
-            vk_user_id = obj.get('user_id')
-            if vk_user_id and vk_user_id > 0:
-                apply_vk_membership_event(
-                    group_id=group_id,
-                    vk_user_id=vk_user_id,
-                    event_type=event,
-                )
-
         return Response('ok')
 
 
-# ---------------------------------------------------------------------------
-# VK ID OAuth2 Proxy — обход блокировок id.vk.ru из РФ
-# ---------------------------------------------------------------------------
-import requests as http_requests
-import logging
-
-logger = logging.getLogger(__name__)
-
-
-class VKIDProxyView(APIView):
+class VKAuthView(APIView):
     """
-    POST /api/v1/vkid-proxy/oauth2/auth
-    POST /api/v1/vkid-proxy/oauth2/user_info
+    POST /api/v1/vk/auth/
 
-    Прокси для VK ID OAuth2 API.
-    Фронтенд шлёт запросы сюда вместо напрямую на id.vk.ru,
-    бэкенд пробрасывает их server-to-server.
+    VK ID OAuth2 PKCE — точка входа для веб-приложения.
 
-    Зачем: в РФ без VPN браузерный fetch к id.vk.ru может блокироваться
-    (DPI, ТСПУ) при cross-origin запросах после OAuth redirect.
-    Server-to-server запрос с сервера в РФ проходит без проблем.
+    Фронтенд инициирует PKCE flow (генерирует code_verifier / code_challenge,
+    редиректит пользователя на id.vk.ru). После авторизации VK возвращает
+    code + device_id в redirect_uri. Фронт отправляет их сюда.
+
+    Бэкенд:
+      1. Обменивает code на access_token server-to-server (id.vk.ru/oauth2/auth)
+      2. Получает профиль пользователя (id.vk.ru/oauth2/user_info)
+      3. Регистрирует / логинит гостя
+      4. Возвращает ClientProfile
+
+    Responses:
+      200 — гость уже зарегистрирован
+      201 — новая регистрация
+      400 — невалидный/просроченный code или ошибка VK API
+      403 — аккаунт заблокирован или точка неактивна
+      404 — торговая точка не найдена
     """
     authentication_classes = []
     permission_classes = []
 
-    ALLOWED_PATHS = frozenset(['oauth2/auth', 'oauth2/user_info'])
-    VK_BASE = 'https://id.vk.ru'
-    TIMEOUT = 15
-
-    def post(self, request, vk_path=''):
-        if vk_path not in self.ALLOWED_PATHS:
-            return Response(
-                {'error': 'path_not_allowed'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        vk_url = f'{self.VK_BASE}/{vk_path}'
-
+    def post(self, request: Request) -> Response:
+        s = VKAuthRequestSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
         try:
-            resp = http_requests.post(
-                vk_url,
-                data=request.body,
-                headers={
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'Accept': 'application/json',
-                },
-                timeout=self.TIMEOUT,
-            )
-
-            try:
-                data = resp.json()
-            except ValueError:
-                logger.warning('VK ID proxy: non-JSON from %s (%s)', vk_url, resp.status_code)
-                return Response(
-                    {'error': 'vk_invalid_response'},
-                    status=status.HTTP_502_BAD_GATEWAY,
-                )
-
-            return Response(data, status=resp.status_code)
-
-        except http_requests.Timeout:
-            logger.error('VK ID proxy timeout: %s', vk_url)
+            profile, created = vk_web_auth(**s.validated_data)
+        except VKAuthError as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except BranchNotFound:
             return Response(
-                {'error': 'vk_timeout'},
-                status=status.HTTP_504_GATEWAY_TIMEOUT,
+                {'detail': 'Торговая точка не найдена.'},
+                status=status.HTTP_404_NOT_FOUND,
             )
-        except http_requests.RequestException as e:
-            logger.error('VK ID proxy error: %s — %s', vk_url, e)
+        except BranchInactive:
             return Response(
-                {'error': 'proxy_error', 'detail': str(e)},
-                status=status.HTTP_502_BAD_GATEWAY,
-            )
-
-
-class VKAuthBounceView(APIView):
-    """
-    GET /api/v1/vk-auth-bounce/?url=<encoded_vk_url>
-
-    «Трамплин» для OAuth redirect на id.vk.ru.
-    Отвечает 302-редиректом на VK.
-
-    Зачем: если фронтенд делает location.assign('https://id.vk.ru/authorize?...'),
-    iOS Universal Links / Android Intent Filters перехватывают URL и открывают
-    приложение VK вместо браузера. А VK in-app WebView не может завершить
-    подтверждение → «Нет подключения к сети».
-
-    Server-side 302 redirect НЕ перехватывается universal links —
-    браузер остаётся в браузере и открывает id.vk.ru нормально.
-    """
-    authentication_classes = []
-    permission_classes = []
-
-    def get(self, request):
-        from django.http import HttpResponseRedirect
-        from urllib.parse import urlparse
-
-        url = request.query_params.get('url', '')
-
-        if not url:
-            return Response(
-                {'error': 'missing_url'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Безопасность: разрешаем redirect ТОЛЬКО на домены VK
-        parsed = urlparse(url)
-        allowed_hosts = {'id.vk.ru', 'id.vk.com', 'oauth.vk.com', 'login.vk.com'}
-        if parsed.hostname not in allowed_hosts:
-            logger.warning('VK auth bounce: blocked redirect to %s', parsed.hostname)
-            return Response(
-                {'error': 'forbidden_host'},
+                {'detail': 'Торговая точка неактивна.'},
                 status=status.HTTP_403_FORBIDDEN,
             )
-
-        return HttpResponseRedirect(url)
+        except ClientBlocked:
+            return Response(
+                {'detail': 'Аккаунт заблокирован.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        resp_status = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        return Response(ClientProfileResponseSerializer(profile).data, status=resp_status)

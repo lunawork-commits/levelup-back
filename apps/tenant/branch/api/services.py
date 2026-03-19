@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 from django.db.models import Q, Sum
@@ -8,6 +9,200 @@ from ..models import (
     Branch, ClientBranch, ClientBranchVisit, ClientVKStatus, CoinTransaction, Promotions,
     TestimonialConversation, TestimonialMessage,
 )
+
+
+# ── VK ID OAuth2 (веб-приложение) ─────────────────────────────────────────────
+
+class VKAuthError(Exception):
+    pass
+
+
+def vk_oauth_exchange(
+    code: str,
+    device_id: str,
+    code_verifier: str,
+    redirect_uri: str,
+) -> dict:
+    """
+    VK ID OAuth2 Authorization Code + PKCE — server-side code exchange.
+
+    Flow (вызывается после того как фронт получил code от VK):
+      1. POST https://id.vk.ru/oauth2/auth  → access_token + user_id
+      2. POST https://id.vk.ru/oauth2/user_info → first_name, last_name, avatar
+
+    Returns:
+        {'user_id': int, 'first_name': str, 'last_name': str, 'photo_url': str}
+
+    Raises:
+        VKAuthError — любая ошибка VK API или сетевая ошибка.
+    """
+    import json
+    import urllib.parse
+    import urllib.request
+
+    app_id = getattr(settings, 'VK_MINI_APP_ID', None)
+    if not app_id:
+        raise VKAuthError('VK_MINI_APP_ID не настроен')
+
+    # ── Шаг 1: обмен кода на токен ───────────────────────────────────────────
+    token_body = urllib.parse.urlencode({
+        'grant_type':    'authorization_code',
+        'code':          code,
+        'device_id':     device_id,
+        'code_verifier': code_verifier,
+        'redirect_uri':  redirect_uri,
+        'client_id':     app_id,
+    }).encode()
+
+    try:
+        req = urllib.request.Request(
+            'https://id.vk.ru/oauth2/auth',
+            data=token_body,
+            headers={'Content-Type': 'application/x-www-form-urlencoded'},
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            token_data = json.loads(resp.read())
+    except Exception as e:
+        raise VKAuthError(f'Ошибка обмена кода VK: {e}')
+
+    if 'error' in token_data:
+        raise VKAuthError(
+            token_data.get('error_description') or token_data['error']
+        )
+
+    access_token = token_data.get('access_token')
+    user_id      = token_data.get('user_id')
+    if not access_token or not user_id:
+        raise VKAuthError('VK ID не вернул access_token или user_id')
+
+    # ── Шаг 2: получение профиля ─────────────────────────────────────────────
+    info_body = urllib.parse.urlencode({
+        'access_token': access_token,
+        'client_id':    app_id,
+    }).encode()
+
+    try:
+        req = urllib.request.Request(
+            'https://id.vk.ru/oauth2/user_info',
+            data=info_body,
+            headers={'Content-Type': 'application/x-www-form-urlencoded'},
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            info_data = json.loads(resp.read())
+    except Exception as e:
+        raise VKAuthError(f'Ошибка получения профиля VK: {e}')
+
+    user = info_data.get('user', {})
+
+    return {
+        'user_id':    int(user_id),
+        'first_name': user.get('first_name', ''),
+        'last_name':  user.get('last_name', ''),
+        'photo_url':  user.get('avatar', ''),
+    }
+
+
+def vk_web_auth(
+    code: str,
+    device_id: str,
+    code_verifier: str,
+    redirect_uri: str,
+    branch_id: int,
+    birth_date=None,
+) -> tuple:
+    """
+    Full VK ID OAuth2 PKCE auth + registration in one atomic call.
+
+    Combines vk_oauth_exchange + register_or_get_client.
+
+    Raises:
+        VKAuthError     — VK API or network error
+        BranchNotFound  — branch_id not found
+        BranchInactive  — branch is disabled
+        ClientBlocked   — client.is_active=False
+    """
+    vk_user = vk_oauth_exchange(
+        code=code,
+        device_id=device_id,
+        code_verifier=code_verifier,
+        redirect_uri=redirect_uri,
+    )
+    return register_or_get_client(
+        vk_id=vk_user['user_id'],
+        branch_id=branch_id,
+        first_name=vk_user['first_name'],
+        last_name=vk_user['last_name'],
+        photo_url=vk_user['photo_url'],
+        birth_date=birth_date,
+    )
+
+
+def handle_vk_callback(data: dict) -> None:
+    """
+    Processes a VK Callback API event.
+
+    Raises:
+        VKCallbackConfirmation(code) — confirmation handshake; view returns the code as plain text
+        VKCallbackForbidden          — secret mismatch; view returns 403
+
+    Returns normally for all handled events (view returns 'ok').
+    """
+    from apps.tenant.senler.models import SenlerConfig
+
+    event    = data.get('type')
+    group_id = data.get('group_id')
+    secret   = data.get('secret', '')
+
+    if not group_id:
+        return
+
+    if event == 'confirmation':
+        config = SenlerConfig.objects.filter(vk_group_id=group_id).first()
+        code = (config.vk_callback_confirmation or 'ok') if config else 'ok'
+        raise VKCallbackConfirmation(code)
+
+    config = SenlerConfig.objects.filter(vk_group_id=group_id).first()
+    if not config:
+        return
+
+    if config.vk_callback_secret and secret != config.vk_callback_secret:
+        raise VKCallbackForbidden
+
+    if event == 'message_new':
+        msg_obj    = data.get('object', {})
+        message    = msg_obj.get('message', msg_obj)
+        from_id    = message.get('from_id')
+        message_id = message.get('id')
+        text       = (message.get('text') or '').strip()
+        if from_id and from_id > 0 and message_id and text:
+            handle_vk_incoming_message(
+                group_id=group_id,
+                from_id=from_id,
+                message_id=message_id,
+                text=text,
+            )
+
+    elif event in ('group_join', 'group_leave', 'message_allow', 'message_deny'):
+        obj        = data.get('object', {})
+        vk_user_id = obj.get('user_id')
+        if vk_user_id and vk_user_id > 0:
+            apply_vk_membership_event(
+                group_id=group_id,
+                vk_user_id=vk_user_id,
+                event_type=event,
+            )
+
+
+# ── VK Callback exceptions ────────────────────────────────────────────────────
+
+class VKCallbackConfirmation(Exception):
+    """Raised when VK sends a confirmation handshake — view returns the code as plain text."""
+    def __init__(self, code: str):
+        self.code = code
+
+
+class VKCallbackForbidden(Exception):
+    """Raised when the callback secret doesn't match — view returns 403."""
 
 
 # ── Exceptions ────────────────────────────────────────────────────────────────

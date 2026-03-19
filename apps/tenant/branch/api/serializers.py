@@ -122,6 +122,27 @@ class ClientUpdateRequestSerializer(serializers.Serializer):
     is_newsletter_subscriber = serializers.BooleanField(required=False, allow_null=True)
 
 
+class VKAuthRequestSerializer(serializers.Serializer):
+    """
+    POST /api/v1/vk/auth/
+
+    VK ID OAuth2 PKCE — параметры для server-side обмена кода на токен.
+
+    code          — authorization code из redirect-callback VK.
+    device_id     — device_id из того же callback (привязан к PKCE сессии).
+    code_verifier — PKCE code_verifier, сгенерированный фронтом перед OAuth2 запросом.
+    redirect_uri  — тот же redirect_uri, что использовался при инициации OAuth2.
+    branch_id     — ID торговой точки из QR-кода.
+    birth_date    — дата рождения (заполняется при онбординге).
+    """
+    code          = serializers.CharField()
+    device_id     = serializers.CharField()
+    code_verifier = serializers.CharField()
+    redirect_uri  = serializers.URLField()
+    branch_id     = serializers.IntegerField()
+    birth_date    = serializers.DateField(required=False, allow_null=True, default=None)
+
+
 class BranchIdRequestSerializer(serializers.Serializer):
     branch_id = serializers.IntegerField()
 
