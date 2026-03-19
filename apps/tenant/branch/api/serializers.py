@@ -49,6 +49,9 @@ class ClientProfileResponseSerializer(serializers.Serializer):
     is_story_uploaded        = serializers.SerializerMethodField()
     story_uploaded_at        = serializers.SerializerMethodField()
 
+    # Raw VK birthday string (e.g. "15.3" or "1990-03-15") — only present in VK OAuth flow
+    vk_bdate = serializers.SerializerMethodField()
+
     def _vk(self, obj):
         # RelatedObjectDoesNotExist is a subclass of AttributeError,
         # so getattr with a default safely returns None if no record exists.
@@ -80,6 +83,11 @@ class ClientProfileResponseSerializer(serializers.Serializer):
     def get_story_uploaded_at(self, obj):
         vk = self._vk(obj)
         return vk.story_uploaded_at if vk else None
+
+    def get_vk_bdate(self, obj) -> str | None:
+        # _vk_bdate is set by vk_web_auth() only during OAuth flow.
+        # For regular GET/POST/PATCH it won't be present → returns None.
+        return getattr(obj, '_vk_bdate', None)
 
 
 # ── Request serializers ───────────────────────────────────────────────────────

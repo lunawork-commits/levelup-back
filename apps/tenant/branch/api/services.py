@@ -96,12 +96,62 @@ def vk_oauth_exchange(
 
     user = info_data.get('user', {})
 
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(
+        'VK OAuth user_info: user_id=%s, birthday=%s, bdate=%s, keys=%s',
+        user_id,
+        user.get('birthday'),
+        user.get('bdate'),
+        list(user.keys()),
+    )
+
     return {
         'user_id':    int(user_id),
         'first_name': user.get('first_name', ''),
         'last_name':  user.get('last_name', ''),
         'photo_url':  user.get('avatar', ''),
+        'birthday':   user.get('birthday') or user.get('bdate') or None,
     }
+
+
+def parse_vk_bdate(bdate: str):
+    """
+    Парсит дату рождения из ВК в формат date.
+
+    Входные форматы:
+    - "15.3"       → date(1900, 3, 15)   (ВК, год скрыт пользователем)
+    - "15.3.1990"  → date(1990, 3, 15)   (ВК, год открыт)
+    - "1990-03-15" → date(1990, 3, 15)   (VK ID /oauth2/user_info, ISO)
+
+    Returns date or None on parse error.
+    """
+    import datetime
+
+    if not bdate or not isinstance(bdate, str):
+        return None
+
+    bdate = bdate.strip()
+
+    # ISO формат: "YYYY-MM-DD" (VK ID endpoint)
+    if '-' in bdate:
+        try:
+            return datetime.date.fromisoformat(bdate)
+        except (ValueError, TypeError):
+            return None
+
+    # ВК формат: "DD.MM" или "DD.MM.YYYY"
+    parts = bdate.split('.')
+    if len(parts) < 2:
+        return None
+
+    try:
+        day = int(parts[0])
+        month = int(parts[1])
+        year = int(parts[2]) if len(parts) >= 3 and len(parts[2]) == 4 else 1900
+        return datetime.date(year, month, day)
+    except (ValueError, TypeError, IndexError):
+        return None
 
 
 def vk_web_auth(
@@ -117,6 +167,11 @@ def vk_web_auth(
     Full VK ID OAuth2 PKCE auth + registration in one atomic call.
 
     Combines vk_oauth_exchange + register_or_get_client.
+    Auto-saves birth_date from VK profile if the client doesn't have one.
+
+    Returns:
+        (ClientBranch, created: bool)
+        NOTE: returned ClientBranch has extra attribute `_vk_bdate` with raw VK birthday string.
 
     Raises:
         VKAuthError     — VK API or network error
@@ -131,14 +186,37 @@ def vk_web_auth(
         redirect_uri=redirect_uri,
         state=state,
     )
-    return register_or_get_client(
+
+    # Если фронтенд не передал birth_date, но ВК отдаёт birthday — парсим и сохраняем.
+    # Это решает проблему: у гостя в ВК стоит дата (день+месяц без года),
+    # но фронтенд не может её получить через OAuth, а модалка «Укажи ДР» лишняя.
+    vk_bdate = vk_user.get('birthday')
+    effective_birth_date = birth_date
+    if not effective_birth_date and vk_bdate:
+        effective_birth_date = parse_vk_bdate(vk_bdate)
+
+    profile, created = register_or_get_client(
         vk_id=vk_user['user_id'],
         branch_id=branch_id,
         first_name=vk_user['first_name'],
         last_name=vk_user['last_name'],
         photo_url=vk_user['photo_url'],
-        birth_date=birth_date,
+        birth_date=effective_birth_date,
     )
+
+    # Если клиент уже существовал (created=False) и birth_date ещё не заполнен —
+    # дозаписываем из ВК при каждом логине (на случай если раньше дата была скрыта,
+    # а теперь пользователь её открыл).
+    if not created and not profile.birth_date and effective_birth_date:
+        profile.birth_date = effective_birth_date
+        profile.birth_date_set_at = timezone.localdate()
+        profile.save(update_fields=['birth_date', 'birth_date_set_at'])
+        # Re-fetch to get fresh annotated queryset
+        profile = _profile_qs().get(pk=profile.pk)
+
+    # Сохраняем сырую дату ВК как атрибут — для передачи фронтенду через serializer
+    profile._vk_bdate = vk_bdate
+    return profile, created
 
 
 def handle_vk_callback(data: dict) -> None:
@@ -377,6 +455,15 @@ def register_or_get_client(
             'birth_date_set_at': timezone.localdate() if birth_date else None,
         },
     )
+
+    # Для СУЩЕСТВУЮЩИХ клиентов: если birth_date ещё не заполнен,
+    # но фронтенд передал его (из VK Bridge или VK OAuth) — дозаписываем.
+    # Это покрывает случай: клиент создан раньше (когда дата была скрыта),
+    # а теперь ВК отдаёт bdate.
+    if not created and not profile.birth_date and birth_date:
+        profile.birth_date = birth_date
+        profile.birth_date_set_at = timezone.localdate()
+        profile.save(update_fields=['birth_date', 'birth_date_set_at'])
 
     # Record visit: atomic, 6-hour cooldown
     ClientBranchVisit.record_visit(profile)
