@@ -22,6 +22,7 @@ def vk_oauth_exchange(
     device_id: str,
     code_verifier: str,
     redirect_uri: str,
+    state: str,
 ) -> dict:
     """
     VK ID OAuth2 Authorization Code + PKCE — server-side code exchange.
@@ -52,6 +53,7 @@ def vk_oauth_exchange(
         'code_verifier': code_verifier,
         'redirect_uri':  redirect_uri,
         'client_id':     app_id,
+        'state':         state,
     }).encode()
 
     try:
@@ -107,6 +109,7 @@ def vk_web_auth(
     device_id: str,
     code_verifier: str,
     redirect_uri: str,
+    state: str,
     branch_id: int,
     birth_date=None,
 ) -> tuple:
@@ -126,6 +129,7 @@ def vk_web_auth(
         device_id=device_id,
         code_verifier=code_verifier,
         redirect_uri=redirect_uri,
+        state=state,
     )
     return register_or_get_client(
         vk_id=vk_user['user_id'],

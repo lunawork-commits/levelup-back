@@ -139,6 +139,7 @@ class VKAuthRequestSerializer(serializers.Serializer):
     device_id     = serializers.CharField()
     code_verifier = serializers.CharField()
     redirect_uri  = serializers.URLField()
+    state         = serializers.CharField()
     branch_id     = serializers.IntegerField()
     birth_date    = serializers.DateField(required=False, allow_null=True, default=None)
 

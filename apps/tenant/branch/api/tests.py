@@ -68,6 +68,7 @@ _VK_AUTH_PAYLOAD = {
     'device_id': 'DEV_ID',
     'code_verifier': 'VERIFIER_STRING',
     'redirect_uri': 'https://example.com/callback',
+    'state': 'STATE_STRING',
     'branch_id': 42,
 }
 
@@ -801,7 +802,7 @@ class VkOauthExchangeTest(TestCase):
         mock_settings.VK_WEB_APP_ID = None
 
         with self.assertRaises(VKAuthError) as ctx:
-            vk_oauth_exchange('code', 'dev', 'verifier', 'https://x.com/cb')
+            vk_oauth_exchange('code', 'dev', 'verifier', 'https://x.com/cb', 'state')
 
         self.assertIn('VK_WEB_APP_ID', str(ctx.exception))
 
@@ -811,7 +812,7 @@ class VkOauthExchangeTest(TestCase):
         mock_settings.VK_WEB_APP_ID = 53418653
         mock_urlopen.side_effect = _urlopen_mock(_VK_TOKEN_OK, _VK_USER_OK).side_effect
 
-        result = vk_oauth_exchange('code', 'dev', 'verifier', 'https://x.com/cb')
+        result = vk_oauth_exchange('code', 'dev', 'verifier', 'https://x.com/cb', 'state')
 
         self.assertEqual(result['user_id'], 123456)
         self.assertEqual(result['first_name'], 'Иван')
@@ -824,7 +825,7 @@ class VkOauthExchangeTest(TestCase):
         mock_settings.VK_WEB_APP_ID = 53418653
         mock_urlopen.side_effect = _urlopen_mock(_VK_TOKEN_OK, _VK_USER_OK).side_effect
 
-        vk_oauth_exchange('code', 'dev', 'verifier', 'https://x.com/cb')
+        vk_oauth_exchange('code', 'dev', 'verifier', 'https://x.com/cb', 'state')
 
         self.assertEqual(mock_urlopen.call_count, 2)
         first_url = mock_urlopen.call_args_list[0][0][0].full_url
@@ -840,7 +841,7 @@ class VkOauthExchangeTest(TestCase):
         mock_urlopen.side_effect = _urlopen_mock(error_resp).side_effect
 
         with self.assertRaises(VKAuthError) as ctx:
-            vk_oauth_exchange('bad_code', 'dev', 'verifier', 'https://x.com/cb')
+            vk_oauth_exchange('bad_code', 'dev', 'verifier', 'https://x.com/cb', 'state')
 
         self.assertIn('Bad code', str(ctx.exception))
 
@@ -852,7 +853,7 @@ class VkOauthExchangeTest(TestCase):
         mock_urlopen.side_effect = _urlopen_mock(incomplete).side_effect
 
         with self.assertRaises(VKAuthError) as ctx:
-            vk_oauth_exchange('code', 'dev', 'verifier', 'https://x.com/cb')
+            vk_oauth_exchange('code', 'dev', 'verifier', 'https://x.com/cb', 'state')
 
         self.assertIn('access_token', str(ctx.exception))
 
@@ -864,7 +865,7 @@ class VkOauthExchangeTest(TestCase):
         mock_urlopen.side_effect = _urlopen_mock(incomplete).side_effect
 
         with self.assertRaises(VKAuthError) as ctx:
-            vk_oauth_exchange('code', 'dev', 'verifier', 'https://x.com/cb')
+            vk_oauth_exchange('code', 'dev', 'verifier', 'https://x.com/cb', 'state')
 
         self.assertIn('user_id', str(ctx.exception))
 
@@ -875,7 +876,7 @@ class VkOauthExchangeTest(TestCase):
         mock_urlopen.side_effect = OSError('Connection refused')
 
         with self.assertRaises(VKAuthError) as ctx:
-            vk_oauth_exchange('code', 'dev', 'verifier', 'https://x.com/cb')
+            vk_oauth_exchange('code', 'dev', 'verifier', 'https://x.com/cb', 'state')
 
         self.assertIn('Ошибка обмена кода VK', str(ctx.exception))
 
@@ -891,7 +892,7 @@ class VkOauthExchangeTest(TestCase):
         mock_urlopen.side_effect = [token_mock, OSError('Timeout')]
 
         with self.assertRaises(VKAuthError) as ctx:
-            vk_oauth_exchange('code', 'dev', 'verifier', 'https://x.com/cb')
+            vk_oauth_exchange('code', 'dev', 'verifier', 'https://x.com/cb', 'state')
 
         self.assertIn('Ошибка получения профиля VK', str(ctx.exception))
 
@@ -903,7 +904,7 @@ class VkOauthExchangeTest(TestCase):
         empty_user = {'user': {}}
         mock_urlopen.side_effect = _urlopen_mock(_VK_TOKEN_OK, empty_user).side_effect
 
-        result = vk_oauth_exchange('code', 'dev', 'verifier', 'https://x.com/cb')
+        result = vk_oauth_exchange('code', 'dev', 'verifier', 'https://x.com/cb', 'state')
 
         self.assertEqual(result['first_name'], '')
         self.assertEqual(result['last_name'], '')
@@ -924,7 +925,7 @@ class VKAuthRequestSerializerTest(TestCase):
         self.assertTrue(s.is_valid(), s.errors)
 
     def test_has_all_required_fields(self):
-        for field in ('code', 'device_id', 'code_verifier', 'redirect_uri', 'branch_id'):
+        for field in ('code', 'device_id', 'code_verifier', 'redirect_uri', 'state', 'branch_id'):
             with self.subTest(field=field):
                 self.assertIn(field, VKAuthRequestSerializer().fields)
 
@@ -1077,6 +1078,7 @@ class VKAuthViewTest(TestCase):
             device_id='DEV_ID',
             code_verifier='VERIFIER_STRING',
             redirect_uri='https://example.com/callback',
+            state='STATE_STRING',
             branch_id=42,
             birth_date=None,
         )
