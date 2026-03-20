@@ -881,28 +881,32 @@ async function downloadPDF() {
             ch.style.cssText = 'display:grid!important;grid-template-columns:1fr!important;gap:14px!important;width:100%!important;overflow:visible!important;';
           });
 
-          // ── Manual page-break: insert spacers so sections never split ──
+          // ── Manual page-break: insert spacers so blocks never split ──
           // A4 = 297mm, margins top 8mm + bottom 10mm = 18mm → usable 279mm
-          // 1mm = PDF_WIDTH_PX / (210 - 8 - 8) = PDF_WIDTH_PX / 194
           const mmToPx = PDF_WIDTH_PX / 194;
           const pageH = 279 * mmToPx;
 
-          // Collect all top-level blocks that must not split
-          const blocks = rpt.querySelectorAll('.R-hd, .R-sec, .R-footer');
-          blocks.forEach(blk => {
+          // Force layout recalc
+          rpt.offsetHeight;
+
+          // Process each block sequentially — re-read position after each spacer
+          const blocks = Array.from(rpt.querySelectorAll('.R-hd, .R-sec, .R-footer'));
+          for (let i = 0; i < blocks.length; i++) {
+            const blk = blocks[i];
+            // Re-read position (DOM changed from previous spacers)
             const top = blk.offsetTop;
             const h = blk.offsetHeight;
-            if (h >= pageH) return; // too tall for one page, can't help
-            const pageIdx = Math.floor(top / pageH);
-            const pageEnd = (pageIdx + 1) * pageH;
-            // If block crosses page boundary → push to next page
+            if (h >= pageH) continue; // too tall for one page
+            const pageEnd = (Math.floor(top / pageH) + 1) * pageH;
             if (top + h > pageEnd && top < pageEnd) {
-              const gap = pageEnd - top + 2; // +2px safety
+              const gap = pageEnd - top + 4;
               const spacer = clonedDoc.createElement('div');
               spacer.style.cssText = 'height:' + gap + 'px;width:100%;flex-shrink:0;';
               blk.parentNode.insertBefore(spacer, blk);
+              // Force layout recalc after insertion
+              rpt.offsetHeight;
             }
-          });
+          }
         },
       },
       jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
