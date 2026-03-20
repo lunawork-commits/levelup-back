@@ -32,10 +32,17 @@ app.conf.beat_schedule = {
         'task': 'apps.tenant.analytics.tasks.calculate_rf_all_tenants_task',
         'schedule': crontab(hour=3, minute=0),
     },
-    # Fetch POS guest counts daily at 02:00 (before RF calc)
+    # Fetch POS guest counts daily at 02:00 (caches yesterday's data)
     'fetch-pos-data-daily': {
         'task': 'apps.tenant.analytics.tasks.fetch_pos_data_all_tenants_task',
         'schedule': crontab(hour=2, minute=0),
+        'kwargs': {'day_offset': 1},
+    },
+    # Refresh today's POS guest counts every hour so custom-date queries work
+    'fetch-pos-data-today-hourly': {
+        'task': 'apps.tenant.analytics.tasks.fetch_pos_data_all_tenants_task',
+        'schedule': crontab(minute=0),
+        'kwargs': {'day_offset': 0},
     },
     # Send birthday VK broadcasts daily at 10:00
     'send-birthday-broadcasts': {
@@ -57,6 +64,11 @@ app.conf.beat_schedule = {
     'generate-daily-codes': {
         'task': 'apps.tenant.branch.tasks.generate_daily_codes_task',
         'schedule': crontab(hour=0, minute=0),
+    },
+    # VK membership catchup: catch group_join/leave/message_allow/deny missed while server was down
+    'vk-membership-catchup': {
+        'task': 'apps.tenant.branch.tasks.vk_membership_catchup_task',
+        'schedule': 300.0,  # every 5 minutes
     },
 }
 

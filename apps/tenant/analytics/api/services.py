@@ -290,21 +290,35 @@ def get_pos_guests_count(
 ) -> int:
     """
     Guest count from POS systems (IIKO/Dooglys) for the period.
-    1. Reads from POSGuestCache (populated daily by Celery task).
-    2. If cache is empty for the period, falls back to a live POS API call.
+    1. Reads from POSGuestCache (populated by hourly Celery task for today,
+       daily at 02:00 for yesterday).
+    2. If today is in range but not yet cached, supplements cached total with
+       a live POS API call for today only.
+    3. If the cache is completely empty, falls back to a live POS API call for
+       the full range.
     Returns 0 if POS is not configured or fetch fails.
     """
     import logging
+    from datetime import date as _date
     from django.db.models import Sum
+
+    today = _date.today()
 
     qs = POSGuestCache.objects.filter(date__gte=start_date, date__lte=end_date)
     if branch_ids:
         qs = qs.filter(branch__in=branch_ids)
     result = qs.aggregate(total=Sum('guest_count'))
-    if result['total']:
-        return result['total']
+    cached_total = result['total'] or 0
 
-    # Cache empty — try live fetch from POS API
+    # Check whether today is in the requested range but missing from the cache
+    today_in_range = start_date <= today <= end_date
+    today_cached = today_in_range and qs.filter(date=today).exists()
+
+    if cached_total and (not today_in_range or today_cached):
+        # Cache is complete for the requested range
+        return cached_total
+
+    # Need live data: either the cache is empty, or today is missing
     try:
         from django.db import connection
         from apps.shared.config.models import POSType
@@ -313,21 +327,28 @@ def get_pos_guests_count(
 
         config = getattr(connection.tenant, 'config', None)
         if not config or getattr(config, 'pos_type', POSType.NONE) == POSType.NONE:
-            return 0
+            return cached_total
 
         branches_qs = Branch.objects.filter(is_active=True)
         if branch_ids:
             branches_qs = branches_qs.filter(id__in=branch_ids)
         branches = list(branches_qs)
         if not branches:
-            return 0
+            return cached_total
 
-        results = sync_get_guests_for_period(config, start_date, end_date, branches=branches)
-        return sum(results.values()) if results else 0
+        if cached_total and today_in_range and not today_cached:
+            # Cache has past days; only fetch today live
+            live_results = sync_get_guests_for_period(config, today, today, branches=branches)
+        else:
+            # Cache is completely empty — fetch the full range
+            live_results = sync_get_guests_for_period(config, start_date, end_date, branches=branches)
+
+        live_total = sum(live_results.values()) if live_results else 0
+        return cached_total + live_total
 
     except Exception:
         logging.getLogger(__name__).exception('get_pos_guests_count: live POS fetch failed')
-        return 0
+        return cached_total
 
 
 # ── Metric 14: Scan index ────────────────────────────────────────────────────

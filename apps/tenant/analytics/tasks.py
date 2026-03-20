@@ -109,17 +109,18 @@ def reclassify_waiting_reviews_task() -> dict:
     max_retries=2,
     default_retry_delay=300,
 )
-def fetch_pos_data_all_tenants_task(self, date_str: str = None) -> dict:
+def fetch_pos_data_all_tenants_task(self, date_str: str = None, day_offset: int = 1) -> dict:
     """
     Fetch POS guest counts for all tenants and cache in POSGuestCache.
-    By default fetches yesterday's data. Pass date_str='YYYY-MM-DD' for backfill.
+    By default fetches yesterday's data (day_offset=1).
+    Pass day_offset=0 to fetch today's data, or date_str='YYYY-MM-DD' for backfill.
     """
     from datetime import date, timedelta
     from django_tenants.utils import get_tenant_model, schema_context
     from apps.tenant.analytics.pos_service import sync_get_guests_for_period
     from apps.shared.config.models import POSType
 
-    target_date = date.fromisoformat(date_str) if date_str else date.today() - timedelta(days=1)
+    target_date = date.fromisoformat(date_str) if date_str else date.today() - timedelta(days=day_offset)
     TenantModel = get_tenant_model()
     summary = {'tenants': 0, 'branches': 0, 'errors': []}
 
