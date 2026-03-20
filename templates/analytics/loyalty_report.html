@@ -648,8 +648,6 @@ async function downloadPDF() {
   overlay.classList.add('on');
 
   const el = document.getElementById('report-content');
-  const elParent = el.parentNode;
-  const elNext = el.nextSibling;
 
   // 1. PDF mode
   el.classList.add('pdf');
@@ -693,12 +691,9 @@ async function downloadPDF() {
     ta.parentNode.insertBefore(div, ta.nextSibling);
   });
 
-  // 5. Move element to <body> at position 0,0 to avoid Django admin layout offsets
-  el.style.cssText = 'position:absolute;top:0;left:0;z-index:-9999;';
-  document.body.appendChild(el);
   await new Promise(r => setTimeout(r, 150));
 
-  // 6. Generate PDF
+  // 5. Generate PDF
   const company = '{{ company_name|escapejs }}';
   const period = '{{ start_display }}_{{ end_display }}';
 
@@ -713,6 +708,15 @@ async function downloadPDF() {
         allowTaint: true,
         logging: false,
         backgroundColor: '#ffffff',
+        onclone: (clonedDoc) => {
+          // Remove sidebar and fix margins in the clone so content starts at x=0
+          const s = clonedDoc.getElementById('nav-sidebar');
+          if (s) s.remove();
+          ['container', 'content', 'main', 'content-start'].forEach(id => {
+            const node = clonedDoc.getElementById(id);
+            if (node) { node.style.marginLeft = '0'; node.style.paddingLeft = '0'; }
+          });
+        },
       },
       jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
       pagebreak:   { mode: ['css'] },
@@ -722,9 +726,7 @@ async function downloadPDF() {
     alert('Ошибка при генерации PDF.');
   }
 
-  // 7. Restore element to original position
-  el.style.cssText = '';
-  elParent.insertBefore(el, elNext);
+  // 6. Restore
   el.classList.remove('pdf');
   hideEls.forEach(e => e.style.display = '');
   canvasData.forEach(({ canvas, img }) => { canvas.style.display = ''; img.remove(); });
