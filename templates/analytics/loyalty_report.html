@@ -38,7 +38,7 @@
   --ts:  #4A5568;
   --tm:  #A0AEC0;
   --ok:     #10B981;
-  --warn:   #F97316;
+  --warn:   #C2410C;
   --err:    #EF4444;
   --inf:    #3B82F6;
   --teal:   #0D9488;
@@ -339,45 +339,52 @@
 .R.pdf {
   background: #fff !important;
   padding: 0 !important;
-  max-width: 700px !important;
-  font-size: 14px;
+  max-width: none !important;
+  width: 100% !important;
+  font-size: 13px;
+  margin: 0 !important;
+  box-sizing: border-box;
 }
-.R.pdf .R-hd { padding: 36px; border-radius: 0; margin-bottom: 12px; }
-.R.pdf .R-hd-title { font-size: 28px; }
-.R.pdf .R-hd-sub { font-size: 14px; opacity: .6; }
-.R.pdf .R-logo { width: 52px; height: 52px; }
-.R.pdf .R-sec { margin-bottom: 14px; box-shadow: none; border-radius: 10px; border-color: #E2E8F0; }
-.R.pdf .R-sec-hd { padding: 16px 24px; }
-.R.pdf .R-sec-num { width: 30px; height: 30px; font-size: 13px; border-radius: 7px; }
-.R.pdf .R-sec-title { font-size: 20px; }
-.R.pdf .R-sec-body { padding: 20px 24px; }
-.R.pdf .R-grid { gap: 8px; margin-bottom: 12px; }
-.R.pdf .R-grid .R-card    { flex: 1 1 130px; }
-.R.pdf .R-grid--3 .R-card { flex: 1 1 170px; }
-.R.pdf .R-grid--2 .R-card { flex: 1 1 210px; }
-.R.pdf .R-card { padding: 12px 14px; border-radius: 8px; }
-.R.pdf .R-card-lbl { font-size: 11px; letter-spacing: .4px; margin-bottom: 4px; }
-.R.pdf .R-card-val { font-size: 26px; }
-.R.pdf .R-card-val--sm { font-size: 13px; }
-.R.pdf .R-charts { gap: 10px; margin-bottom: 14px; }
-.R.pdf .R-chart { padding: 16px; border-radius: 10px; }
-.R.pdf .R-chart-title { font-size: 11px; margin-bottom: 10px; }
-.R.pdf .R-chart canvas, .R.pdf .R-chart img.pdf-img { max-height: 250px; }
-.R.pdf .R-bignum-val { font-size: 44px; }
-.R.pdf .R-bignum-lbl { font-size: 14px; }
-.R.pdf .R-bignum { min-height: 130px; }
-.R.pdf .R-cmt { padding-top: 12px; margin-top: 14px; }
-.R.pdf .R-cmt-lbl { font-size: 11px; margin-bottom: 6px; }
-.R.pdf .R-pdf-text { font-size: 14px; line-height: 1.65; }
-.R.pdf .R-scale-item { font-size: 12px; padding: 5px 10px; }
-.R.pdf .R-footer { padding-top: 20px; }
-.R.pdf .R-footer-brand { font-size: 17px; }
-.R.pdf .R-footer { font-size: 12px; }
-.R.pdf .pb-after  { page-break-after: always; }
-.R.pdf .pb-avoid  { page-break-inside: avoid; break-inside: avoid; }
-.R.pdf .R-sec     { page-break-inside: avoid; break-inside: avoid; }
-.R.pdf .R-charts  { page-break-inside: avoid; break-inside: avoid; }
+.R.pdf .R-hd { padding: 32px 28px; border-radius: 0; margin-bottom: 10px; }
+.R.pdf .R-hd-title { font-size: 26px; }
+.R.pdf .R-hd-sub { font-size: 13px; opacity: .7; }
+.R.pdf .R-logo { width: 48px; height: 48px; }
+.R.pdf .R-sec { margin-bottom: 10px; box-shadow: none; border-radius: 8px; border-color: #D1D5DB; }
+.R.pdf .R-sec-hd { padding: 14px 20px; }
+.R.pdf .R-sec-num { width: 28px; height: 28px; font-size: 12px; border-radius: 6px; }
+.R.pdf .R-sec-title { font-size: 18px; }
+.R.pdf .R-sec-body { padding: 16px 20px; }
+.R.pdf .R-grid { gap: 6px; margin-bottom: 10px; }
+.R.pdf .R-grid .R-card    { flex: 1 1 120px; }
+.R.pdf .R-grid--3 .R-card { flex: 1 1 150px; }
+.R.pdf .R-grid--2 .R-card { flex: 1 1 190px; }
+.R.pdf .R-card { padding: 10px 12px; border-radius: 6px; }
+.R.pdf .R-card-lbl { font-size: 10px; letter-spacing: .3px; margin-bottom: 3px; }
+.R.pdf .R-card-val { font-size: 22px; }
+.R.pdf .R-card-val--sm { font-size: 12px; }
+.R.pdf .R-charts { gap: 8px; margin-bottom: 10px; }
+.R.pdf .R-chart { padding: 14px; border-radius: 8px; }
+.R.pdf .R-chart-title { font-size: 10px; margin-bottom: 8px; }
+.R.pdf .R-chart canvas, .R.pdf .R-chart img.pdf-img { max-height: 220px; }
+.R.pdf .R-bignum-val { font-size: 38px; }
+.R.pdf .R-bignum-lbl { font-size: 13px; }
+.R.pdf .R-bignum { min-height: 110px; }
+.R.pdf .R-cmt { padding-top: 10px; margin-top: 10px; }
+.R.pdf .R-cmt-lbl { font-size: 10px; margin-bottom: 5px; }
+.R.pdf .R-pdf-text { font-size: 13px; line-height: 1.55; }
+.R.pdf .R-scale-item { font-size: 11px; padding: 4px 8px; }
+.R.pdf .R-footer { padding-top: 16px; }
+.R.pdf .R-footer-brand { font-size: 16px; }
+.R.pdf .R-footer { font-size: 11px; }
+/* Page breaks: avoid ONLY on small blocks, allow large sections to split */
 .R.pdf .R-grid    { page-break-inside: avoid; break-inside: avoid; }
+.R.pdf .R-charts  { page-break-inside: avoid; break-inside: avoid; }
+.R.pdf .R-hd      { page-break-inside: avoid; break-inside: avoid; }
+.R.pdf .R-card    { page-break-inside: avoid; break-inside: avoid; }
+.R.pdf .R-chart   { page-break-inside: avoid; break-inside: avoid; }
+/* Sections CAN split across pages — they're too big to avoid */
+.R.pdf .R-sec     { page-break-inside: auto; break-inside: auto; }
+.R.pdf .R-sec-hd  { page-break-after: avoid; break-after: avoid; }
 .R.pdf, .R.pdf *  { overflow: visible !important; }
 
 /* ── Print ──────────────────────────────────────────── */
@@ -813,36 +820,53 @@ async function downloadPDF() {
   const period = '{{ start_display }}_{{ end_display }}';
 
   try {
+    // A4 = 210mm wide. With 12mm margins each side = 186mm usable.
+    // At 96dpi: 186mm ≈ 694px. We use 680px windowWidth to stay safe.
+    const PDF_WIDTH_PX = 680;
+
     await html2pdf().set({
-      margin:      [10, 10, 10, 10],
+      margin:      [12, 12, 14, 12],
       filename:    'Отчёт_лояльности_' + company + '_' + period.replace(/\./g, '_').replace(/ /g, '') + '.pdf',
       image:       { type: 'png', quality: 1.0 },
       html2canvas: {
-        scale: 2.5,
+        scale: 2,
         useCORS: true,
         allowTaint: true,
         logging: false,
         backgroundColor: '#ffffff',
-        windowWidth: 720,
+        windowWidth: PDF_WIDTH_PX,
+        scrollX: 0,
+        scrollY: 0,
+        x: 0,
+        y: 0,
         onclone: (clonedDoc) => {
-          const sb = clonedDoc.getElementById('nav-sidebar');
-          if (sb) sb.style.display = 'none';
-          const hd = clonedDoc.getElementById('header');
-          if (hd) hd.style.display = 'none';
-          const bc = clonedDoc.querySelector('.breadcrumbs');
-          if (bc) bc.style.display = 'none';
+          // Hide ALL Django admin chrome
+          ['nav-sidebar', 'header', 'nav-global'].forEach(id => {
+            const e = clonedDoc.getElementById(id);
+            if (e) e.remove();
+          });
+          clonedDoc.querySelectorAll('.breadcrumbs, .skip-to-content-link, footer').forEach(e => e.remove());
 
+          // Force report to fill full width, strip ALL parent interference
           const rpt = clonedDoc.getElementById('report-content');
           if (!rpt) return;
+
+          // Set report itself
+          rpt.style.cssText = 'width:' + PDF_WIDTH_PX + 'px!important;max-width:none!important;margin:0!important;padding:0!important;box-sizing:border-box!important;';
+
+          // Nuke every ancestor's layout
           let n = rpt.parentElement;
           while (n && n !== clonedDoc.documentElement) {
-            n.style.cssText = 'margin:0!important;padding:0!important;float:none!important;width:100%!important;max-width:none!important;overflow:visible!important;';
+            n.style.cssText = 'margin:0!important;padding:0!important;float:none!important;width:' + PDF_WIDTH_PX + 'px!important;max-width:none!important;overflow:visible!important;min-height:0!important;display:block!important;position:static!important;';
             n = n.parentElement;
           }
+          // Body & html
+          clonedDoc.body.style.cssText = 'margin:0!important;padding:0!important;width:' + PDF_WIDTH_PX + 'px!important;overflow:visible!important;';
+          clonedDoc.documentElement.style.cssText = 'margin:0!important;padding:0!important;width:' + PDF_WIDTH_PX + 'px!important;overflow:visible!important;';
         },
       },
       jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak:   { mode: ['avoid-all', 'css'] },
+      pagebreak:   { mode: ['css'], avoid: ['.R-grid', '.R-charts', '.R-chart', '.R-hd', '.R-card'] },
     }).from(el).save();
   } catch (err) {
     console.error('PDF generation error:', err);
@@ -870,7 +894,7 @@ async function downloadPDF() {
    ═══════════════════════════════════════════════════════ */
 const C = {
   navy: '#0F1A2E', slate: '#64748B', ok: '#10B981', inf: '#3B82F6',
-  warn: '#F97316', err: '#EF4444', teal: '#0D9488', purple: '#7C3AED',
+  warn: '#C2410C', err: '#EF4444', teal: '#0D9488', purple: '#7C3AED',
   accent: '#4A7CFF',
 };
 
@@ -952,7 +976,7 @@ new Chart(document.getElementById('chart-reviews'), {
 // 5. RF segments
 (function(){
   const l = Object.keys(D.rf_segments), v = Object.values(D.rf_segments);
-  const cols = [C.ok, C.inf, C.purple, C.teal, '#6366F1', '#94A3B8', C.warn, '#E11D48', C.accent, '#84CC16', '#F97316', '#64748B'];
+  const cols = [C.ok, C.inf, C.purple, C.teal, '#6366F1', '#94A3B8', C.warn, '#E11D48', C.accent, '#0369A1', '#059669', '#64748B'];
   new Chart(document.getElementById('chart-rf'), {
     type: 'bar',
     data: { labels: l, datasets: [{ data: v, backgroundColor: l.map((_, i) => cols[i % cols.length]), borderRadius: 4, barThickness: 22 }] },
