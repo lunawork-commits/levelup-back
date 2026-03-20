@@ -364,13 +364,13 @@
 .R.pdf .R-card-lbl { font-size: 11px; letter-spacing: .4px; margin-bottom: 4px; }
 .R.pdf .R-card-val { font-size: 26px; }
 .R.pdf .R-card-val--sm { font-size: 13px; }
-.R.pdf .R-charts { gap: 14px; margin-bottom: 16px; }
-.R.pdf .R-chart { padding: 22px; border-radius: 12px; }
-.R.pdf .R-chart-title { font-size: 12px; margin-bottom: 12px; }
-.R.pdf .R-chart canvas, .R.pdf .R-chart img.pdf-img { max-height: 320px; }
-.R.pdf .R-bignum-val { font-size: 52px; }
-.R.pdf .R-bignum-lbl { font-size: 15px; }
-.R.pdf .R-bignum { min-height: 160px; }
+.R.pdf .R-charts { grid-template-columns: 1fr !important; gap: 14px; margin-bottom: 16px; }
+.R.pdf .R-chart { padding: 24px 28px; border-radius: 12px; }
+.R.pdf .R-chart-title { font-size: 13px; margin-bottom: 14px; }
+.R.pdf .R-chart canvas, .R.pdf .R-chart img.pdf-img { max-height: 400px; }
+.R.pdf .R-bignum-val { font-size: 56px; }
+.R.pdf .R-bignum-lbl { font-size: 16px; }
+.R.pdf .R-bignum { min-height: 180px; }
 .R.pdf .R-cmt { padding-top: 12px; margin-top: 12px; }
 .R.pdf .R-cmt-lbl { font-size: 10px; margin-bottom: 6px; }
 .R.pdf .R-pdf-text { font-size: 13px; line-height: 1.55; }
@@ -767,14 +767,14 @@ async function downloadPDF() {
   const hideEls = el.querySelectorAll('.R-actions, .R-toolbar, .R-cmt-acts');
   hideEls.forEach(e => e.style.display = 'none');
 
-  // 3. Re-render each Chart.js chart at 2x
+  // 3. Re-render each Chart.js chart at 3x for crisp PDF
   const chartCanvases = el.querySelectorAll('canvas');
   const origSizes = [];
   chartCanvases.forEach(c => {
     const chart = Chart.getChart(c);
     if (chart) {
       origSizes.push({ chart, dpr: chart.options.devicePixelRatio });
-      chart.options.devicePixelRatio = 2;
+      chart.options.devicePixelRatio = 3;
       chart.resize();
       chart.update('none');
     }
@@ -878,7 +878,7 @@ async function downloadPDF() {
             c.style.wordWrap = 'break-word';
           });
           rpt.querySelectorAll('.R-charts').forEach(ch => {
-            ch.style.cssText = 'display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important;width:100%!important;overflow:visible!important;';
+            ch.style.cssText = 'display:grid!important;grid-template-columns:1fr!important;gap:14px!important;width:100%!important;overflow:visible!important;';
           });
 
           // ── Manual page-break: insert spacers so sections never split ──
