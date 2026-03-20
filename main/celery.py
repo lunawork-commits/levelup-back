@@ -70,6 +70,11 @@ app.conf.beat_schedule = {
         'task': 'apps.tenant.branch.tasks.vk_membership_catchup_task',
         'schedule': 300.0,  # every 5 minutes
     },
+    # Check VK message read status every hour (for open rate analytics)
+    'check-vk-read-status': {
+        'task': 'apps.tenant.senler.tasks.check_read_status_task',
+        'schedule': crontab(minute=30),  # every hour at :30
+    },
 }
 
 app.conf.timezone = 'Europe/Moscow'
