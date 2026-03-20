@@ -172,7 +172,7 @@
 }
 .R-chart canvas {
   width: 100% !important;
-  max-height: 200px;
+  max-height: 260px;
 }
 .R-chart img.pdf-img {
   width: 100%; height: auto; display: block;
@@ -201,7 +201,7 @@
   font-family: var(--fb); resize: vertical; line-height: 1.55;
   box-sizing: border-box; color: var(--tp); background: var(--cream);
 }
-.R-cmt-ta:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201,162,39,.1); background: var(--white); }
+.R-cmt-ta:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(29,114,184,.12); background: var(--white); }
 .R-cmt-acts { display: flex; gap: 6px; margin-top: 6px; align-items: center; }
 .R-cmt-btn {
   padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 700;
@@ -238,41 +238,44 @@
 
 /* ═══════════════════════════════════════════════════════
    PDF-MODE — applied during html2pdf export
-   Key: A4 = 210mm. Margins 10mm each side = 190mm usable.
-   At scale 2: 190mm × 3.78 px/mm = ~718px.
-   We use 700px content + 22px padding = safe fit.
+   A4 = 210mm. Margins 8mm each side = 194mm usable.
+   At scale 3: 194mm × 3.78 px/mm ≈ 733px.
+   We use 720px content width for comfortable fit.
+   ALL FONTS ≥ 13px for readability at 40-50 age.
    ═══════════════════════════════════════════════════════ */
 .R.pdf {
   background: #fff !important;
   padding: 0 !important;
-  max-width: 700px !important;
+  max-width: 720px !important;
 }
-.R.pdf .R-hd { padding: 22px 26px; border-radius: 0; margin-bottom: 6px; }
-.R.pdf .R-hd-title { font-size: 24px; }
-.R.pdf .R-hd-sub { font-size: 13px; }
-.R.pdf .R-logo { width: 44px; height: 44px; }
-.R.pdf .R-sec { margin-bottom: 8px; box-shadow: none; border-radius: 8px; }
-.R.pdf .R-sec-hd { padding: 10px 16px; }
-.R.pdf .R-sec-num { width: 24px; height: 24px; font-size: 12px; border-radius: 5px; }
-.R.pdf .R-sec-title { font-size: 17px; }
-.R.pdf .R-sec-body { padding: 12px 16px; }
-.R.pdf .R-grid { gap: 6px; margin-bottom: 10px; }
-.R.pdf .R-card { padding: 8px 10px; border-radius: 6px; }
-.R.pdf .R-card-lbl { font-size: 9px; letter-spacing: .3px; }
-.R.pdf .R-card-val { font-size: 20px; }
-.R.pdf .R-card-val--sm { font-size: 11px; }
-.R.pdf .R-charts { gap: 8px; margin-bottom: 10px; }
-.R.pdf .R-chart { padding: 10px; border-radius: 8px; }
-.R.pdf .R-chart-title { font-size: 10px; margin-bottom: 6px; }
-.R.pdf .R-bignum-val { font-size: 34px; }
-.R.pdf .R-bignum-lbl { font-size: 12px; }
-.R.pdf .R-bignum { min-height: 100px; }
-.R.pdf .R-cmt { padding-top: 8px; margin-top: 10px; }
-.R.pdf .R-cmt-lbl { font-size: 10px; margin-bottom: 4px; }
-.R.pdf .R-pdf-text { font-size: 12px; line-height: 1.5; }
-.R.pdf .R-scale-item { font-size: 10px; padding: 3px 8px; }
-.R.pdf .R-footer { padding-top: 12px; }
-.R.pdf .R-footer-brand { font-size: 14px; }
+.R.pdf .R-hd { padding: 28px 30px; border-radius: 0; margin-bottom: 10px; }
+.R.pdf .R-hd-title { font-size: 26px; }
+.R.pdf .R-hd-sub { font-size: 15px; opacity: .7; }
+.R.pdf .R-logo { width: 48px; height: 48px; }
+.R.pdf .R-sec { margin-bottom: 12px; box-shadow: none; border-radius: 8px; }
+.R.pdf .R-sec-hd { padding: 14px 20px; }
+.R.pdf .R-sec-num { width: 28px; height: 28px; font-size: 14px; border-radius: 6px; }
+.R.pdf .R-sec-title { font-size: 20px; }
+.R.pdf .R-sec-body { padding: 16px 20px; }
+.R.pdf .R-grid { gap: 8px; margin-bottom: 12px; }
+.R.pdf .R-card { padding: 12px 14px; border-radius: 7px; }
+.R.pdf .R-card-lbl { font-size: 13px; letter-spacing: .3px; }
+.R.pdf .R-card-val { font-size: 26px; }
+.R.pdf .R-card-val--sm { font-size: 14px; }
+.R.pdf .R-charts { gap: 10px; margin-bottom: 12px; }
+.R.pdf .R-chart { padding: 14px; border-radius: 8px; }
+.R.pdf .R-chart-title { font-size: 14px; margin-bottom: 8px; }
+.R.pdf .R-chart canvas, .R.pdf .R-chart img.pdf-img { max-height: 240px; }
+.R.pdf .R-bignum-val { font-size: 40px; }
+.R.pdf .R-bignum-lbl { font-size: 15px; }
+.R.pdf .R-bignum { min-height: 120px; }
+.R.pdf .R-cmt { padding-top: 10px; margin-top: 12px; }
+.R.pdf .R-cmt-lbl { font-size: 13px; margin-bottom: 6px; }
+.R.pdf .R-pdf-text { font-size: 14px; line-height: 1.6; }
+.R.pdf .R-scale-item { font-size: 13px; padding: 5px 10px; }
+.R.pdf .R-footer { padding-top: 16px; }
+.R.pdf .R-footer-brand { font-size: 16px; }
+.R.pdf .R-footer { font-size: 13px; }
 
 /* Page break helpers for PDF */
 .R.pdf .pb-after { page-break-after: always; }
@@ -634,14 +637,16 @@ function generateAllComments(){
 }
 
 /* ═══════════════════════════════════════════════════════
-   PDF EXPORT — THE KEY FIX
-   1. Switch to pdf mode (700px width)
+   PDF EXPORT — PREMIUM QUALITY
+   1. Switch to pdf mode (720px width)
    2. Hide interactive elements
-   3. Convert ALL canvases to PNG <img> elements
-   4. Wait for ALL images to fully load (Promise.all)
-   5. Replace textareas with static divs
-   6. ONLY THEN call html2pdf
-   7. Restore everything after
+   3. Remove hover/focus states from cloned DOM
+   4. Re-render charts at 2x for crisp output
+   5. Convert ALL canvases to high-res PNG <img>
+   6. Wait for ALL images to fully load
+   7. Replace textareas with styled static divs
+   8. Generate at scale 3 for sharp text
+   9. Restore everything after
    ═══════════════════════════════════════════════════════ */
 async function downloadPDF() {
   const overlay = document.getElementById('pdf-overlay');
@@ -656,11 +661,27 @@ async function downloadPDF() {
   const hideEls = el.querySelectorAll('.R-actions, .R-toolbar, .R-cmt-acts');
   hideEls.forEach(e => e.style.display = 'none');
 
-  // 3. Convert canvases → images and WAIT for them to load
+  // 3. Re-render each Chart.js chart at 2x device pixel ratio for crisp PDF
+  const chartCanvases = el.querySelectorAll('canvas');
+  const origSizes = [];
+  chartCanvases.forEach(c => {
+    const chart = Chart.getChart(c);
+    if (chart) {
+      origSizes.push({ chart, dpr: chart.options.devicePixelRatio });
+      chart.options.devicePixelRatio = 3;
+      chart.resize();
+      chart.update('none');
+    }
+  });
+
+  // Small pause for chart re-render
+  await new Promise(r => setTimeout(r, 200));
+
+  // 4. Convert canvases → high-res images and WAIT for them to load
   const canvases = el.querySelectorAll('canvas');
   const canvasData = [];
-
   const imageLoadPromises = [];
+
   canvases.forEach(c => {
     const dataURL = c.toDataURL('image/png', 1.0);
     const img = document.createElement('img');
@@ -681,7 +702,7 @@ async function downloadPDF() {
 
   await Promise.all(imageLoadPromises);
 
-  // 4. Replace textareas with static text
+  // 5. Replace textareas with static text
   const tas = el.querySelectorAll('.R-cmt-ta');
   tas.forEach(ta => {
     const div = document.createElement('div');
@@ -693,29 +714,35 @@ async function downloadPDF() {
 
   await new Promise(r => setTimeout(r, 150));
 
-  // 5. Generate PDF
+  // 6. Generate PDF
   const company = '{{ company_name|escapejs }}';
   const period = '{{ start_display }}_{{ end_display }}';
 
   try {
     await html2pdf().set({
-      margin:      [6, 8, 6, 8],
+      margin:      [8, 8, 8, 8],
       filename:    'Отчёт_лояльности_' + company + '_' + period.replace(/\./g, '_').replace(/ /g, '') + '.pdf',
       image:       { type: 'png', quality: 1.0 },
       html2canvas: {
-        scale: 2,
+        scale: 3,
         useCORS: true,
         allowTaint: true,
         logging: false,
         backgroundColor: '#ffffff',
         onclone: (clonedDoc) => {
-          // Remove sidebar and fix margins in the clone so content starts at x=0
+          // Remove sidebar and fix margins
           const s = clonedDoc.getElementById('nav-sidebar');
           if (s) s.remove();
           ['container', 'content', 'main', 'content-start'].forEach(id => {
             const node = clonedDoc.getElementById(id);
             if (node) { node.style.marginLeft = '0'; node.style.paddingLeft = '0'; }
           });
+          // Remove all hover/focus/active pseudo-state artifacts
+          clonedDoc.querySelectorAll(':hover, :focus, :active, .hover, .focus').forEach(el => {
+            el.blur && el.blur();
+          });
+          // Kill any tooltip elements that might be visible
+          clonedDoc.querySelectorAll('[role="tooltip"], .tooltip, .chartjs-tooltip').forEach(el => el.remove());
         },
       },
       jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
@@ -726,24 +753,32 @@ async function downloadPDF() {
     alert('Ошибка при генерации PDF.');
   }
 
-  // 6. Restore
+  // 7. Restore
   el.classList.remove('pdf');
   hideEls.forEach(e => e.style.display = '');
   canvasData.forEach(({ canvas, img }) => { canvas.style.display = ''; img.remove(); });
   el.querySelectorAll('._pdf-replacement').forEach(e => e.remove());
   tas.forEach(ta => ta.style.display = '');
+
+  // Restore chart DPR
+  origSizes.forEach(({ chart, dpr }) => {
+    chart.options.devicePixelRatio = dpr || undefined;
+    chart.resize();
+    chart.update('none');
+  });
+
   overlay.classList.remove('on');
 }
 
 /* ═══════════════════════════════════════════════════════
-   CHARTS — compact, readable, proper aspect ratios
+   CHARTS — readable, proper aspect ratios, no yellow
    ═══════════════════════════════════════════════════════ */
 const C = {
-  navy: '#1B2838', gold: '#C9A227', ok: '#38A169', inf: '#3B82F6',
-  warn: '#D69E2E', err: '#E53E3E', teal: '#0D9488', purple: '#7C3AED',
+  navy: '#1B2838', slate: '#64748B', ok: '#38A169', inf: '#3B82F6',
+  warn: '#D97706', err: '#E53E3E', teal: '#0D9488', purple: '#7C3AED',
 };
 
-// Shared config: compact legend, good fonts
+// Shared config: readable legend, good fonts
 const base = {
   responsive: true,
   maintainAspectRatio: true,
@@ -751,21 +786,22 @@ const base = {
     legend: {
       display: true, position: 'bottom',
       labels: {
-        font: { family: "'Nunito',sans-serif", size: 13, weight: '600' },
-        padding: 10, usePointStyle: true, pointStyleWidth: 8, color: '#6B7280',
-        boxWidth: 12,
+        font: { family: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", size: 14, weight: '600' },
+        padding: 12, usePointStyle: true, pointStyleWidth: 10, color: '#374151',
+        boxWidth: 14,
       },
     },
+    tooltip: { enabled: true, titleFont: { size: 14 }, bodyFont: { size: 14 } },
   },
 };
 
 const barOpts = (noLegend) => ({
   ...base,
-  aspectRatio: 1.6,
+  aspectRatio: 1.5,
   plugins: { ...base.plugins, legend: { ...base.plugins.legend, display: !noLegend } },
   scales: {
-    y: { beginAtZero: true, grid: { color: '#F3F4F6' }, ticks: { font: { family: "'Nunito'", size: 13 }, color: '#6B7280' } },
-    x: { grid: { display: false }, ticks: { font: { family: "'Nunito'", size: 13 }, color: '#6B7280' } },
+    y: { beginAtZero: true, grid: { color: '#F3F4F6' }, ticks: { font: { family: "-apple-system, sans-serif", size: 14 }, color: '#374151' } },
+    x: { grid: { display: false }, ticks: { font: { family: "-apple-system, sans-serif", size: 14 }, color: '#374151' } },
   },
 });
 
@@ -776,7 +812,7 @@ new Chart(document.getElementById('chart-engagement'), {
   type: 'bar',
   data: {
     labels: ['QR-сканы', 'Повторные', 'Покупки', 'Истории'],
-    datasets: [{ data: [D.engagement.qr_scans, D.engagement.repeat_players, D.engagement.coin_purchasers, D.engagement.stories], backgroundColor: [C.inf, C.teal, C.purple, C.gold], borderRadius: 5, barThickness: 28 }],
+    datasets: [{ data: [D.engagement.qr_scans, D.engagement.repeat_players, D.engagement.coin_purchasers, D.engagement.stories], backgroundColor: [C.inf, C.teal, C.purple, C.slate], borderRadius: 5, barThickness: 28 }],
   },
   options: barOpts(true),
 });
@@ -786,7 +822,7 @@ new Chart(document.getElementById('chart-growth'), {
   type: 'bar',
   data: {
     labels: ['Сообщество', 'Рассылка', 'С подарком'],
-    datasets: [{ data: [D.growth.new_community, D.growth.new_newsletter, D.growth.new_with_gift], backgroundColor: [C.ok, C.inf, C.gold], borderRadius: 5, barThickness: 28 }],
+    datasets: [{ data: [D.growth.new_community, D.growth.new_newsletter, D.growth.new_with_gift], backgroundColor: [C.ok, C.inf, C.teal], borderRadius: 5, barThickness: 28 }],
   },
   options: barOpts(true),
 });
@@ -794,7 +830,7 @@ new Chart(document.getElementById('chart-growth'), {
 // 3. Sources doughnut
 new Chart(document.getElementById('chart-sources'), {
   type: 'doughnut',
-  data: { labels: ['В кафе', 'Доставка'], datasets: [{ data: [D.sources.cafe, D.sources.delivery], backgroundColor: [C.inf, '#D4A017'], borderWidth: 0 }] },
+  data: { labels: ['В кафе', 'Доставка'], datasets: [{ data: [D.sources.cafe, D.sources.delivery], backgroundColor: [C.inf, C.teal], borderWidth: 0 }] },
   options: doughOpts,
 });
 
@@ -808,18 +844,18 @@ new Chart(document.getElementById('chart-reviews'), {
 // 5. RF segments (horizontal bar)
 (function(){
   const l = Object.keys(D.rf_segments), v = Object.values(D.rf_segments);
-  const cols = [C.ok, C.inf, C.purple, C.gold, C.err, '#94A3B8', C.teal, '#E11D48', '#6366F1', '#84CC16', '#F97316', '#64748B'];
+  const cols = [C.ok, C.inf, C.purple, C.teal, C.err, '#94A3B8', C.warn, '#E11D48', '#6366F1', '#84CC16', '#F97316', '#64748B'];
   new Chart(document.getElementById('chart-rf'), {
     type: 'bar',
-    data: { labels: l, datasets: [{ data: v, backgroundColor: l.map((_, i) => cols[i % cols.length]), borderRadius: 3, barThickness: 18 }] },
+    data: { labels: l, datasets: [{ data: v, backgroundColor: l.map((_, i) => cols[i % cols.length]), borderRadius: 3, barThickness: 20 }] },
     options: {
       ...base,
       indexAxis: 'y',
       aspectRatio: l.length > 8 ? 0.8 : 1.2,
-      plugins: { legend: { display: false } },
+      plugins: { ...base.plugins, legend: { display: false } },
       scales: {
-        x: { beginAtZero: true, grid: { color: '#F3F4F6' }, ticks: { font: { family: "'Nunito'", size: 10 }, color: '#6B7280' } },
-        y: { grid: { display: false }, ticks: { font: { family: "'Nunito'", size: 10 }, color: '#6B7280' } },
+        x: { beginAtZero: true, grid: { color: '#F3F4F6' }, ticks: { font: { family: "-apple-system, sans-serif", size: 13 }, color: '#374151' } },
+        y: { grid: { display: false }, ticks: { font: { family: "-apple-system, sans-serif", size: 13 }, color: '#374151' } },
       },
     },
   });
