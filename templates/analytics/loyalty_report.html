@@ -12,35 +12,32 @@
 {% block content_title %}{% endblock %}
 
 {% block extrastyle %}
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>
 
 <style>
 /* ═══════════════════════════════════════════════════════
-   CSS CUSTOM PROPERTIES — LevOne brand
+   CSS CUSTOM PROPERTIES
    ═══════════════════════════════════════════════════════ */
 :root {
-  --gold: #C9A227;
-  --gold-light: #E8B82D;
-  --navy: #1B2838;
-  --navy-mid: #252F3D;
-  --cream: #FDF8F0;
-  --cream-border: #EDE8DF;
+  --gold: #1d72b8;
+  --gold-light: #2d85d0;
+  --navy: #1a2744;
+  --navy-mid: #2d3a60;
+  --cream: #f0f2f5;
+  --cream-border: #e2e8f0;
   --white: #FFFFFF;
-  --tp: #1B2838;     /* text primary */
-  --ts: #6B7280;     /* text secondary */
-  --tm: #9CA3AF;     /* text muted */
-  --ok: #38A169;
-  --warn: #D69E2E;
-  --err: #E53E3E;
-  --inf: #3B82F6;
-  --teal: #0D9488;
-  --purple: #7C3AED;
-  --fd: 'Cormorant Garamond', 'Georgia', serif;
-  --fb: 'Nunito', 'Inter', -apple-system, sans-serif;
+  --tp: #1e293b;
+  --ts: #64748b;
+  --tm: #94a3b8;
+  --ok: #16a34a;
+  --warn: #d97706;
+  --err: #dc2626;
+  --inf: #1d72b8;
+  --teal: #0d9488;
+  --purple: #7c3aed;
+  --fd: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --fb: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 #content { padding: 0 !important; }
 
@@ -566,12 +563,6 @@
       </div>
     </div>
   </div>
-
-  <!-- Footer -->
-  <div class="R-footer">
-    <div class="R-footer-brand">LevOne Restaurant Group</div>
-    <div>Система лояльности LevelUp · Отчёт сформирован автоматически</div>
-  </div>
 </div>
 
 <!-- PDF overlay -->
@@ -581,9 +572,6 @@
     <div class="R-overlay-txt">Формируем PDF-отчёт...</div>
   </div>
 </div>
-{% endblock %}
-
-{% block extrascript %}
 <script>
 /* ═══════════════════════════════════════════════════════
    DATA
@@ -860,3 +848,4 @@ new Chart(document.getElementById('chart-migration'), {
 });
 </script>
 {% endblock %}
+
