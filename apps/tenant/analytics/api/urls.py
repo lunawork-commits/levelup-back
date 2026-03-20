@@ -1,20 +1,10 @@
 from django.urls import path
-from .views import (
-    GeneralStatsView, ReviewsAnalyticsView, ReviewsDetailView,
-    ReviewsReplyView, ReviewsAIReplyView,
-    RFAnalysisView, RFMigrationView, StatsDetailView,
-    SegmentExportSenlerView, SegmentCreateBroadcastView,
-)
+from .views import GeneralStatsAPIView, RFStatsAPIView, BranchListAPIView, RecalculateRFView, SlowStatsAPIView
 
 urlpatterns = [
-    path('',                  GeneralStatsView.as_view(),     name='analytics-general'),
-    path('rf/',               RFAnalysisView.as_view(),       name='analytics-rf'),
-    path('rf/migration/',     RFMigrationView.as_view(),      name='analytics-rf-migration'),
-    path('rf/segment/<int:segment_id>/export-senler/',   SegmentExportSenlerView.as_view(),    name='analytics-segment-export-senler'),
-    path('rf/segment/<int:segment_id>/create-broadcast/', SegmentCreateBroadcastView.as_view(), name='analytics-segment-create-broadcast'),
-    path('reviews/',          ReviewsAnalyticsView.as_view(), name='analytics-reviews'),
-    path('stats/detail/',     StatsDetailView.as_view(),      name='analytics-stats-detail'),
-    path('reviews/detail/',   ReviewsDetailView.as_view(),    name='analytics-reviews-detail'),
-    path('reviews/reply/',    ReviewsReplyView.as_view(),     name='analytics-reviews-reply'),
-    path('reviews/ai-reply/', ReviewsAIReplyView.as_view(),   name='analytics-reviews-ai-reply'),
+    path('analytics/stats/',            GeneralStatsAPIView.as_view(), name='analytics-stats'),
+    path('analytics/stats/slow/',       SlowStatsAPIView.as_view(),    name='analytics-stats-slow'),
+    path('analytics/rf/',               RFStatsAPIView.as_view(),      name='analytics-rf'),
+    path('analytics/rf/recalculate/',   RecalculateRFView.as_view(),   name='analytics-rf-recalculate'),
+    path('analytics/branches/',         BranchListAPIView.as_view(),   name='analytics-branches'),
 ]
