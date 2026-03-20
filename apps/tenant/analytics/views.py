@@ -5,6 +5,7 @@ import json
 from datetime import date, timedelta
 
 from django.contrib.admin.views.decorators import staff_member_required
+from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -525,3 +526,81 @@ class ReviewsDetailView(View):
             'end_display':       end.strftime('%d.%m.%Y'),
         }
         return render(request, self.template_name, context)
+
+
+# ── Segment actions (from RF dashboard) ──────────────────────────────────────
+
+@method_decorator(staff_member_required, name='dispatch')
+class SegmentExportSenlerView(View):
+    """
+    GET /analytics/rf/segment/<segment_id>/export-senler/
+    Downloads .txt with VK IDs (one per line) for Senler import.
+    """
+
+    def get(self, request, segment_id):
+        from apps.tenant.analytics.models import GuestRFScore, GuestRFScoreDelivery, RFSegment
+
+        segment = RFSegment.objects.get(pk=segment_id)
+        mode = request.GET.get('mode', 'restaurant')
+
+        ScoreModel = GuestRFScoreDelivery if mode == 'delivery' else GuestRFScore
+        qs = ScoreModel.objects.filter(segment=segment)
+
+        branch_ids = request.GET.get('branches', '')
+        if branch_ids:
+            try:
+                ids = [int(x) for x in branch_ids.split(',') if x.strip()]
+                qs = qs.filter(client__branch_id__in=ids)
+            except ValueError:
+                pass
+
+        vk_ids = qs.values_list('client__client__vk_id', flat=True)
+        lines = [str(vk_id) for vk_id in vk_ids if vk_id]
+        content = '\n'.join(lines)
+
+        filename = f'senler_{segment.code}_{segment.name}.txt'
+        response = HttpResponse(content, content_type='text/plain; charset=utf-8')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+
+
+@method_decorator(staff_member_required, name='dispatch')
+class SegmentCreateBroadcastView(View):
+    """
+    GET /analytics/rf/segment/<segment_id>/create-broadcast/
+    Creates a broadcast for the segment and redirects to admin edit page.
+    """
+
+    def get(self, request, segment_id):
+        from apps.tenant.analytics.models import RFSegment
+        from apps.tenant.senler.models import Broadcast
+
+        segment = RFSegment.objects.get(pk=segment_id)
+
+        branch_ids_raw = request.GET.get('branches', '')
+        if branch_ids_raw:
+            try:
+                ids = [int(x) for x in branch_ids_raw.split(',') if x.strip()]
+                branches = Branch.objects.filter(is_active=True, pk__in=ids)
+            except ValueError:
+                branches = Branch.objects.filter(is_active=True)
+        else:
+            branches = Branch.objects.filter(is_active=True)
+
+        created_ids = []
+        for branch in branches:
+            broadcast = Broadcast.objects.create(
+                branch=branch,
+                name=f'Рассылка: {segment.emoji} {segment.name} ({segment.code})',
+                message_text='',
+                audience_type='all',
+            )
+            broadcast.rf_segments.set([segment])
+            created_ids.append(broadcast.pk)
+
+        if len(created_ids) == 1:
+            return HttpResponseRedirect(f'/admin/senler/broadcast/{created_ids[0]}/change/')
+        elif created_ids:
+            return HttpResponseRedirect('/admin/senler/broadcast/')
+        else:
+            return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/analytics/rf/'))

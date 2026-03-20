@@ -1,4 +1,6 @@
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.http import HttpResponse, HttpResponseRedirect
+from django.urls import path, reverse
 from django.utils.html import format_html, mark_safe
 
 from apps.shared.config.admin_sites import tenant_admin
@@ -29,7 +31,8 @@ def _segment_badge(seg):
 class RFSegmentAdmin(admin.ModelAdmin):
     list_display = (
         'code_badge', 'name', 'recency_range_col',
-        'frequency_range_col', 'guests_count_col', 'last_campaign_date', 'updated_at',
+        'frequency_range_col', 'guests_count_col', 'hint_preview_col',
+        'last_campaign_date', 'actions_col',
     )
     list_display_links = ('code_badge',)
     search_fields = ('code', 'name')
@@ -48,6 +51,10 @@ class RFSegmentAdmin(admin.ModelAdmin):
         }),
         ('Маркетинг', {
             'fields': ('strategy', 'hint', 'last_campaign_date'),
+            'description': (
+                '<b>Подсказка</b> — краткая инструкция менеджеру по работе с рассылками для этого сегмента. '
+                'Отображается в таблице сегментов и помогает принять правильное решение.'
+            ),
         }),
         ('Статистика', {
             'fields': ('guests_count_col',),
@@ -57,6 +64,101 @@ class RFSegmentAdmin(admin.ModelAdmin):
             'classes': ('collapse',),
         }),
     )
+
+    # ── Custom URLs ───────────────────────────────────────────────────────────
+
+    def get_urls(self):
+        urls = super().get_urls()
+        return [
+            path(
+                '<int:pk>/send-broadcast/',
+                self.admin_site.admin_view(self._send_broadcast_view),
+                name='analytics_rfsegment_send_broadcast',
+            ),
+            path(
+                '<int:pk>/export-senler/',
+                self.admin_site.admin_view(self._export_senler_view),
+                name='analytics_rfsegment_export_senler',
+            ),
+        ] + urls
+
+    def _send_broadcast_view(self, request, pk):
+        """
+        Создаёт рассылку по всем гостям сегмента для каждой активной торговой точки
+        и перенаправляет на страницу новой рассылки для редактирования текста.
+        """
+        from apps.tenant.branch.models import Branch
+        from apps.tenant.senler.models import Broadcast
+
+        segment = RFSegment.objects.get(pk=pk)
+        branches = Branch.objects.filter(is_active=True)
+
+        created_ids = []
+        for branch in branches:
+            broadcast = Broadcast.objects.create(
+                branch=branch,
+                name=f'Рассылка: {segment.emoji} {segment.name} ({segment.code})',
+                message_text='',
+                audience_type='all',
+            )
+            broadcast.rf_segments.set([segment])
+            created_ids.append(broadcast.pk)
+
+        if len(created_ids) == 1:
+            self.message_user(
+                request,
+                f'Создана рассылка для сегмента «{segment.name}». '
+                f'Заполните текст сообщения и нажмите «Отправить».',
+                level=messages.SUCCESS,
+            )
+            return HttpResponseRedirect(
+                reverse('admin:senler_broadcast_change', args=[created_ids[0]])
+            )
+        elif created_ids:
+            self.message_user(
+                request,
+                f'Создано {len(created_ids)} рассылок (по одной на точку) для сегмента «{segment.name}». '
+                f'Перейдите в раздел Рассылки, заполните тексты и отправьте.',
+                level=messages.SUCCESS,
+            )
+            return HttpResponseRedirect(reverse('admin:senler_broadcast_changelist'))
+        else:
+            self.message_user(
+                request,
+                'Нет активных торговых точек.',
+                level=messages.WARNING,
+            )
+            return HttpResponseRedirect(reverse('admin:analytics_rfsegment_changelist'))
+
+    def _export_senler_view(self, request, pk):
+        """
+        Выгружает .txt файл с VK ID всех гостей сегмента — по одному на строку.
+        Формат для импорта в Senler (конструктор чат-ботов ВКонтакте).
+        """
+        segment = RFSegment.objects.get(pk=pk)
+
+        # Get all VK IDs for guests in this segment
+        vk_ids = (
+            GuestRFScore.objects
+            .filter(segment=segment)
+            .select_related('client__client')
+            .values_list('client__client__vk_id', flat=True)
+        )
+
+        # Filter out None values and build the file content
+        lines = [str(vk_id) for vk_id in vk_ids if vk_id]
+
+        content = '\n'.join(lines)
+        if not lines:
+            content = ''
+
+        filename = f'senler_{segment.code}_{segment.name}.txt'
+        response = HttpResponse(content, content_type='text/plain; charset=utf-8')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        return response
+
+    # ── Display columns ───────────────────────────────────────────────────────
 
     @admin.display(description='Код')
     def code_badge(self, obj):
@@ -89,6 +191,46 @@ class RFSegmentAdmin(admin.ModelAdmin):
         if not count:
             return mark_safe('<span style="color:var(--body-quiet-color,#aaa);">0</span>')
         return format_html('<strong>{}</strong>', count)
+
+    @admin.display(description='Подсказка')
+    def hint_preview_col(self, obj):
+        if not obj.hint:
+            return mark_safe('<span style="color:#aaa;">—</span>')
+        # Show first line as a tooltip-enabled preview
+        first_line = obj.hint.split('\n')[0]
+        preview = first_line[:50] + ('…' if len(first_line) > 50 else '')
+        tooltip = obj.hint.replace('\n', '&#10;')
+        return format_html(
+            '<span title="{}" style="cursor:help;border-bottom:1px dotted #aaa;">'
+            '{}</span>',
+            tooltip, preview,
+        )
+
+    @admin.display(description='Действия')
+    def actions_col(self, obj):
+        if not obj.pk:
+            return '—'
+
+        broadcast_url = reverse('admin:analytics_rfsegment_send_broadcast', args=[obj.pk])
+        export_url = reverse('admin:analytics_rfsegment_export_senler', args=[obj.pk])
+
+        return format_html(
+            '<div style="white-space:nowrap;">'
+            '<a class="button" href="{}" '
+            'onclick="return confirm(\'Создать рассылку для сегмента «{}»?\');" '
+            'style="font-size:11px;padding:4px 10px;margin-right:4px;'
+            'background:#4a76a8;color:#fff;border:none;border-radius:4px;'
+            'text-decoration:none;display:inline-block;">'
+            '📨 Рассылка</a>'
+            '<a class="button" href="{}" '
+            'style="font-size:11px;padding:4px 10px;'
+            'background:#5181b8;color:#fff;border:none;border-radius:4px;'
+            'text-decoration:none;display:inline-block;">'
+            '📥 Senler</a>'
+            '</div>',
+            broadcast_url, obj.name,
+            export_url,
+        )
 
 
 # ── GuestRFScore filters ──────────────────────────────────────────────────────

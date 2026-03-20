@@ -565,6 +565,7 @@ def get_rf_matrix(branch_ids: list[int] | None, mode: str = 'restaurant') -> dic
             'segment_emoji': g['segment__emoji'] or '',
             'segment_color': g['segment__color'] or '#e0e0e0',
             'segment_strategy': g['segment__strategy'] or '',
+            'segment_hint':  g['segment__hint'] or '',
             'count':         g['count'],
             'pct':           round(g['count'] / total * 100, 1) if total else 0.0,
         }
@@ -598,6 +599,7 @@ def get_rf_matrix(branch_ids: list[int] | None, mode: str = 'restaurant') -> dic
             cell['segment_emoji']    = seg.emoji
             cell['segment_color']    = seg.color
             cell['segment_strategy'] = seg.strategy
+            cell['segment_hint']     = seg.hint
 
     cells: dict[str, dict] = {}
     for r in r_vals:
@@ -616,6 +618,7 @@ def get_rf_matrix(branch_ids: list[int] | None, mode: str = 'restaurant') -> dic
                     'segment_emoji':    seg.emoji    if seg else '',
                     'segment_color':    seg.color    if seg else '#e8e8e8',
                     'segment_strategy': seg.strategy if seg else '',
+                    'segment_hint':     seg.hint     if seg else '',
                     'count': 0, 'pct': 0.0,
                 }
 
