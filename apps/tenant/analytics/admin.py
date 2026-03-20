@@ -32,7 +32,7 @@ class RFSegmentAdmin(admin.ModelAdmin):
     list_display = (
         'code_badge', 'name', 'recency_range_col',
         'frequency_range_col', 'guests_count_col', 'hint_preview_col',
-        'last_campaign_date', 'actions_col',
+        'last_campaign_date',
     )
     list_display_links = ('code_badge',)
     search_fields = ('code', 'name')

@@ -4,10 +4,10 @@
 Использование:
     python manage.py create_default_rf_segments --schema=<tenant_schema>
 
-Если сегменты уже существуют — обновляет ТОЛЬКО пустые hint/strategy,
-не перезаписывая пользовательские настройки.
+Если сегменты уже существуют — ВСЕГДА синхронизирует hint/strategy
+со стандартным шаблоном для единообразия между всеми кафе.
 
-Флаг --force перезаписывает всё, включая границы и подсказки.
+Флаг --force перезаписывает ВСЁ, включая границы и цвета.
 """
 
 from django.core.management.base import BaseCommand
@@ -231,8 +231,8 @@ DEFAULT_SEGMENTS = [
 class Command(BaseCommand):
     help = (
         'Создаёт стандартные 12 RF-сегментов с подсказками из RF-матрицы. '
-        'Существующие сегменты НЕ перезаписываются (только заполняются пустые hint/strategy). '
-        'Используйте --force для полной перезаписи.'
+        'Существующие сегменты: hint и strategy ВСЕГДА синхронизируются со стандартом. '
+        'Используйте --force для полной перезаписи (включая границы и цвета).'
     )
 
     def add_arguments(self, parser):
@@ -259,18 +259,22 @@ class Command(BaseCommand):
                     updated += 1
                     self.stdout.write(self.style.WARNING(f'  ↻ {code} — перезаписан'))
                 else:
-                    # Only fill in empty hint/strategy
+                    # Always sync hint and strategy to standard template
                     changed = False
-                    if not obj.hint and seg_data.get('hint'):
-                        obj.hint = seg_data['hint']
+                    standard_hint = seg_data.get('hint', '')
+                    standard_strategy = seg_data.get('strategy', '')
+
+                    if standard_hint and obj.hint != standard_hint:
+                        obj.hint = standard_hint
                         changed = True
-                    if not obj.strategy and seg_data.get('strategy'):
-                        obj.strategy = seg_data['strategy']
+                    if standard_strategy and obj.strategy != standard_strategy:
+                        obj.strategy = standard_strategy
                         changed = True
+
                     if changed:
                         obj.save(update_fields=['hint', 'strategy'])
                         updated += 1
-                        self.stdout.write(self.style.WARNING(f'  ↻ {code} — дополнены подсказки'))
+                        self.stdout.write(self.style.WARNING(f'  ↻ {code} — подсказки синхронизированы со стандартом'))
                     else:
                         skipped += 1
                         self.stdout.write(f'  ✓ {code} — без изменений')

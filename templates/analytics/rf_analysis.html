@@ -200,7 +200,7 @@
     cursor: pointer;
     transition: all .15s;
     position: relative;
-    min-height: 80px;
+    min-height: 110px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -243,6 +243,29 @@
   .rf-cell-name   { font-size: 10px; font-weight: 600; color: rgba(0,0,0,.6); margin-bottom: 6px; line-height: 1.2; }
   .rf-cell-count  { font-size: 22px; font-weight: 900; color: rgba(0,0,0,.75); line-height: 1; }
   .rf-cell-pct    { font-size: 10px; color: rgba(0,0,0,.45); margin-top: 2px; }
+
+  /* ── Cell action buttons ───────────────────────────── */
+  .rf-cell-actions {
+    display: flex;
+    gap: 4px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .rf-cell-actions a {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 3px 7px;
+    border-radius: 4px;
+    text-decoration: none;
+    color: #fff;
+    white-space: nowrap;
+    transition: all .15s;
+    display: inline-block;
+  }
+  .rf-cell-actions a:hover { opacity: .85; transform: scale(1.05); }
+  .rf-cell-btn-broadcast { background: #4a76a8; }
+  .rf-cell-btn-senler    { background: #5181b8; }
 
   /* ── Segment detail panel ────────────────────────────── */
   .rf-detail-panel {
@@ -622,7 +645,7 @@ function buildMatrix() {
     // Cells
     f_levels.forEach(fl => {
       const key = `${rl.r_score}_${fl.f_score}`;
-      const cell = cells[key] || { segment_emoji: '', segment_name: '—', count: 0, pct: 0, segment_color: '#e8e8e8', r_score: rl.r_score, f_score: fl.f_score, segment_strategy: '' };
+      const cell = cells[key] || { segment_emoji: '', segment_name: '—', count: 0, pct: 0, segment_color: '#e8e8e8', r_score: rl.r_score, f_score: fl.f_score, segment_strategy: '', segment_hint: '', segment_id: null };
 
       const bg = cell.segment_color || '#e8e8e8';
       // Lighten for background: add alpha
@@ -632,12 +655,32 @@ function buildMatrix() {
       el.style.border = `2px solid ${bg}44`;
       el.dataset.r = rl.r_score;
       el.dataset.f = fl.f_score;
+
+      // Build action buttons HTML
+      const segId = cell.segment_id;
+      const actionsHtml = segId ? `
+        <div class="rf-cell-actions">
+          <a href="/admin/analytics/rfsegment/${segId}/send-broadcast/"
+             class="rf-cell-btn-broadcast"
+             onclick="event.stopPropagation(); return confirm('Создать рассылку для сегмента «${cell.segment_name}»?');"
+             title="Создать рассылку">📨 Рассылка</a>
+          <a href="/admin/analytics/rfsegment/${segId}/export-senler/"
+             class="rf-cell-btn-senler"
+             onclick="event.stopPropagation();"
+             title="Выгрузить VK ID для Senler">📥 Senler</a>
+        </div>
+      ` : '';
+
+      // Use hint for tooltip (fallback to strategy)
+      const tipText = cell.segment_hint || cell.segment_strategy || '';
+
       el.innerHTML = `
         <div class="rf-cell-emoji">${cell.segment_emoji || ''}</div>
         <div class="rf-cell-name">${cell.segment_name || '—'}</div>
         <div class="rf-cell-count" style="color: black">${cell.count}</div>
         <div class="rf-cell-pct">${cell.pct}%</div>
-        ${cell.segment_strategy ? `<div class="rf-cell-tip"><strong>📋 Стратегия:</strong><br>${cell.segment_strategy}</div>` : ''}
+        ${actionsHtml}
+        ${tipText ? `<div class="rf-cell-tip"><strong>📋 Подсказка:</strong><br>${tipText.replace(/\n/g, '<br>')}</div>` : ''}
       `;
       el.addEventListener('click', () => selectCell(rl.r_score, fl.f_score, cell, bg));
       container.appendChild(el);
@@ -659,6 +702,27 @@ function selectCell(r, f, cell, color) {
 
   // Update detail panel
   const detailBody = document.getElementById('detail-body');
+
+  // Build action buttons for detail panel
+  const segId = cell.segment_id;
+  const detailActionsHtml = segId ? `
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <a href="/admin/analytics/rfsegment/${segId}/send-broadcast/"
+         onclick="return confirm('Создать рассылку для сегмента «${cell.segment_name}»?');"
+         style="flex:1;padding:9px;background:#4a76a8;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;text-decoration:none;text-align:center;display:block;">
+        📨 Рассылка
+      </a>
+      <a href="/admin/analytics/rfsegment/${segId}/export-senler/"
+         style="flex:1;padding:9px;background:#5181b8;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;text-decoration:none;text-align:center;display:block;">
+        📥 Senler
+      </a>
+    </div>
+  ` : '';
+
+  // Use hint as the primary tip (fallback to strategy)
+  const hintText = cell.segment_hint || '';
+  const strategyText = cell.segment_strategy || '';
+
   detailBody.innerHTML = `
     <div style="padding:16px 20px;">
       <div class="rf-detail-segment-badge" style="background:${color};">
@@ -682,12 +746,19 @@ function selectCell(r, f, cell, color) {
           <div class="rf-detail-stat-label">Частота</div>
         </div>
       </div>
-      ${cell.segment_strategy ? `
+      ${hintText ? `
         <div class="rf-detail-strategy">
-          <div class="rf-detail-strategy-title">📋 Стратегия</div>
-          ${cell.segment_strategy}
+          <div class="rf-detail-strategy-title">📋 Подсказка по рассылке</div>
+          ${hintText.replace(/\n/g, '<br>')}
         </div>
       ` : ''}
+      ${strategyText ? `
+        <div class="rf-detail-strategy" style="border-left-color:#7c3aed;">
+          <div class="rf-detail-strategy-title">🎯 Стратегия</div>
+          ${strategyText}
+        </div>
+      ` : ''}
+      ${detailActionsHtml}
       ${cell.count > 0 ? `
         <button onclick="loadGuests(${r}, ${f})"
           style="width:100%;padding:9px;background:${color};color:#000;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">
