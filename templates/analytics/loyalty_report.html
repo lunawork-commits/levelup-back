@@ -12,32 +12,41 @@
 {% block content_title %}{% endblock %}
 
 {% block extrastyle %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>
 
 <style>
 /* ═══════════════════════════════════════════════════════
-   CSS CUSTOM PROPERTIES
+   CSS CUSTOM PROPERTIES — PREMIUM PALETTE (NO YELLOW)
    ═══════════════════════════════════════════════════════ */
 :root {
-  --gold: #1d72b8;
-  --gold-light: #2d85d0;
-  --navy: #1a2744;
-  --navy-mid: #2d3a60;
-  --cream: #f0f2f5;
-  --cream-border: #e2e8f0;
-  --white: #FFFFFF;
-  --tp: #1e293b;
-  --ts: #64748b;
-  --tm: #94a3b8;
-  --ok: #16a34a;
-  --warn: #d97706;
-  --err: #dc2626;
-  --inf: #1d72b8;
-  --teal: #0d9488;
-  --purple: #7c3aed;
-  --fd: -apple-system, BlinkMacSystemFont, sans-serif;
-  --fb: -apple-system, BlinkMacSystemFont, sans-serif;
+  --navy:       #0F1A2E;
+  --navy-mid:   #1B2B45;
+  --navy-light: #263B5C;
+  --accent:       #4A7CFF;
+  --accent-light: #6B9AFF;
+  --accent-pale:  #EBF0FF;
+  --bg:           #F5F7FA;
+  --surface:      #FFFFFF;
+  --surface-alt:  #F0F3F8;
+  --border:       #E2E8F0;
+  --border-light: #EDF2F7;
+  --tp:  #0F1A2E;
+  --ts:  #4A5568;
+  --tm:  #A0AEC0;
+  --ok:     #10B981;
+  --warn:   #F97316;
+  --err:    #EF4444;
+  --inf:    #3B82F6;
+  --teal:   #0D9488;
+  --purple: #7C3AED;
+  --fd: 'DM Serif Display', Georgia, serif;
+  --fb: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --r-md: 16px;
+  --r-lg: 20px;
 }
 #content { padding: 0 !important; }
 
@@ -47,253 +56,331 @@
 .R {
   font-family: var(--fb);
   color: var(--tp);
-  max-width: 860px;
+  max-width: 900px;
   margin: 0 auto;
-  background: var(--cream);
-  padding: 24px 28px 60px;
+  background: var(--bg);
+  padding: 32px 36px 72px;
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* ── Header ─────────────────────────────────────────── */
 .R-hd {
-  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 100%);
+  background: linear-gradient(145deg, var(--navy) 0%, var(--navy-mid) 60%, var(--navy-light) 100%);
   color: #fff;
-  padding: 32px 36px;
-  border-radius: 14px;
-  margin-bottom: 10px;
+  padding: 44px 48px;
+  border-radius: var(--r-lg);
+  margin-bottom: 14px;
   position: relative;
   overflow: hidden;
+}
+.R-hd::before {
+  content: '';
+  position: absolute;
+  top: -100px; right: -60px;
+  width: 320px; height: 320px;
+  background: radial-gradient(circle, rgba(74,124,255,.12) 0%, transparent 70%);
+  pointer-events: none;
 }
 .R-hd::after {
   content: '';
   position: absolute;
-  top: -40px; right: -40px;
-  width: 200px; height: 200px;
-  background: var(--gold);
-  opacity: .07;
-  border-radius: 50%;
+  bottom: -80px; left: 30%;
+  width: 250px; height: 250px;
+  background: radial-gradient(circle, rgba(74,124,255,.06) 0%, transparent 70%);
   pointer-events: none;
 }
-.R-hd-inner { position: relative; z-index: 1; display: flex; align-items: center; gap: 20px; }
-.R-logo { width: 56px; height: 56px; object-fit: contain; flex-shrink: 0; }
+.R-hd-inner {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; gap: 24px;
+}
+.R-logo {
+  width: 64px; height: 64px; object-fit: contain; flex-shrink: 0;
+  filter: brightness(0) invert(1);
+  opacity: .9;
+}
 .R-hd-text { flex: 1; }
-.R-hd-title { font-family: var(--fd); font-size: 30px; font-weight: 700; letter-spacing: -.4px; margin-bottom: 4px; }
-.R-hd-bar { width: 40px; height: 3px; background: var(--gold); border-radius: 2px; margin: 6px 0; }
-.R-hd-sub { font-size: 15px; opacity: .55; font-weight: 600; }
+.R-hd-title {
+  font-family: var(--fd);
+  font-size: 34px;
+  font-weight: 400;
+  letter-spacing: -.3px;
+  margin-bottom: 6px;
+  line-height: 1.15;
+}
+.R-hd-bar {
+  width: 48px; height: 3px;
+  background: var(--accent);
+  border-radius: 2px;
+  margin: 10px 0;
+  opacity: .8;
+}
+.R-hd-sub {
+  font-family: var(--fb);
+  font-size: 15px;
+  font-weight: 500;
+  opacity: .5;
+  letter-spacing: .3px;
+}
 
-/* ── Toolbar (filters + actions) ────────────────────── */
+/* ── Toolbar ────────────────────────────────────────── */
 .R-toolbar {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-  margin-bottom: 16px; padding: 12px 16px;
-  background: var(--white); border-radius: 10px; border: 1px solid var(--cream-border);
+  margin-bottom: 16px; padding: 14px 20px;
+  background: var(--surface); border-radius: var(--r-md);
+  border: 1px solid var(--border);
 }
-.R-toolbar-label { font-size: 13px; color: var(--ts); font-weight: 700; }
-.R-actions { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+.R-toolbar-label {
+  font-size: 12px; color: var(--tm); font-weight: 700;
+  text-transform: uppercase; letter-spacing: .6px;
+}
+.R-actions { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
 .R-btn {
-  padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 700;
-  cursor: pointer; border: none; font-family: var(--fb); transition: all .12s;
+  padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 700;
+  cursor: pointer; border: none; font-family: var(--fb); transition: all .15s;
+  letter-spacing: .1px;
 }
 .R-btn:disabled { opacity: .5; cursor: not-allowed; }
-.R-btn--ai { background: #EEF2FF; color: var(--inf); border: 1px solid #C7D2FE; }
-.R-btn--ai:hover:not(:disabled) { background: #E0E7FF; }
-.R-btn--pdf { background: var(--navy); color: #fff; }
-.R-btn--pdf:hover:not(:disabled) { background: #0F1B2A; }
-.R-btn--back { background: var(--white); color: var(--ts); border: 1px solid var(--cream-border); }
+.R-btn--ai { background: var(--accent-pale); color: var(--accent); border: 1px solid #C7D6FF; }
+.R-btn--ai:hover:not(:disabled) { background: #DCE5FF; }
+.R-btn--pdf {
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 100%);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(15,26,46,.25);
+}
+.R-btn--pdf:hover:not(:disabled) {
+  box-shadow: 0 6px 20px rgba(15,26,46,.35);
+  transform: translateY(-1px);
+}
+.R-btn--back { background: var(--surface); color: var(--ts); border: 1px solid var(--border); }
 
 /* ═══════════════════════════════════════════════════════
    SECTION CARDS
    ═══════════════════════════════════════════════════════ */
 .R-sec {
-  background: var(--white);
-  border-radius: 12px;
-  border: 1px solid var(--cream-border);
-  box-shadow: 0 1px 8px rgba(27,40,56,.04);
-  margin-bottom: 14px;
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 12px rgba(15,26,46,.04), 0 0 1px rgba(15,26,46,.08);
+  margin-bottom: 16px;
+  overflow: hidden;
 }
 .R-sec-hd {
-  padding: 14px 22px;
-  border-bottom: 1px solid var(--cream-border);
-  display: flex; align-items: center; gap: 12px;
+  padding: 20px 28px;
+  border-bottom: 1px solid var(--border-light);
+  display: flex; align-items: center; gap: 14px;
+  background: linear-gradient(180deg, rgba(240,243,248,.5) 0%, transparent 100%);
 }
 .R-sec-num {
-  background: var(--gold); color: white;
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 100%);
+  color: white;
   font-size: 13px; font-weight: 800;
-  width: 28px; height: 28px; border-radius: 7px;
+  width: 32px; height: 32px; border-radius: 9px;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(15,26,46,.2);
 }
 .R-sec-title {
-  font-family: var(--fd); font-size: 21px; font-weight: 700;
-  color: var(--navy); letter-spacing: -.2px;
+  font-family: var(--fd);
+  font-size: 22px;
+  font-weight: 400;
+  color: var(--navy);
+  letter-spacing: -.2px;
 }
-.R-sec-body { padding: 18px 22px; }
+.R-sec-body { padding: 24px 28px; }
 
 /* ── Metric grid ────────────────────────────────────── */
 .R-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 14px;
+  gap: 12px;
+  margin-bottom: 16px;
 }
-.R-grid .R-card    { flex: 1 1 140px; min-width: 0; }
-.R-grid--3 .R-card { flex: 1 1 180px; min-width: 0; }
-.R-grid--2 .R-card { flex: 1 1 240px; min-width: 0; }
+.R-grid .R-card    { flex: 1 1 160px; min-width: 0; }
+.R-grid--3 .R-card { flex: 1 1 200px; min-width: 0; }
+.R-grid--2 .R-card { flex: 1 1 260px; min-width: 0; }
 .R-card {
-  background: var(--cream); border-radius: 8px;
-  padding: 12px 14px; border: 1px solid var(--cream-border);
+  background: var(--surface-alt);
+  border-radius: 12px;
+  padding: 16px 18px;
+  border: 1px solid var(--border-light);
+  transition: box-shadow .15s;
 }
+.R-card:hover { box-shadow: 0 4px 16px rgba(15,26,46,.06); }
+
+/* ───────────────────────────────────────────────────
+   CRITICAL FIX: labels WRAP properly, NO truncation
+   ─────────────────────────────────────────────────── */
 .R-card-lbl {
-  font-size: 13px; color: var(--ts); font-weight: 700;
-  text-transform: uppercase; letter-spacing: .4px; margin-bottom: 2px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: 12px;
+  color: var(--ts);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 6px;
+  line-height: 1.4;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 .R-card-val {
-  font-size: 30px; font-weight: 800; color: var(--navy); line-height: 1.15;
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--navy);
+  line-height: 1.1;
+  letter-spacing: -.5px;
 }
-.R-card-val--sm { font-size: 16px; color: var(--tm); font-weight: 600; }
+.R-card-val--sm { font-size: 15px; color: var(--tm); font-weight: 600; letter-spacing: 0; }
 
 /* ── Scale badges ───────────────────────────────────── */
-.R-scale { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 10px; }
-.R-scale-item { font-size: 13px; padding: 4px 10px; border-radius: 5px; font-weight: 700; }
+.R-scale { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+.R-scale-item {
+  font-size: 12px; padding: 6px 12px; border-radius: 8px;
+  font-weight: 700; letter-spacing: .2px;
+}
 
 /* ── Chart containers ───────────────────────────────── */
 .R-charts {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 14px;
+  gap: 14px;
+  margin-bottom: 16px;
 }
 @media (max-width: 640px) { .R-charts { grid-template-columns: 1fr; } }
 .R-chart {
-  background: var(--cream); border-radius: 10px;
-  padding: 14px; border: 1px solid var(--cream-border);
+  background: var(--surface-alt);
+  border-radius: 14px;
+  padding: 20px;
+  border: 1px solid var(--border-light);
 }
 .R-chart-title {
-  font-size: 13px; font-weight: 800; color: var(--ts);
-  text-transform: uppercase; letter-spacing: .6px; margin-bottom: 8px;
+  font-size: 11px; font-weight: 800; color: var(--tm);
+  text-transform: uppercase; letter-spacing: .8px; margin-bottom: 12px;
 }
-.R-chart canvas {
-  width: 100% !important;
-  max-height: 260px;
-}
-.R-chart img.pdf-img {
-  width: 100%; height: auto; display: block;
-}
+.R-chart canvas { width: 100% !important; max-height: 280px; }
+.R-chart img.pdf-img { width: 100%; height: auto; display: block; }
 
-/* ── Big stat (in chart right column) ───────────────── */
+/* ── Big stat ───────────────────────────────────────── */
 .R-bignum {
   display: flex; align-items: center; justify-content: center;
-  height: 100%; text-align: center; min-height: 140px;
+  height: 100%; text-align: center; min-height: 160px;
 }
-.R-bignum-val { font-size: 44px; font-weight: 800; line-height: 1; }
-.R-bignum-lbl { font-size: 16px; color: var(--ts); font-weight: 600; margin-top: 4px; }
+.R-bignum-val { font-family: var(--fd); font-size: 52px; font-weight: 400; line-height: 1; }
+.R-bignum-lbl { font-size: 15px; color: var(--ts); font-weight: 600; margin-top: 8px; }
 
 /* ── Comment block ──────────────────────────────────── */
-.R-cmt {
-  border-top: 1px solid var(--cream-border);
-  padding-top: 12px; margin-top: 14px;
-}
+.R-cmt { border-top: 1px solid var(--border-light); padding-top: 16px; margin-top: 20px; }
 .R-cmt-lbl {
   font-size: 11px; font-weight: 800; text-transform: uppercase;
-  letter-spacing: .6px; color: var(--gold); margin-bottom: 6px;
+  letter-spacing: .7px; color: var(--accent); margin-bottom: 8px;
 }
 .R-cmt-ta {
-  width: 100%; min-height: 56px; border: 1px solid var(--cream-border);
-  border-radius: 8px; padding: 10px 12px; font-size: 14px;
-  font-family: var(--fb); resize: vertical; line-height: 1.55;
-  box-sizing: border-box; color: var(--tp); background: var(--cream);
+  width: 100%; min-height: 60px;
+  border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 16px; font-size: 14px;
+  font-family: var(--fb); resize: vertical; line-height: 1.6;
+  box-sizing: border-box; color: var(--tp); background: var(--surface-alt);
+  transition: all .15s;
 }
-.R-cmt-ta:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(29,114,184,.12); background: var(--white); }
-.R-cmt-acts { display: flex; gap: 6px; margin-top: 6px; align-items: center; }
+.R-cmt-ta:focus {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(74,124,255,.12);
+  background: var(--surface);
+}
+.R-cmt-acts { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
 .R-cmt-btn {
-  padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 700;
-  cursor: pointer; border: none; font-family: var(--fb);
-  background: #EEF2FF; color: var(--inf); border: 1px solid #C7D2FE;
+  padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 700;
+  cursor: pointer; font-family: var(--fb);
+  background: var(--accent-pale); color: var(--accent);
+  border: 1px solid #C7D6FF; transition: all .12s;
 }
+.R-cmt-btn:hover { background: #DCE5FF; }
 .R-cmt-btn:disabled { opacity: .5; cursor: not-allowed; }
 .R-cmt-status { font-size: 12px; color: var(--tm); }
 
-/* ── PDF text (replaces textareas) ──────────────────── */
-.R-pdf-text { font-size: 13px; line-height: 1.55; color: var(--tp); white-space: pre-wrap; }
+/* ── PDF text ──────────────────────────────────────── */
+.R-pdf-text { font-size: 14px; line-height: 1.65; color: var(--tp); white-space: pre-wrap; }
 
 /* ── Footer ─────────────────────────────────────────── */
 .R-footer {
-  text-align: center; padding: 20px 0 4px;
-  color: var(--tm); font-size: 12px; font-weight: 600;
+  text-align: center; padding: 32px 0 8px;
+  color: var(--tm); font-size: 12px; font-weight: 500;
 }
-.R-footer-brand { color: var(--gold); font-family: var(--fd); font-size: 16px; font-weight: 700; margin-bottom: 2px; }
+.R-footer-brand {
+  font-family: var(--fd); font-size: 18px; font-weight: 400;
+  color: var(--navy); margin-bottom: 4px; letter-spacing: .5px;
+}
+.R-footer-line {
+  width: 40px; height: 2px;
+  background: var(--accent); margin: 8px auto;
+  border-radius: 1px; opacity: .5;
+}
 
 /* ── Overlay ────────────────────────────────────────── */
 .R-overlay {
   display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(27,40,56,.65); z-index: 9999;
+  background: rgba(15,26,46,.7); z-index: 9999;
   align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
 }
 .R-overlay.on { display: flex; }
 .R-overlay-box {
-  background: var(--white); border-radius: 14px; padding: 36px 44px;
-  text-align: center; box-shadow: 0 16px 48px rgba(0,0,0,.2);
+  background: var(--surface); border-radius: var(--r-lg); padding: 44px 56px;
+  text-align: center; box-shadow: 0 24px 64px rgba(0,0,0,.25);
 }
-.R-overlay-spin { font-size: 40px; animation: R-spin 1s linear infinite; display: inline-block; margin-bottom: 12px; }
+.R-overlay-spin { font-size: 44px; animation: R-spin 1s linear infinite; display: inline-block; margin-bottom: 16px; }
 @keyframes R-spin { to { transform: rotate(360deg); } }
-.R-overlay-txt { font-size: 16px; color: var(--navy); font-weight: 700; }
+.R-overlay-txt { font-size: 17px; color: var(--navy); font-weight: 700; }
 
 /* ═══════════════════════════════════════════════════════
-   PDF-MODE — applied during html2pdf export
-   A4 = 210mm. Margins 8mm each side = 194mm usable.
-   At scale 3: 194mm × 3.78 px/mm ≈ 733px.
-   We use 720px content width for comfortable fit.
-   ALL FONTS ≥ 13px for readability at 40-50 age.
+   PDF-MODE
    ═══════════════════════════════════════════════════════ */
 .R.pdf {
   background: #fff !important;
   padding: 0 !important;
-  max-width: 720px !important;
+  max-width: 700px !important;
+  font-size: 14px;
 }
-.R.pdf .R-hd { padding: 28px 30px; border-radius: 0; margin-bottom: 10px; }
-.R.pdf .R-hd-title { font-size: 26px; }
-.R.pdf .R-hd-sub { font-size: 15px; opacity: .7; }
-.R.pdf .R-logo { width: 48px; height: 48px; }
-.R.pdf .R-sec { margin-bottom: 12px; box-shadow: none; border-radius: 8px; }
-.R.pdf .R-sec-hd { padding: 14px 20px; }
-.R.pdf .R-sec-num { width: 28px; height: 28px; font-size: 14px; border-radius: 6px; }
+.R.pdf .R-hd { padding: 36px; border-radius: 0; margin-bottom: 12px; }
+.R.pdf .R-hd-title { font-size: 28px; }
+.R.pdf .R-hd-sub { font-size: 14px; opacity: .6; }
+.R.pdf .R-logo { width: 52px; height: 52px; }
+.R.pdf .R-sec { margin-bottom: 14px; box-shadow: none; border-radius: 10px; border-color: #E2E8F0; }
+.R.pdf .R-sec-hd { padding: 16px 24px; }
+.R.pdf .R-sec-num { width: 30px; height: 30px; font-size: 13px; border-radius: 7px; }
 .R.pdf .R-sec-title { font-size: 20px; }
-.R.pdf .R-sec-body { padding: 16px 20px; }
-.R.pdf .R-grid { gap: 6px; margin-bottom: 10px; }
-.R.pdf .R-grid .R-card    { flex: 1 1 120px; }
-.R.pdf .R-grid--3 .R-card { flex: 1 1 160px; }
-.R.pdf .R-grid--2 .R-card { flex: 1 1 200px; }
-.R.pdf .R-card { padding: 10px 12px; border-radius: 7px; }
-.R.pdf .R-card-lbl { font-size: 13px; letter-spacing: .3px; }
+.R.pdf .R-sec-body { padding: 20px 24px; }
+.R.pdf .R-grid { gap: 8px; margin-bottom: 12px; }
+.R.pdf .R-grid .R-card    { flex: 1 1 130px; }
+.R.pdf .R-grid--3 .R-card { flex: 1 1 170px; }
+.R.pdf .R-grid--2 .R-card { flex: 1 1 210px; }
+.R.pdf .R-card { padding: 12px 14px; border-radius: 8px; }
+.R.pdf .R-card-lbl { font-size: 11px; letter-spacing: .4px; margin-bottom: 4px; }
 .R.pdf .R-card-val { font-size: 26px; }
-.R.pdf .R-card-val--sm { font-size: 14px; }
-.R.pdf .R-charts { gap: 10px; margin-bottom: 12px; }
-.R.pdf .R-chart { padding: 14px; border-radius: 8px; }
-.R.pdf .R-chart-title { font-size: 14px; margin-bottom: 8px; }
-.R.pdf .R-chart canvas, .R.pdf .R-chart img.pdf-img { max-height: 240px; }
-.R.pdf .R-bignum-val { font-size: 40px; }
-.R.pdf .R-bignum-lbl { font-size: 15px; }
-.R.pdf .R-bignum { min-height: 120px; }
-.R.pdf .R-cmt { padding-top: 10px; margin-top: 12px; }
-.R.pdf .R-cmt-lbl { font-size: 13px; margin-bottom: 6px; }
-.R.pdf .R-pdf-text { font-size: 14px; line-height: 1.6; }
-.R.pdf .R-scale-item { font-size: 13px; padding: 5px 10px; }
-.R.pdf .R-footer { padding-top: 16px; }
-.R.pdf .R-footer-brand { font-size: 16px; }
-.R.pdf .R-footer { font-size: 13px; }
+.R.pdf .R-card-val--sm { font-size: 13px; }
+.R.pdf .R-charts { gap: 10px; margin-bottom: 14px; }
+.R.pdf .R-chart { padding: 16px; border-radius: 10px; }
+.R.pdf .R-chart-title { font-size: 11px; margin-bottom: 10px; }
+.R.pdf .R-chart canvas, .R.pdf .R-chart img.pdf-img { max-height: 250px; }
+.R.pdf .R-bignum-val { font-size: 44px; }
+.R.pdf .R-bignum-lbl { font-size: 14px; }
+.R.pdf .R-bignum { min-height: 130px; }
+.R.pdf .R-cmt { padding-top: 12px; margin-top: 14px; }
+.R.pdf .R-cmt-lbl { font-size: 11px; margin-bottom: 6px; }
+.R.pdf .R-pdf-text { font-size: 14px; line-height: 1.65; }
+.R.pdf .R-scale-item { font-size: 12px; padding: 5px 10px; }
+.R.pdf .R-footer { padding-top: 20px; }
+.R.pdf .R-footer-brand { font-size: 17px; }
+.R.pdf .R-footer { font-size: 12px; }
+.R.pdf .pb-after  { page-break-after: always; }
+.R.pdf .pb-avoid  { page-break-inside: avoid; break-inside: avoid; }
+.R.pdf .R-sec     { page-break-inside: avoid; break-inside: avoid; }
+.R.pdf .R-charts  { page-break-inside: avoid; break-inside: avoid; }
+.R.pdf .R-grid    { page-break-inside: avoid; break-inside: avoid; }
+.R.pdf, .R.pdf *  { overflow: visible !important; }
 
-/* Page break helpers for PDF */
-.R.pdf .pb-after { page-break-after: always; }
-.R.pdf .pb-avoid { page-break-inside: avoid; break-inside: avoid; }
-.R.pdf .R-sec { page-break-inside: avoid; break-inside: avoid; }
-.R.pdf .R-charts { page-break-inside: avoid; break-inside: avoid; }
-.R.pdf .R-grid { page-break-inside: avoid; break-inside: avoid; }
-
-/* Force multi-page rendering — prevent clipping */
-.R.pdf, .R.pdf * { overflow: visible !important; }
-
-/* ═══════════════════════════════════════════════════════
-   PRINT (Ctrl+P fallback)
-   ═══════════════════════════════════════════════════════ */
+/* ── Print ──────────────────────────────────────────── */
 @media print {
   #header, #breadcrumbs, .breadcrumbs, #nav-sidebar, #nav-global,
   .R-actions, .R-toolbar, .R-cmt-acts,
@@ -315,7 +402,7 @@
   <!-- ─── Header ─────────────────────────────────────── -->
   <div class="R-hd">
     <div class="R-hd-inner">
-      <img src="{% static 'images/LevelUpLogo.png' %}" alt="LevOne" class="R-logo">
+      <img src="{% static 'images/LevelUpLogo.png' %}" alt="LevelUp" class="R-logo">
       <div class="R-hd-text">
         <div class="R-hd-title">Отчёт по системе лояльности</div>
         <div class="R-hd-bar"></div>
@@ -348,42 +435,35 @@
     <a href="{% url 'analytics-general' %}?{{ period_qs }}{% if active_branch_ids %}&branches={% for bid in active_branch_ids %}{{ bid }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}" class="R-btn R-btn--back">← К аналитике</a>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════
-       SECTION 1 — Key metrics (split: cards, then charts)
-       ═══════════════════════════════════════════════════ -->
+  <!-- ═══ SECTION 1 — Key metrics ═══════════════════════ -->
   <div class="R-sec pb-avoid" data-section="1" data-title="Ключевые метрики системы за период">
     <div class="R-sec-hd">
       <span class="R-sec-num">1</span>
       <span class="R-sec-title">Ключевые метрики системы за период</span>
     </div>
     <div class="R-sec-body">
-      <!-- Row 1: 4 cards -->
       <div class="R-grid">
         <div class="R-card" data-key="Подписались на сообщество" data-val="{{ report.new_community }}"><div class="R-card-lbl">Подписки на сообщество</div><div class="R-card-val">{{ report.new_community }}</div></div>
         <div class="R-card" data-key="Подписались на рассылку" data-val="{{ report.new_newsletter }}"><div class="R-card-lbl">Подписки на рассылку</div><div class="R-card-val">{{ report.new_newsletter }}</div></div>
-        <div class="R-card" data-key="Оцифрованных гостей (всего)" data-val="{{ report.total_vk }}"><div class="R-card-lbl">Оцифрованных гостей</div><div class="R-card-val">{{ report.total_vk }}</div></div>
+        <div class="R-card" data-key="Оцифрованных гостей (всего)" data-val="{{ report.total_vk }}"><div class="R-card-lbl">Оцифровано гостей</div><div class="R-card-val">{{ report.total_vk }}</div></div>
         <div class="R-card" data-key="Новые + первый подарок" data-val="{{ report.new_with_gift }}"><div class="R-card-lbl">Новые + подарок</div><div class="R-card-val">{{ report.new_with_gift }}</div></div>
       </div>
-      <!-- Row 2: 4 cards -->
       <div class="R-grid">
         <div class="R-card" data-key="Отправлено поздравлений" data-val="{{ report.birthday_sent }}"><div class="R-card-lbl">Поздравлений</div><div class="R-card-val">{{ report.birthday_sent }}</div></div>
         <div class="R-card" data-key="Пришли отметить" data-val="{{ report.birthday_came }}"><div class="R-card-lbl">Пришли отметить</div><div class="R-card-val">{{ report.birthday_came }}</div></div>
         <div class="R-card" data-key="Вернулись повторно" data-val="{{ report.repeat_players }}"><div class="R-card-lbl">Вернулись повторно</div><div class="R-card-val">{{ report.repeat_players }}</div></div>
         <div class="R-card" data-key="Купили за баллы" data-val="{{ report.coin_purchasers }}"><div class="R-card-lbl">Купили за баллы</div><div class="R-card-val">{{ report.coin_purchasers }}</div></div>
       </div>
-      <!-- Row 3: 4 cards -->
       <div class="R-grid">
         <div class="R-card" data-key="Отсканировали QR" data-val="{{ report.qr_scans }}"><div class="R-card-lbl">Отсканировали QR</div><div class="R-card-val">{{ report.qr_scans }}</div></div>
         <div class="R-card" data-key="Опубликовали историю ВК" data-val="{{ report.stories_publishers }}"><div class="R-card-lbl">Истории ВК</div><div class="R-card-val">{{ report.stories_publishers }}</div></div>
         <div class="R-card" data-key="Переходы из историй" data-val="{{ report.stories_referrals }}"><div class="R-card-lbl">Переходы из историй</div><div class="R-card-val">{{ report.stories_referrals }}</div></div>
-        <div class="R-card" data-key="Открываемость сообщений" data-val="{{ report.message_open_rate }}%"><div class="R-card-lbl">Открываемость</div><div class="R-card-val">{{ report.message_open_rate }}%</div></div>
+        <div class="R-card" data-key="Читаемость сообщений" data-val="{{ report.message_open_rate }}%"><div class="R-card-lbl">Читаемость сообщений</div><div class="R-card-val">{{ report.message_open_rate }}%</div></div>
       </div>
-      <!-- Charts -->
       <div class="R-charts">
         <div class="R-chart"><div class="R-chart-title">Вовлечение гостей</div><canvas id="chart-engagement"></canvas></div>
         <div class="R-chart"><div class="R-chart-title">Рост базы</div><canvas id="chart-growth"></canvas></div>
       </div>
-      <!-- Comment -->
       <div class="R-cmt">
         <div class="R-cmt-lbl">💬 Комментарий менеджера</div>
         <textarea class="R-cmt-ta" id="comment-1" placeholder="Введите комментарий или нажмите AI..."></textarea>
@@ -421,7 +501,7 @@
       </div>
       <div class="R-scale">
         <span class="R-scale-item" style="background:#FEF2F2;color:#991B1B;">до 10% — низкий</span>
-        <span class="R-scale-item" style="background:#FFFBEB;color:#92400E;">10–20% — норма</span>
+        <span class="R-scale-item" style="background:#FFF7ED;color:#9A3412;">10–20% — норма</span>
         <span class="R-scale-item" style="background:#F0FDF4;color:#166534;">20–30% — хороший</span>
         <span class="R-scale-item" style="background:#EFF6FF;color:#1E40AF;">30–40% — отличный</span>
       </div>
@@ -475,11 +555,16 @@
   <div class="R-sec pb-avoid" data-section="6" data-title="Коммуникации с гостями">
     <div class="R-sec-hd"><span class="R-sec-num">6</span><span class="R-sec-title">Коммуникации с гостями</span></div>
     <div class="R-sec-body">
-      <div class="R-grid R-grid--2">
-        <div class="R-card" data-key="Открываемость сообщений" data-val="{{ report.message_open_rate }}%"><div class="R-card-lbl">Открываемость сообщений</div><div class="R-card-val">{{ report.message_open_rate }}%</div></div>
+      <div class="R-grid R-grid--3">
+        <div class="R-card" data-key="Читаемость сообщений" data-val="{{ report.message_open_rate }}%"><div class="R-card-lbl">Читаемость сообщений</div><div class="R-card-val" style="color:{% if report.message_open_rate >= 40 %}var(--ok){% elif report.message_open_rate >= 30 %}var(--inf){% else %}var(--warn){% endif %};">{{ report.message_open_rate }}%</div></div>
         <div class="R-card" data-key="Переходы из историй" data-val="{{ report.stories_referrals }}"><div class="R-card-lbl">Переходы из историй</div><div class="R-card-val">{{ report.stories_referrals }}</div></div>
+        <div class="R-card" data-key="Опубликовали историю" data-val="{{ report.stories_publishers }}"><div class="R-card-lbl">Публикации историй</div><div class="R-card-val">{{ report.stories_publishers }}</div></div>
       </div>
-      <div style="font-size:13px;color:var(--ts);margin-top:8px;font-weight:600;">Ориентиры: 30–40% — хороший · 40–60% — высокий</div>
+      <div class="R-scale" style="margin-bottom: 4px;">
+        <span class="R-scale-item" style="background:#FFF7ED;color:#9A3412;">до 30% — ниже нормы</span>
+        <span class="R-scale-item" style="background:#EFF6FF;color:#1E40AF;">30–40% — хороший</span>
+        <span class="R-scale-item" style="background:#F0FDF4;color:#166534;">40–60% — высокий</span>
+      </div>
       <div class="R-cmt">
         <div class="R-cmt-lbl">💬 Комментарий менеджера</div>
         <textarea class="R-cmt-ta" id="comment-6" placeholder="Введите комментарий или нажмите AI..."></textarea>
@@ -495,7 +580,7 @@
       <div class="R-grid">
         <div class="R-card" data-key="Позитивные" data-val="{{ report.reviews.positive }}"><div class="R-card-lbl" style="color:var(--ok);">Позитивные</div><div class="R-card-val" style="color:var(--ok);">{{ report.reviews.positive }}</div></div>
         <div class="R-card" data-key="Нейтральные" data-val="{{ report.reviews.neutral }}"><div class="R-card-lbl" style="color:var(--inf);">Нейтральные</div><div class="R-card-val" style="color:var(--inf);">{{ report.reviews.neutral }}</div></div>
-        <div class="R-card" data-key="Частично негативные" data-val="{{ report.reviews.partial }}"><div class="R-card-lbl" style="color:var(--warn);">Частич. негат.</div><div class="R-card-val" style="color:var(--warn);">{{ report.reviews.partial }}</div></div>
+        <div class="R-card" data-key="Частично негативные" data-val="{{ report.reviews.partial }}"><div class="R-card-lbl" style="color:var(--warn);">Частично негативные</div><div class="R-card-val" style="color:var(--warn);">{{ report.reviews.partial }}</div></div>
         <div class="R-card" data-key="Негативные" data-val="{{ report.reviews.negative }}"><div class="R-card-lbl" style="color:var(--err);">Негативные</div><div class="R-card-val" style="color:var(--err);">{{ report.reviews.negative }}</div></div>
       </div>
       <div class="R-charts">
@@ -533,7 +618,7 @@
 
   <!-- ═══ SECTION 9 — Migration ════════════════════════ -->
   <div class="R-sec pb-avoid" data-section="9" data-title="Динамика базы (миграция сегментов)">
-    <div class="R-sec-hd"><span class="R-sec-num">9</span><span class="R-sec-title">Динамика базы (миграция сегментов)</span></div>
+    <div class="R-sec-hd"><span class="R-sec-num">9</span><span class="R-sec-title">Динамика базы (миграция)</span></div>
     <div class="R-sec-body">
       <div class="R-grid">
         <div class="R-card" data-key="Рост лояльности" data-val="{{ report.migration.growth }}"><div class="R-card-lbl" style="color:var(--ok);">📈 Рост</div><div class="R-card-val" style="color:var(--ok);">+{{ report.migration.growth }}</div></div>
@@ -559,7 +644,7 @@
     <div class="R-sec-body">
       <div class="R-cmt" style="border-top:none;padding-top:0;margin-top:0;">
         <div class="R-cmt-lbl">💬 Комментарий менеджера</div>
-        <textarea class="R-cmt-ta" id="comment-10" placeholder="Сформулируйте 3 ключевых вывода или нажмите AI..." style="min-height:70px;"></textarea>
+        <textarea class="R-cmt-ta" id="comment-10" placeholder="Сформулируйте 3 ключевых вывода или нажмите AI..." style="min-height:80px;"></textarea>
         <div class="R-cmt-acts"><button class="R-cmt-btn" onclick="genComment(10)">✨ AI</button><span class="R-cmt-status" id="st-10"></span></div>
       </div>
     </div>
@@ -571,10 +656,18 @@
     <div class="R-sec-body">
       <div class="R-cmt" style="border-top:none;padding-top:0;margin-top:0;">
         <div class="R-cmt-lbl">💬 Комментарий менеджера</div>
-        <textarea class="R-cmt-ta" id="comment-11" placeholder="Укажите 3 действия для усиления результата или нажмите AI..." style="min-height:70px;"></textarea>
+        <textarea class="R-cmt-ta" id="comment-11" placeholder="Укажите 3 действия для усиления результата или нажмите AI..." style="min-height:80px;"></textarea>
         <div class="R-cmt-acts"><button class="R-cmt-btn" onclick="genComment(11)">✨ AI</button><span class="R-cmt-status" id="st-11"></span></div>
       </div>
     </div>
+  </div>
+
+  <!-- ── Footer ─────────────────────────────────────── -->
+  <div class="R-footer">
+    <div class="R-footer-brand">LevelUp</div>
+    <div class="R-footer-line"></div>
+    <div>Система лояльности для ресторанов · {{ company_name }}</div>
+    <div style="margin-top:2px;">Сформирован {{ start_display }} — {{ end_display }}</div>
   </div>
 </div>
 
@@ -585,6 +678,7 @@
     <div class="R-overlay-txt">Формируем PDF-отчёт...</div>
   </div>
 </div>
+
 <script>
 /* ═══════════════════════════════════════════════════════
    DATA
@@ -647,16 +741,7 @@ function generateAllComments(){
 }
 
 /* ═══════════════════════════════════════════════════════
-   PDF EXPORT — PREMIUM QUALITY
-   1. Switch to pdf mode (720px width)
-   2. Hide interactive elements
-   3. Remove hover/focus states from cloned DOM
-   4. Re-render charts at 2x for crisp output
-   5. Convert ALL canvases to high-res PNG <img>
-   6. Wait for ALL images to fully load
-   7. Replace textareas with styled static divs
-   8. Generate at scale 3 for sharp text
-   9. Restore everything after
+   PDF EXPORT — PREMIUM
    ═══════════════════════════════════════════════════════ */
 async function downloadPDF() {
   const overlay = document.getElementById('pdf-overlay');
@@ -671,7 +756,7 @@ async function downloadPDF() {
   const hideEls = el.querySelectorAll('.R-actions, .R-toolbar, .R-cmt-acts');
   hideEls.forEach(e => e.style.display = 'none');
 
-  // 3. Re-render each Chart.js chart at 2x device pixel ratio for crisp PDF
+  // 3. Re-render each Chart.js chart at 2x
   const chartCanvases = el.querySelectorAll('canvas');
   const origSizes = [];
   chartCanvases.forEach(c => {
@@ -684,10 +769,9 @@ async function downloadPDF() {
     }
   });
 
-  // Small pause for chart re-render
-  await new Promise(r => setTimeout(r, 200));
+  await new Promise(r => setTimeout(r, 300));
 
-  // 4. Convert canvases → high-res images and WAIT for them to load
+  // 4. Convert canvases to images
   const canvases = el.querySelectorAll('canvas');
   const canvasData = [];
   const imageLoadPromises = [];
@@ -722,7 +806,7 @@ async function downloadPDF() {
     ta.parentNode.insertBefore(div, ta.nextSibling);
   });
 
-  await new Promise(r => setTimeout(r, 150));
+  await new Promise(r => setTimeout(r, 200));
 
   // 6. Generate PDF
   const company = '{{ company_name|escapejs }}';
@@ -730,22 +814,24 @@ async function downloadPDF() {
 
   try {
     await html2pdf().set({
-      margin:      [8, 8, 8, 8],
+      margin:      [10, 10, 10, 10],
       filename:    'Отчёт_лояльности_' + company + '_' + period.replace(/\./g, '_').replace(/ /g, '') + '.pdf',
       image:       { type: 'png', quality: 1.0 },
       html2canvas: {
-        scale: 2,
+        scale: 2.5,
         useCORS: true,
         allowTaint: true,
         logging: false,
         backgroundColor: '#ffffff',
+        windowWidth: 720,
         onclone: (clonedDoc) => {
-          // Hide sidebar
           const sb = clonedDoc.getElementById('nav-sidebar');
           if (sb) sb.style.display = 'none';
           const hd = clonedDoc.getElementById('header');
           if (hd) hd.style.display = 'none';
-          // Walk up from report and reset all ancestor layout offsets
+          const bc = clonedDoc.querySelector('.breadcrumbs');
+          if (bc) bc.style.display = 'none';
+
           const rpt = clonedDoc.getElementById('report-content');
           if (!rpt) return;
           let n = rpt.parentElement;
@@ -770,7 +856,6 @@ async function downloadPDF() {
   el.querySelectorAll('._pdf-replacement').forEach(e => e.remove());
   tas.forEach(ta => ta.style.display = '');
 
-  // Restore chart DPR
   origSizes.forEach(({ chart, dpr }) => {
     chart.options.devicePixelRatio = dpr || undefined;
     chart.resize();
@@ -781,14 +866,16 @@ async function downloadPDF() {
 }
 
 /* ═══════════════════════════════════════════════════════
-   CHARTS — readable, proper aspect ratios, no yellow
+   CHARTS — Premium, NO yellow
    ═══════════════════════════════════════════════════════ */
 const C = {
-  navy: '#1B2838', slate: '#64748B', ok: '#38A169', inf: '#3B82F6',
-  warn: '#D97706', err: '#E53E3E', teal: '#0D9488', purple: '#7C3AED',
+  navy: '#0F1A2E', slate: '#64748B', ok: '#10B981', inf: '#3B82F6',
+  warn: '#F97316', err: '#EF4444', teal: '#0D9488', purple: '#7C3AED',
+  accent: '#4A7CFF',
 };
 
-// Shared config: readable legend, good fonts
+const chartFont = "'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif";
+
 const base = {
   responsive: true,
   maintainAspectRatio: true,
@@ -796,12 +883,17 @@ const base = {
     legend: {
       display: true, position: 'bottom',
       labels: {
-        font: { family: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", size: 14, weight: '600' },
-        padding: 12, usePointStyle: true, pointStyleWidth: 10, color: '#374151',
-        boxWidth: 14,
+        font: { family: chartFont, size: 13, weight: '600' },
+        padding: 14, usePointStyle: true, pointStyleWidth: 10,
+        color: '#374151', boxWidth: 12,
       },
     },
-    tooltip: { enabled: true, titleFont: { size: 14 }, bodyFont: { size: 14 } },
+    tooltip: {
+      enabled: true, backgroundColor: '#0F1A2E',
+      titleFont: { family: chartFont, size: 13, weight: '700' },
+      bodyFont: { family: chartFont, size: 13 },
+      padding: 12, cornerRadius: 8, displayColors: true, boxPadding: 4,
+    },
   },
 };
 
@@ -810,19 +902,25 @@ const barOpts = (noLegend) => ({
   aspectRatio: 1.5,
   plugins: { ...base.plugins, legend: { ...base.plugins.legend, display: !noLegend } },
   scales: {
-    y: { beginAtZero: true, grid: { color: '#F3F4F6' }, ticks: { font: { family: "-apple-system, sans-serif", size: 14 }, color: '#374151' } },
-    x: { grid: { display: false }, ticks: { font: { family: "-apple-system, sans-serif", size: 14 }, color: '#374151' } },
+    y: { beginAtZero: true, grid: { color: '#F1F5F9' }, ticks: { font: { family: chartFont, size: 13 }, color: '#4A5568' } },
+    x: { grid: { display: false }, ticks: { font: { family: chartFont, size: 13 }, color: '#4A5568' } },
   },
 });
 
-const doughOpts = { ...base, aspectRatio: 1.2, cutout: '55%' };
+const doughOpts = {
+  ...base, aspectRatio: 1.2, cutout: '58%',
+  plugins: {
+    ...base.plugins,
+    legend: { ...base.plugins.legend, labels: { ...base.plugins.legend.labels, font: { family: chartFont, size: 12, weight: '600' } } },
+  },
+};
 
 // 1. Engagement
 new Chart(document.getElementById('chart-engagement'), {
   type: 'bar',
   data: {
     labels: ['QR-сканы', 'Повторные', 'Покупки', 'Истории'],
-    datasets: [{ data: [D.engagement.qr_scans, D.engagement.repeat_players, D.engagement.coin_purchasers, D.engagement.stories], backgroundColor: [C.inf, C.teal, C.purple, C.slate], borderRadius: 5, barThickness: 28 }],
+    datasets: [{ data: [D.engagement.qr_scans, D.engagement.repeat_players, D.engagement.coin_purchasers, D.engagement.stories], backgroundColor: [C.inf, C.teal, C.purple, C.slate], borderRadius: 6, barThickness: 32 }],
   },
   options: barOpts(true),
 });
@@ -832,7 +930,7 @@ new Chart(document.getElementById('chart-growth'), {
   type: 'bar',
   data: {
     labels: ['Сообщество', 'Рассылка', 'С подарком'],
-    datasets: [{ data: [D.growth.new_community, D.growth.new_newsletter, D.growth.new_with_gift], backgroundColor: [C.ok, C.inf, C.teal], borderRadius: 5, barThickness: 28 }],
+    datasets: [{ data: [D.growth.new_community, D.growth.new_newsletter, D.growth.new_with_gift], backgroundColor: [C.ok, C.inf, C.teal], borderRadius: 6, barThickness: 32 }],
   },
   options: barOpts(true),
 });
@@ -851,21 +949,20 @@ new Chart(document.getElementById('chart-reviews'), {
   options: doughOpts,
 });
 
-// 5. RF segments (horizontal bar)
+// 5. RF segments
 (function(){
   const l = Object.keys(D.rf_segments), v = Object.values(D.rf_segments);
-  const cols = [C.ok, C.inf, C.purple, C.teal, C.err, '#94A3B8', C.warn, '#E11D48', '#6366F1', '#84CC16', '#F97316', '#64748B'];
+  const cols = [C.ok, C.inf, C.purple, C.teal, '#6366F1', '#94A3B8', C.warn, '#E11D48', C.accent, '#84CC16', '#F97316', '#64748B'];
   new Chart(document.getElementById('chart-rf'), {
     type: 'bar',
-    data: { labels: l, datasets: [{ data: v, backgroundColor: l.map((_, i) => cols[i % cols.length]), borderRadius: 3, barThickness: 20 }] },
+    data: { labels: l, datasets: [{ data: v, backgroundColor: l.map((_, i) => cols[i % cols.length]), borderRadius: 4, barThickness: 22 }] },
     options: {
-      ...base,
-      indexAxis: 'y',
+      ...base, indexAxis: 'y',
       aspectRatio: l.length > 8 ? 0.8 : 1.2,
       plugins: { ...base.plugins, legend: { display: false } },
       scales: {
-        x: { beginAtZero: true, grid: { color: '#F3F4F6' }, ticks: { font: { family: "-apple-system, sans-serif", size: 13 }, color: '#374151' } },
-        y: { grid: { display: false }, ticks: { font: { family: "-apple-system, sans-serif", size: 13 }, color: '#374151' } },
+        x: { beginAtZero: true, grid: { color: '#F1F5F9' }, ticks: { font: { family: chartFont, size: 12 }, color: '#4A5568' } },
+        y: { grid: { display: false }, ticks: { font: { family: chartFont, size: 12 }, color: '#4A5568' } },
       },
     },
   });
@@ -883,7 +980,7 @@ new Chart(document.getElementById('chart-rf-summary'), {
         {{ report.rf_summary.lost_r0|default:"0" }},
         Math.max(0, {{ report.rf_summary.total|default:"0" }} - {{ report.rf_summary.vip_f3|default:"0" }} - {{ report.rf_summary.at_risk|default:"0" }} - {{ report.rf_summary.lost_r0|default:"0" }}),
       ],
-      backgroundColor: [C.purple, C.warn, C.err, '#E5E7EB'], borderWidth: 0,
+      backgroundColor: [C.purple, C.warn, C.err, '#E2E8F0'], borderWidth: 0,
     }],
   },
   options: doughOpts,
@@ -894,10 +991,9 @@ new Chart(document.getElementById('chart-migration'), {
   type: 'bar',
   data: {
     labels: ['Рост', 'Остывание', 'Отток', 'Реактивация'],
-    datasets: [{ data: [D.migration.growth, D.migration.cooling, D.migration.lost_to_r0, D.migration.reactivated], backgroundColor: [C.ok, C.warn, C.err, C.teal], borderRadius: 5, barThickness: 28 }],
+    datasets: [{ data: [D.migration.growth, D.migration.cooling, D.migration.lost_to_r0, D.migration.reactivated], backgroundColor: [C.ok, C.warn, C.err, C.teal], borderRadius: 6, barThickness: 32 }],
   },
   options: barOpts(true),
 });
 </script>
 {% endblock %}
-
