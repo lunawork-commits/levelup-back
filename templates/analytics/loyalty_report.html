@@ -739,34 +739,13 @@ async function downloadPDF() {
         allowTaint: true,
         logging: false,
         backgroundColor: '#ffffff',
-        windowWidth: 800,
-        onclone: (clonedDoc) => {
-          // Remove sidebar completely
-          const s = clonedDoc.getElementById('nav-sidebar');
-          if (s) s.remove();
-          // Fix ALL admin containers — remove margin/padding/overflow constraints
-          ['container', 'content', 'main', 'content-start'].forEach(id => {
-            const node = clonedDoc.getElementById(id);
-            if (node) {
-              node.style.marginLeft = '0';
-              node.style.paddingLeft = '0';
-              node.style.marginRight = '0';
-              node.style.paddingRight = '0';
-              node.style.overflow = 'visible';
-              node.style.maxWidth = 'none';
-              node.style.width = '100%';
-            }
-          });
-          // Also fix body and html
-          clonedDoc.body.style.overflow = 'visible';
-          clonedDoc.body.style.width = '800px';
-          clonedDoc.documentElement.style.overflow = 'visible';
-          // Remove all hover/focus/active pseudo-state artifacts
-          clonedDoc.querySelectorAll(':hover, :focus, :active, .hover, .focus').forEach(el => {
-            el.blur && el.blur();
-          });
-          // Kill any tooltip elements that might be visible
-          clonedDoc.querySelectorAll('[role="tooltip"], .tooltip, .chartjs-tooltip').forEach(el => el.remove());
+        onclone: (clonedDoc, clonedEl) => {
+          // Put only the report in a clean body — eliminates all Django admin layout offsets
+          const copy = clonedEl.cloneNode(true);
+          const body = clonedDoc.body;
+          body.innerHTML = '';
+          body.style.cssText = 'margin:0;padding:0;background:#fff;';
+          body.appendChild(copy);
         },
       },
       jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
