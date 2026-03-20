@@ -98,6 +98,9 @@ def vk_oauth_exchange(
 
     import logging
     logger = logging.getLogger(__name__)
+
+    birthday_from_vkid = user.get('birthday') or user.get('bdate') or None
+
     logger.info(
         'VK OAuth user_info: user_id=%s, birthday=%s, bdate=%s, keys=%s',
         user_id,
@@ -106,12 +109,53 @@ def vk_oauth_exchange(
         list(user.keys()),
     )
 
+    # ── Шаг 3: fallback — legacy VK API для получения bdate ────────────────
+    # VK ID /oauth2/user_info НЕ отдаёт birthday для частичных дат
+    # (когда пользователь скрыл год, но оставил день+месяц).
+    # Legacy VK API users.get отдаёт bdate в формате "DD.MM" даже без года.
+    # Вызываем ТОЛЬКО если user_info не вернул birthday.
+    birthday_from_vk_api = None
+    if not birthday_from_vkid:
+        try:
+            vk_api_url = (
+                f'https://api.vk.com/method/users.get'
+                f'?user_ids={user_id}'
+                f'&fields=bdate'
+                f'&access_token={access_token}'
+                f'&v=5.199'
+            )
+            req = urllib.request.Request(vk_api_url)
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                vk_api_data = json.loads(resp.read())
+
+            vk_api_users = vk_api_data.get('response', [])
+            if vk_api_users:
+                birthday_from_vk_api = vk_api_users[0].get('bdate') or None
+                logger.info(
+                    'VK API users.get fallback: user_id=%s, bdate=%s',
+                    user_id,
+                    birthday_from_vk_api,
+                )
+        except Exception as e:
+            # Не фатально — если VK API недоступен, просто не получим bdate
+            logger.warning(
+                'VK API users.get fallback failed for user_id=%s: %s',
+                user_id, e,
+            )
+
+    final_birthday = birthday_from_vkid or birthday_from_vk_api
+
+    logger.info(
+        'VK OAuth final birthday: user_id=%s, from_vkid=%s, from_vk_api=%s, final=%s',
+        user_id, birthday_from_vkid, birthday_from_vk_api, final_birthday,
+    )
+
     return {
         'user_id':    int(user_id),
         'first_name': user.get('first_name', ''),
         'last_name':  user.get('last_name', ''),
         'photo_url':  user.get('avatar', ''),
-        'birthday':   user.get('birthday') or user.get('bdate') or None,
+        'birthday':   final_birthday,
     }
 
 
@@ -191,6 +235,17 @@ def vk_web_auth(
     # Это решает проблему: у гостя в ВК стоит дата (день+месяц без года),
     # но фронтенд не может её получить через OAuth, а модалка «Укажи ДР» лишняя.
     vk_bdate = vk_user.get('birthday')
+
+    # ── Fallback #2: community token ──────────────────────────────────────
+    # Если ни user_info, ни users.get с user-токеном не вернули bdate,
+    # пробуем через community-токен (из SenlerConfig), который имеет
+    # право читать публичные поля профиля даже без user-scope.
+    if not vk_bdate:
+        vk_bdate = _fetch_bdate_via_community_token(
+            vk_id=vk_user['user_id'],
+            branch_id=branch_id,
+        )
+
     effective_birth_date = birth_date
     if not effective_birth_date and vk_bdate:
         effective_birth_date = parse_vk_bdate(vk_bdate)
@@ -306,6 +361,73 @@ class ClientBlocked(Exception):
 
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
+
+def _fetch_bdate_via_community_token(vk_id: int, branch_id: int) -> str | None:
+    """
+    Пробует получить bdate через community-токен (из SenlerConfig для branch).
+
+    VK API users.get с community-токеном возвращает bdate в формате:
+    - "15.3"       — день+месяц, год скрыт
+    - "15.3.1990"  — полная дата
+    - отсутствует  — полностью скрыто
+
+    Returns raw bdate string or None.
+    """
+    import json
+    import logging
+    import urllib.parse
+    import urllib.request
+
+    from apps.tenant.senler.models import SenlerConfig
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        config = SenlerConfig.objects.filter(
+            branch__branch_id=branch_id,
+        ).first()
+        if not config or not config.vk_community_token:
+            logger.info(
+                'No community token for branch_id=%s — cannot fetch bdate fallback',
+                branch_id,
+            )
+            return None
+
+        url = (
+            f'https://api.vk.com/method/users.get'
+            f'?user_ids={vk_id}'
+            f'&fields=bdate'
+            f'&access_token={config.vk_community_token}'
+            f'&v=5.131'
+        )
+        req = urllib.request.Request(url)
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read())
+
+        if 'error' in data:
+            logger.warning(
+                'VK API users.get (community token) error for vk_id=%s: %s',
+                vk_id, data['error'].get('error_msg', ''),
+            )
+            return None
+
+        users = data.get('response', [])
+        if users:
+            bdate = users[0].get('bdate') or None
+            logger.info(
+                'VK API users.get (community token): vk_id=%s, bdate=%s',
+                vk_id, bdate,
+            )
+            return bdate
+
+    except Exception as e:
+        logger.warning(
+            'Community token bdate fallback failed for vk_id=%s, branch_id=%s: %s',
+            vk_id, branch_id, e,
+        )
+
+    return None
+
 
 def _profile_qs():
     """ClientBranch queryset with pre-loaded relations and balance annotation."""
