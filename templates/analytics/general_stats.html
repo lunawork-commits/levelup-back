@@ -111,6 +111,8 @@ a,a:hover,a:focus,a:visited{text-decoration:none!important; color: black}
         <input type="date" name="end" value="{{ end }}" class="form-control form-control-sm" style="width:135px;">
         <button type="submit" class="btn btn-sm btn-success px-3">Применить</button>
       </form>
+      <a href="{% url 'analytics-report' %}?{{ period_qs }}{% if active_branch_ids %}&branches={% for bid in active_branch_ids %}{{ bid }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}"
+         class="btn btn-sm px-3" style="background:#dc2626;color:#fff;font-weight:700;border:none;">📄 Отчёт</a>
     </div>
   </div>
 

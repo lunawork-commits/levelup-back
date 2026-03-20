@@ -543,6 +543,51 @@
   .modal-status.success { color: var(--green); }
   .modal-status.error   { color: var(--red); }
   .modal-status.loading { color: #94a3b8; }
+
+  /* ── Image upload ─────────────────────────────────── */
+  .modal-image-drop {
+    border: 2px dashed #d0d7de;
+    border-radius: 10px;
+    padding: 18px 14px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .15s;
+    margin-top: 12px;
+  }
+  .modal-image-drop:hover { border-color: var(--blue); background: #f8fafc; }
+  .modal-image-drop.dragover { border-color: var(--blue); background: #eff6ff; }
+  .modal-image-drop-icon { font-size: 28px; opacity: .45; margin-bottom: 4px; }
+  .modal-image-drop-text { font-size: 12px; color: #64748b; }
+  .modal-image-drop-hint { font-size: 10px; color: #94a3b8; margin-top: 2px; }
+  .modal-image-preview {
+    position: relative;
+    margin-top: 12px;
+    display: none;
+  }
+  .modal-image-preview img {
+    width: 100%;
+    border-radius: 10px;
+    border: 1px solid #e8edf3;
+    display: block;
+  }
+  .modal-image-remove {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: rgba(0,0,0,.55);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .15s;
+  }
+  .modal-image-remove:hover { background: rgba(0,0,0,.8); }
 </style>
 {% endblock %}
 
@@ -725,6 +770,20 @@
         maxlength="4096"
         oninput="updateCharCount()"></textarea>
       <div class="modal-char-count" id="modal-char-count">0 / 4096</div>
+
+      <!-- Image upload -->
+      <div class="modal-image-drop" id="modal-image-drop"
+           onclick="document.getElementById('modal-image-input').click();">
+        <div class="modal-image-drop-icon">🖼</div>
+        <div class="modal-image-drop-text">Прикрепить изображение</div>
+        <div class="modal-image-drop-hint">Нажмите или перетащите файл (JPG, PNG до 5 МБ)</div>
+      </div>
+      <input type="file" id="modal-image-input" accept="image/jpeg,image/png,image/webp"
+             style="display:none;" onchange="handleImageSelect(this)">
+      <div class="modal-image-preview" id="modal-image-preview">
+        <img id="modal-image-preview-img" src="" alt="Preview">
+        <button class="modal-image-remove" onclick="removeModalImage()" title="Удалить">&times;</button>
+      </div>
     </div>
     <div class="modal-status" id="modal-status"></div>
     <div class="modal-footer">
@@ -1070,6 +1129,7 @@ function openBroadcastModal(cellKey) {
   statusEl.textContent = '';
   document.getElementById('btn-ai').disabled = false;
   document.getElementById('btn-send').disabled = false;
+  removeModalImage();
   updateCharCount();
 
   modal.classList.add('active');
@@ -1079,7 +1139,56 @@ function openBroadcastModal(cellKey) {
 function closeBroadcastModal() {
   document.getElementById('broadcast-modal').classList.remove('active');
   _modalCell = null;
+  removeModalImage();
 }
+
+// ── Image upload handling ──────────────────────────────────────────────
+let _modalImageFile = null;
+
+function handleImageSelect(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) {
+    _setModalStatus('Файл слишком большой (максимум 5 МБ)', 'error');
+    return;
+  }
+  _modalImageFile = file;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('modal-image-preview-img').src = e.target.result;
+    document.getElementById('modal-image-preview').style.display = 'block';
+    document.getElementById('modal-image-drop').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeModalImage() {
+  _modalImageFile = null;
+  document.getElementById('modal-image-preview').style.display = 'none';
+  document.getElementById('modal-image-drop').style.display = '';
+  document.getElementById('modal-image-preview-img').src = '';
+  document.getElementById('modal-image-input').value = '';
+}
+
+// Drag & drop
+(function() {
+  const drop = document.getElementById('modal-image-drop');
+  ['dragenter','dragover'].forEach(e => drop.addEventListener(e, function(ev) {
+    ev.preventDefault(); ev.stopPropagation(); drop.classList.add('dragover');
+  }));
+  ['dragleave','drop'].forEach(e => drop.addEventListener(e, function(ev) {
+    ev.preventDefault(); ev.stopPropagation(); drop.classList.remove('dragover');
+  }));
+  drop.addEventListener('drop', function(ev) {
+    const file = ev.dataTransfer.files && ev.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      document.getElementById('modal-image-input').files = dt.files;
+      handleImageSelect(document.getElementById('modal-image-input'));
+    }
+  });
+})();
 
 // Close on overlay click
 document.getElementById('broadcast-modal').addEventListener('click', function(e) {
@@ -1164,18 +1273,22 @@ function sendBroadcast() {
 
   const branchIds = BRANCH_PARAM ? BRANCH_PARAM.replace('branches=', '') : '';
 
+  // Use FormData to support image upload
+  const formData = new FormData();
+  formData.append('segment_id', _modalCell.segment_id);
+  formData.append('message_text', text);
+  formData.append('mode', ACTIVE_MODE);
+  formData.append('branch_ids', branchIds);
+  if (_modalImageFile) {
+    formData.append('image', _modalImageFile);
+  }
+
   fetch('/api/v1/analytics/rf/send-broadcast/', {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
       'X-CSRFToken': getCookie('csrftoken'),
     },
-    body: JSON.stringify({
-      segment_id:   _modalCell.segment_id,
-      message_text: text,
-      mode:         ACTIVE_MODE,
-      branch_ids:   branchIds,
-    }),
+    body: formData,
   })
     .then(r => r.json())
     .then(data => {

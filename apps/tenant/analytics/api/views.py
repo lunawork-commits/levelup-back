@@ -4,6 +4,7 @@ Analytics API views — request/response only, no business logic.
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 
 from .serializers import StatsQuerySerializer, RFQuerySerializer
 from . import services
@@ -153,12 +154,16 @@ class SendSegmentBroadcastAPIView(APIView):
     Creates a Broadcast + BroadcastSend and immediately sends VK messages
     to all guests in the specified RF segment.
 
-    Body (JSON):
+    Accepts both JSON and multipart form data (for image upload).
+
+    Body:
       segment_id   — RFSegment PK (required)
       message_text — broadcast text (required, max 4096 chars)
       mode         — restaurant | delivery (default: restaurant)
       branch_ids   — comma-separated Branch PKs (omit = all active)
+      image        — image file (optional, multipart only)
     """
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def post(self, request):
         from apps.tenant.analytics.models import RFSegment
@@ -170,6 +175,7 @@ class SendSegmentBroadcastAPIView(APIView):
         message_text = (request.data.get('message_text') or '').strip()
         mode         = request.data.get('mode', 'restaurant')
         branch_ids   = request.data.get('branch_ids', '')
+        image_file   = request.FILES.get('image')
 
         if not segment_id:
             return Response({'error': 'segment_id обязателен'}, status=status.HTTP_400_BAD_REQUEST)
@@ -198,12 +204,13 @@ class SendSegmentBroadcastAPIView(APIView):
 
         results = []
         for branch in branches:
-            # Create broadcast
+            # Create broadcast (with optional image)
             broadcast = Broadcast.objects.create(
                 branch=branch,
                 name=f'RF: {segment.emoji} {segment.name} ({segment.code})',
                 message_text=message_text,
                 audience_type=AudienceType.ALL,
+                image=image_file if image_file else None,
             )
             broadcast.rf_segments.set([segment])
 
@@ -321,6 +328,83 @@ class GenerateBroadcastTextAPIView(APIView):
             )
             generated_text = message.content[0].text.strip()
 
+            return Response({'text': generated_text})
+
+        except Exception as e:
+            return Response(
+                {'error': f'Ошибка генерации: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class GenerateReportCommentAPIView(APIView):
+    """
+    POST /api/v1/analytics/report/generate-comment/
+
+    Uses Claude AI to generate a manager comment for a report section.
+
+    Body (JSON):
+      section_num   — section number (1-11)
+      section_title — section title
+      metrics_json  — JSON string of section metrics data
+    """
+
+    def post(self, request):
+        import json as _json
+        from django.conf import settings as _settings
+
+        section_num   = request.data.get('section_num', '')
+        section_title = request.data.get('section_title', '')
+        metrics_json  = request.data.get('metrics_json', '{}')
+
+        try:
+            from django.db import connection
+            company_name = getattr(connection.tenant, 'name', 'кафе')
+        except Exception:
+            company_name = 'кафе'
+
+        api_key = getattr(_settings, 'ANTHROPIC_API_KEY', None)
+        if not api_key:
+            return Response(
+                {'error': 'ANTHROPIC_API_KEY не настроен'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        system_prompt = (
+            'Ты — менеджер системы лояльности ресторана/кафе. Пишешь комментарий для отчёта.\n'
+            'Правила:\n'
+            '- Пиши на русском, профессионально, коротко (2-3 предложения).\n'
+            '- Анализируй данные и делай конкретные выводы.\n'
+            '- Не используй markdown, HTML.\n'
+            '- Для секций 10 и 11 пиши 3 пункта через символ новой строки, каждый начиная с «•».\n'
+            '- Верни ТОЛЬКО текст комментария, без пояснений.'
+        )
+
+        user_message = (
+            f'Кафе: {company_name}\n'
+            f'Раздел отчёта #{section_num}: {section_title}\n'
+            f'Данные раздела: {metrics_json}\n\n'
+            f'Напиши короткий аналитический комментарий менеджера для этого раздела отчёта.'
+        )
+
+        try:
+            import os
+            import anthropic
+
+            proxy_url = os.getenv('AI_PROXY_URL', '')
+            client = (
+                anthropic.Anthropic(api_key=api_key, base_url=proxy_url)
+                if proxy_url
+                else anthropic.Anthropic(api_key=api_key)
+            )
+
+            message = client.messages.create(
+                model='claude-haiku-4-5-20251001',
+                max_tokens=512,
+                system=system_prompt,
+                messages=[{'role': 'user', 'content': user_message}],
+            )
+            generated_text = message.content[0].text.strip()
             return Response({'text': generated_text})
 
         except Exception as e:

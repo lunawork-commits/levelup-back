@@ -610,3 +610,150 @@ class SegmentCreateBroadcastView(View):
             return HttpResponseRedirect('/admin/senler/broadcast/')
         else:
             return HttpResponseRedirect(request.META.get('HTTP_REFERER', '/analytics/rf/'))
+
+
+@method_decorator(staff_member_required, name='dispatch')
+class LoyaltyReportView(View):
+    """
+    GET /analytics/report/
+    Loyalty system report page with all metrics, charts, AI-generated comments, and PDF export.
+    """
+    template_name = 'analytics/loyalty_report.html'
+
+    def get(self, request):
+        start, end, active_period = _parse_period(request)
+        branches, branch_ids, active_branches = _branches_context(request)
+
+        stats  = get_general_stats(branch_ids, start, end, skip_slow=False)
+        charts = get_chart_data(branch_ids, start, end)
+
+        # Reviews
+        _reviews_qs = TestimonialConversation.objects.filter(
+            last_message_at__date__gte=start,
+            last_message_at__date__lte=end,
+        )
+        if branch_ids:
+            _reviews_qs = _reviews_qs.filter(branch_id__in=branch_ids)
+        S = TestimonialConversation.Sentiment
+        _sc = {
+            row['sentiment']: row['cnt']
+            for row in _reviews_qs.values('sentiment').annotate(cnt=Count('id'))
+        }
+        reviews = {
+            'positive':  _sc.get(S.POSITIVE, 0),
+            'negative':  _sc.get(S.NEGATIVE, 0),
+            'partial':   _sc.get(S.PARTIALLY_NEGATIVE, 0),
+            'neutral':   _sc.get(S.NEUTRAL, 0),
+            'total':     _reviews_qs.count(),
+        }
+
+        # RF data
+        rf = get_rf_stats(branch_ids, mode='restaurant')
+        rf_summary = rf.get('summary', {})
+        rf_matrix  = rf.get('matrix', {})
+
+        # Migration effectiveness
+        days_delta = (end - start).days or 30
+        from apps.tenant.analytics.api.services import get_migration_effectiveness
+        migration = get_migration_effectiveness(branch_ids, days=days_delta, mode='restaurant')
+
+        # Scan index
+        scan_index = stats.get('scan_index') or 0.0
+        pos_guests = stats.get('pos_guests') or 0
+
+        # Sources: QR scans = cafe, stories_referrals = delivery-ish
+        from_cafe = stats['qr_scans']
+        from_delivery = stats.get('stories_referrals', 0)
+        total_sources = from_cafe + from_delivery or 1
+
+        # RF segment counts from matrix cells
+        segment_counts = {}
+        cells = rf_matrix.get('cells', {})
+        for key, cell in cells.items():
+            seg_name = cell.get('segment_name', '—')
+            segment_counts[seg_name] = segment_counts.get(seg_name, 0) + cell.get('count', 0)
+
+        # Build complete report data for template
+        report_data = {
+            # Section 1: Key metrics
+            'new_community':     stats['new_community_subscribers'],
+            'new_newsletter':    stats['new_newsletter_subscribers'],
+            'total_vk':          stats['total_vk_subscribers'],
+            'new_with_gift':     stats['new_group_with_gift'],
+            'birthday_sent':     stats['birthday_greetings_sent'],
+            'birthday_came':     stats['birthday_celebrants'],
+            'repeat_players':    stats['repeat_game_players'],
+            'coin_purchasers':   stats['coin_purchasers'],
+            'stories_publishers': stats['vk_stories_publishers'],
+            'stories_referrals': stats['stories_referrals'],
+            'message_open_rate': stats['message_open_rate'],
+            'qr_scans':          stats['qr_scans'],
+            # Section 3: Scan index
+            'pos_guests':        pos_guests,
+            'scan_index':        scan_index,
+            # Section 4: Sources
+            'from_cafe':         from_cafe,
+            'from_delivery':     from_delivery,
+            'from_cafe_pct':     round(from_cafe / total_sources * 100),
+            'from_delivery_pct': round(from_delivery / total_sources * 100),
+            # Section 5: Engagement (same as some above)
+            # Section 7: Reviews
+            'reviews':           reviews,
+            # Section 8: RF segments
+            'rf_summary':        rf_summary,
+            'segment_counts':    segment_counts,
+            # Section 9: Migration
+            'migration':         migration,
+        }
+
+        # Charts JSON for Chart.js
+        charts_report = {
+            'engagement': {
+                'repeat_players':  stats['repeat_game_players'],
+                'coin_purchasers': stats['coin_purchasers'],
+                'stories':         stats['vk_stories_publishers'],
+                'qr_scans':        stats['qr_scans'],
+            },
+            'reviews_sentiment': {
+                'positive': reviews['positive'],
+                'neutral':  reviews['neutral'],
+                'partial':  reviews['partial'],
+                'negative': reviews['negative'],
+            },
+            'sources': {
+                'cafe':     from_cafe,
+                'delivery': from_delivery,
+            },
+            'rf_segments': segment_counts,
+            'migration': migration,
+            'growth': {
+                'new_community':  stats['new_community_subscribers'],
+                'new_newsletter': stats['new_newsletter_subscribers'],
+                'new_with_gift':  stats['new_group_with_gift'],
+            },
+        }
+
+        # Company name
+        try:
+            from django.db import connection
+            company_name = getattr(connection.tenant, 'name', 'Кафе')
+        except Exception:
+            company_name = 'Кафе'
+
+        context = {
+            'title':             'Отчёт по системе лояльности',
+            'company_name':      company_name,
+            'report':            report_data,
+            'charts_json':       json.dumps(charts_report),
+            'branches':          branches,
+            'active_branch_ids': branch_ids or [],
+            'active_branches':   active_branches,
+            'active_period':     active_period,
+            'period_choices':    PERIOD_CHOICES,
+            'period_qs':         _period_qs(active_period, start, end),
+            'start':             start.isoformat(),
+            'end':               end.isoformat(),
+            'start_display':     start.strftime('%d.%m.%Y'),
+            'end_display':       end.strftime('%d.%m.%Y'),
+        }
+        return render(request, self.template_name, context)

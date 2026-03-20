@@ -4,10 +4,12 @@ from .views import (
     ReviewsReplyView, ReviewsAIReplyView,
     RFAnalysisView, RFMigrationView, StatsDetailView,
     SegmentExportSenlerView, SegmentCreateBroadcastView,
+    LoyaltyReportView,
 )
 
 urlpatterns = [
     path('',                  GeneralStatsView.as_view(),     name='analytics-general'),
+    path('report/',           LoyaltyReportView.as_view(),    name='analytics-report'),
     path('rf/',               RFAnalysisView.as_view(),       name='analytics-rf'),
     path('rf/migration/',     RFMigrationView.as_view(),      name='analytics-rf-migration'),
     path('rf/segment/<int:segment_id>/export-senler/',   SegmentExportSenlerView.as_view(),    name='analytics-segment-export-senler'),

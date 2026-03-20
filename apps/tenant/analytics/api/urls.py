@@ -3,6 +3,7 @@ from .views import (
     GeneralStatsAPIView, RFStatsAPIView, BranchListAPIView,
     RecalculateRFView, SlowStatsAPIView,
     SendSegmentBroadcastAPIView, GenerateBroadcastTextAPIView,
+    GenerateReportCommentAPIView,
 )
 
 urlpatterns = [
@@ -12,5 +13,6 @@ urlpatterns = [
     path('analytics/rf/recalculate/',   RecalculateRFView.as_view(),   name='analytics-rf-recalculate'),
     path('analytics/rf/send-broadcast/',       SendSegmentBroadcastAPIView.as_view(),    name='analytics-rf-send-broadcast'),
     path('analytics/rf/generate-broadcast-text/', GenerateBroadcastTextAPIView.as_view(), name='analytics-rf-generate-text'),
+    path('analytics/report/generate-comment/',    GenerateReportCommentAPIView.as_view(), name='analytics-report-generate-comment'),
     path('analytics/branches/',         BranchListAPIView.as_view(),   name='analytics-branches'),
 ]
