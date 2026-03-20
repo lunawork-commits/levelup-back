@@ -340,54 +340,57 @@
    ═══════════════════════════════════════════════════════ */
 .R.pdf {
   background: #fff !important;
-  padding: 24px 28px 40px !important;
+  padding: 16px 20px 32px !important;
   max-width: none !important;
   width: 100% !important;
-  font-size: 15px;
+  font-size: 14px;
   margin: 0 !important;
   box-sizing: border-box;
 }
-.R.pdf .R-hd { padding: 44px 48px; border-radius: var(--r-lg); margin-bottom: 14px; }
-.R.pdf .R-hd-title { font-size: 34px; }
-.R.pdf .R-hd-sub { font-size: 15px; opacity: .5; }
-.R.pdf .R-logo { width: 64px; height: 64px; }
-.R.pdf .R-sec { margin-bottom: 16px; box-shadow: none; border-radius: var(--r-lg); border-color: #D1D5DB; }
-.R.pdf .R-sec-hd { padding: 20px 28px; }
-.R.pdf .R-sec-num { width: 32px; height: 32px; font-size: 13px; border-radius: 9px; }
-.R.pdf .R-sec-title { font-size: 22px; }
-.R.pdf .R-sec-body { padding: 24px 28px; }
-.R.pdf .R-grid { gap: 12px; margin-bottom: 16px; }
-.R.pdf .R-grid .R-card    { flex: 1 1 160px; }
-.R.pdf .R-grid--3 .R-card { flex: 1 1 200px; }
-.R.pdf .R-grid--2 .R-card { flex: 1 1 260px; }
-.R.pdf .R-card { padding: 16px 18px; border-radius: 12px; }
-.R.pdf .R-card-lbl { font-size: 12px; letter-spacing: .5px; margin-bottom: 6px; }
-.R.pdf .R-card-val { font-size: 32px; }
-.R.pdf .R-card-val--sm { font-size: 15px; }
-.R.pdf .R-charts { gap: 14px; margin-bottom: 16px; }
-.R.pdf .R-chart { padding: 20px; border-radius: 14px; }
-.R.pdf .R-chart-title { font-size: 11px; margin-bottom: 12px; }
-.R.pdf .R-chart canvas, .R.pdf .R-chart img.pdf-img { max-height: 280px; }
-.R.pdf .R-bignum-val { font-size: 52px; }
-.R.pdf .R-bignum-lbl { font-size: 15px; }
-.R.pdf .R-bignum { min-height: 160px; }
-.R.pdf .R-cmt { padding-top: 16px; margin-top: 20px; }
-.R.pdf .R-cmt-lbl { font-size: 11px; margin-bottom: 8px; }
-.R.pdf .R-pdf-text { font-size: 14px; line-height: 1.65; }
-.R.pdf .R-scale-item { font-size: 12px; padding: 6px 12px; }
-.R.pdf .R-footer { padding-top: 32px; }
-.R.pdf .R-footer-brand { font-size: 18px; }
-.R.pdf .R-footer { font-size: 12px; }
-/* Page breaks: only avoid on small atomic blocks */
+.R.pdf .R-hd { padding: 28px 32px; border-radius: 12px; margin-bottom: 12px; }
+.R.pdf .R-hd-title { font-size: 28px; }
+.R.pdf .R-hd-sub { font-size: 13px; opacity: .6; }
+.R.pdf .R-logo { width: 52px; height: 52px; }
+.R.pdf .R-sec { margin-bottom: 12px; box-shadow: none; border-radius: 12px; border-color: #D1D5DB; }
+.R.pdf .R-sec-hd { padding: 16px 22px; }
+.R.pdf .R-sec-num { width: 28px; height: 28px; font-size: 12px; border-radius: 7px; }
+.R.pdf .R-sec-title { font-size: 19px; }
+.R.pdf .R-sec-body { padding: 18px 22px; }
+.R.pdf .R-grid { gap: 8px; margin-bottom: 12px; }
+.R.pdf .R-grid .R-card    { flex: 1 1 140px; }
+.R.pdf .R-grid--3 .R-card { flex: 1 1 170px; }
+.R.pdf .R-grid--2 .R-card { flex: 1 1 220px; }
+.R.pdf .R-card { padding: 12px 14px; border-radius: 8px; }
+.R.pdf .R-card-lbl { font-size: 11px; letter-spacing: .4px; margin-bottom: 4px; }
+.R.pdf .R-card-val { font-size: 26px; }
+.R.pdf .R-card-val--sm { font-size: 13px; }
+.R.pdf .R-charts { gap: 8px; margin-bottom: 12px; }
+.R.pdf .R-chart { padding: 16px; border-radius: 10px; }
+.R.pdf .R-chart-title { font-size: 10px; margin-bottom: 8px; }
+.R.pdf .R-chart canvas, .R.pdf .R-chart img.pdf-img { max-height: 200px; }
+.R.pdf .R-bignum-val { font-size: 40px; }
+.R.pdf .R-bignum-lbl { font-size: 13px; }
+.R.pdf .R-bignum { min-height: 120px; }
+.R.pdf .R-cmt { padding-top: 12px; margin-top: 12px; }
+.R.pdf .R-cmt-lbl { font-size: 10px; margin-bottom: 6px; }
+.R.pdf .R-pdf-text { font-size: 13px; line-height: 1.55; }
+.R.pdf .R-scale-item { font-size: 11px; padding: 4px 10px; }
+.R.pdf .R-footer { padding-top: 20px; font-size: 11px; }
+.R.pdf .R-footer-brand { font-size: 16px; }
+/* ── Page breaks: keep everything together ────────── */
 .R.pdf .R-card    { page-break-inside: avoid; break-inside: avoid; }
 .R.pdf .R-chart   { page-break-inside: avoid; break-inside: avoid; }
 .R.pdf .R-hd      { page-break-inside: avoid; break-inside: avoid; }
-/* Grids and chart containers CAN split across pages */
-.R.pdf .R-grid    { page-break-inside: auto; break-inside: auto; }
-.R.pdf .R-charts  { page-break-inside: auto; break-inside: auto; }
-/* Sections CAN split across pages — they're too big to avoid */
+.R.pdf .R-grid    { page-break-inside: avoid; break-inside: avoid; }
+.R.pdf .R-charts  { page-break-inside: avoid; break-inside: avoid; }
+.R.pdf .R-cmt     { page-break-inside: avoid; break-inside: avoid; }
+.R.pdf .R-scale   { page-break-inside: avoid; break-inside: avoid; }
+.R.pdf .R-footer  { page-break-inside: avoid; break-inside: avoid; }
+/* Sections can split but header sticks to body */
 .R.pdf .R-sec     { page-break-inside: auto; break-inside: auto; }
 .R.pdf .R-sec-hd  { page-break-after: avoid; break-after: avoid; }
+/* Each section starts on new page if it doesn't fit */
+.R.pdf .R-sec     { page-break-before: auto; break-before: auto; }
 .R.pdf, .R.pdf *  { overflow: visible !important; }
 
 /* ── Print ──────────────────────────────────────────── */
@@ -824,8 +827,8 @@ async function downloadPDF() {
 
   try {
     // A4 = 210mm wide. With 8mm margins each side = 194mm usable.
-    // At 96dpi: 194mm ≈ 733px. Use wider to match HTML layout.
-    const PDF_WIDTH_PX = 900;
+    // At 96dpi: 194mm ≈ 733px.
+    const PDF_WIDTH_PX = 780;
 
     await html2pdf().set({
       margin:      [8, 8, 10, 8],
@@ -882,7 +885,7 @@ async function downloadPDF() {
         },
       },
       jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak:   { mode: ['css', 'legacy'], avoid: ['.R-card', '.R-chart', '.R-hd'] },
+      pagebreak:   { mode: ['css', 'legacy'], avoid: ['.R-card', '.R-chart', '.R-hd', '.R-grid', '.R-charts', '.R-cmt', '.R-scale', '.R-footer', '.R-sec-hd'] },
     }).from(el).save();
   } catch (err) {
     console.error('PDF generation error:', err);
