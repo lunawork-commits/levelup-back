@@ -386,11 +386,9 @@
 .R.pdf .R-cmt     { page-break-inside: avoid; break-inside: avoid; }
 .R.pdf .R-scale   { page-break-inside: avoid; break-inside: avoid; }
 .R.pdf .R-footer  { page-break-inside: avoid; break-inside: avoid; }
-/* Sections can split but header sticks to body */
-.R.pdf .R-sec     { page-break-inside: auto; break-inside: auto; }
+/* Sections: keep whole, move to next page if doesn't fit */
+.R.pdf .R-sec     { page-break-inside: avoid; break-inside: avoid; }
 .R.pdf .R-sec-hd  { page-break-after: avoid; break-after: avoid; }
-/* Each section starts on new page if it doesn't fit */
-.R.pdf .R-sec     { page-break-before: auto; break-before: auto; }
 .R.pdf, .R.pdf *  { overflow: visible !important; }
 
 /* ── Print ──────────────────────────────────────────── */
@@ -885,7 +883,7 @@ async function downloadPDF() {
         },
       },
       jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak:   { mode: ['css', 'legacy'], avoid: ['.R-card', '.R-chart', '.R-hd', '.R-grid', '.R-charts', '.R-cmt', '.R-scale', '.R-footer', '.R-sec-hd'] },
+      pagebreak:   { mode: ['css', 'legacy'], avoid: ['.R-sec', '.R-hd', '.R-footer'] },
     }).from(el).save();
   } catch (err) {
     console.error('PDF generation error:', err);
