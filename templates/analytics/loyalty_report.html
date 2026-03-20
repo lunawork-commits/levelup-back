@@ -649,6 +649,14 @@ async function downloadPDF() {
 
   const el = document.getElementById('report-content');
 
+  // 0. Hide Django admin sidebar to avoid left-offset clipping
+  const sidebar = document.getElementById('nav-sidebar');
+  const contentDiv = document.getElementById('content');
+  const prevSidebar = sidebar ? sidebar.style.display : null;
+  const prevMargin = contentDiv ? contentDiv.style.marginLeft : null;
+  if (sidebar) sidebar.style.display = 'none';
+  if (contentDiv) contentDiv.style.marginLeft = '0';
+
   // 1. PDF mode
   el.classList.add('pdf');
 
@@ -709,8 +717,7 @@ async function downloadPDF() {
         allowTaint: true,
         logging: false,
         backgroundColor: '#ffffff',
-        width: 700,
-        windowWidth: 700,
+        windowWidth: el.scrollWidth,
       },
       jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
       pagebreak:   { mode: ['css'] },
@@ -726,6 +733,8 @@ async function downloadPDF() {
   canvasData.forEach(({ canvas, img }) => { canvas.style.display = ''; img.remove(); });
   el.querySelectorAll('._pdf-replacement').forEach(e => e.remove());
   tas.forEach(ta => ta.style.display = '');
+  if (sidebar) sidebar.style.display = prevSidebar;
+  if (contentDiv) contentDiv.style.marginLeft = prevMargin;
   overlay.classList.remove('on');
 }
 
