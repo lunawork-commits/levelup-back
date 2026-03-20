@@ -739,9 +739,10 @@ async function downloadPDF() {
         allowTaint: true,
         logging: false,
         backgroundColor: '#ffffff',
-        onclone: (clonedDoc, clonedEl) => {
-          // Remove clonedEl BEFORE clearing body so it stays alive
-          clonedEl.parentNode && clonedEl.parentNode.removeChild(clonedEl);
+        onclone: (clonedDoc) => {
+          const clonedEl = clonedDoc.getElementById('report-content');
+          if (!clonedEl) return;
+          clonedEl.parentNode.removeChild(clonedEl);
           const body = clonedDoc.body;
           body.innerHTML = '';
           body.style.cssText = 'margin:0;padding:0;background:#fff;';
