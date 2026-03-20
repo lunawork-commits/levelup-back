@@ -134,28 +134,41 @@ class RFSegmentAdmin(admin.ModelAdmin):
         """
         Выгружает .txt файл с VK ID всех гостей сегмента — по одному на строку.
         Формат для импорта в Senler (конструктор чат-ботов ВКонтакте).
+        Supports ?mode=delivery and ?branches=1,2,3 query params.
         """
+        from apps.tenant.analytics.models import GuestRFScoreDelivery
+        from urllib.parse import quote
+
         segment = RFSegment.objects.get(pk=pk)
+        mode = request.GET.get('mode', 'restaurant')
+
+        ScoreModel = GuestRFScoreDelivery if mode == 'delivery' else GuestRFScore
+        qs = ScoreModel.objects.filter(segment=segment)
+
+        branch_ids = request.GET.get('branches', '')
+        if branch_ids:
+            try:
+                ids = [int(x) for x in branch_ids.split(',') if x.strip()]
+                qs = qs.filter(client__branch_id__in=ids)
+            except ValueError:
+                pass
 
         # Get all VK IDs for guests in this segment
-        vk_ids = (
-            GuestRFScore.objects
-            .filter(segment=segment)
-            .select_related('client__client')
-            .values_list('client__client__vk_id', flat=True)
+        vk_ids = qs.select_related('client__client').values_list(
+            'client__client__vk_id', flat=True,
         )
 
         # Filter out None values and build the file content
         lines = [str(vk_id) for vk_id in vk_ids if vk_id]
-
         content = '\n'.join(lines)
-        if not lines:
-            content = ''
 
-        filename = f'senler_{segment.code}_{segment.name}.txt'
+        safe_name = f'senler_{segment.code}.txt'
+        full_name = f'senler_{segment.code}_{segment.name}.txt'
         response = HttpResponse(content, content_type='text/plain; charset=utf-8')
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
-
+        response['Content-Disposition'] = (
+            f'attachment; filename="{safe_name}"; '
+            f"filename*=UTF-8''{quote(full_name)}"
+        )
         return response
 
     # ── Display columns ───────────────────────────────────────────────────────

@@ -558,9 +558,15 @@ class SegmentExportSenlerView(View):
         lines = [str(vk_id) for vk_id in vk_ids if vk_id]
         content = '\n'.join(lines)
 
-        filename = f'senler_{segment.code}_{segment.name}.txt'
+        # Use ASCII-safe filename + filename* for proper Cyrillic support
+        from urllib.parse import quote
+        safe_name = f'senler_{segment.code}.txt'
+        full_name = f'senler_{segment.code}_{segment.name}.txt'
         response = HttpResponse(content, content_type='text/plain; charset=utf-8')
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response['Content-Disposition'] = (
+            f'attachment; filename="{safe_name}"; '
+            f"filename*=UTF-8''{quote(full_name)}"
+        )
         return response
 
 

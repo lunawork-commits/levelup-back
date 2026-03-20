@@ -2,7 +2,8 @@
 Создаёт стандартные 12 RF-сегментов с подсказками из RF-матрицы.
 
 Использование:
-    python manage.py create_default_rf_segments --schema=<tenant_schema>
+    python manage.py create_default_rf_segments --schema=funnycutlet
+    python manage.py create_default_rf_segments --schema=levone --force
 
 Если сегменты уже существуют — ВСЕГДА синхронизирует hint/strategy
 со стандартным шаблоном для единообразия между всеми кафе.
@@ -237,15 +238,35 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
+            '--schema',
+            required=True,
+            help='PostgreSQL-схема тенанта (например: funnycutlet, levone)',
+        )
+        parser.add_argument(
             '--force',
             action='store_true',
             help='Перезаписать все поля существующих сегментов (включая границы и подсказки).',
         )
 
     def handle(self, *args, **options):
+        from django_tenants.utils import schema_context
+
+        schema = options['schema']
+        force = options['force']
+
+        self.stdout.write(f'\nСхема: {schema}')
+        self.stdout.write(f'Режим: {"FORCE (полная перезапись)" if force else "стандартный (sync hints)"}\n')
+
+        try:
+            with schema_context(schema):
+                self._sync_segments(force=force)
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f'Ошибка: {e}'))
+            raise
+
+    def _sync_segments(self, *, force: bool):
         from apps.tenant.analytics.models import RFSegment
 
-        force = options['force']
         created = updated = skipped = 0
 
         for seg_data in DEFAULT_SEGMENTS:
