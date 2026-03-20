@@ -282,10 +282,10 @@ a,a:hover,a:focus,a:visited{text-decoration:none!important; color: black}
         <div class="tip-btn">?</div>
         <div class="card-body">
           <div class="mc-label">📊 % открываемости сообщений ВК</div>
-          <div class="mc-val {% if stats.message_open_rate > 0 %}c-orange{% else %}c-grey{% endif %}">
-            {% if stats.message_open_rate %}{{ stats.message_open_rate }}%{% else %}—{% endif %}
+          <div class="mc-val {% if stats.message_open_rate is not None %}c-orange{% else %}c-grey{% endif %}">
+            {{ stats.message_open_rate }}%
           </div>
-          <div class="mc-sub">Прочитано / Доставлено</div>
+          <div class="mc-sub">Прочитано {{ stats.message_total_read }} из {{ stats.message_total_sent }} отправленных</div>
           <div class="tip-box">Какой процент от всех отправленных сообщений был прочитан гостями за период. Формула: прочитанные ÷ отправленные × 100%. Статус «прочитано» обновляется автоматически через VK API каждые 2 минуты, поэтому свежие рассылки могут показывать заниженный процент — нужно подождать.</div>
         </div>
       </div>
@@ -379,7 +379,7 @@ a,a:hover,a:focus,a:visited{text-decoration:none!important; color: black}
           <div class="chart-title mb-2">Подарки</div>
           <canvas id="ch-gifts" style="max-height:140px;"></canvas>
           <div class="d-flex flex-wrap justify-content-center gap-2 mt-2">
-            <div class="d-flex align-items-center gap-1"><span class="chart-legend-dot" style="background:#f9a825;"></span><span class="chart-legend-label">Бесплатный</span></div>
+            <div class="d-flex align-items-center gap-1"><span class="chart-legend-dot" style="background:#0d9488;"></span><span class="chart-legend-label">Бесплатный</span></div>
             <div class="d-flex align-items-center gap-1"><span class="chart-legend-dot" style="background:#6a1b9a;"></span><span class="chart-legend-label">За баллы</span></div>
           </div>
         </div>
@@ -398,7 +398,7 @@ a,a:hover,a:focus,a:visited{text-decoration:none!important; color: black}
           <canvas id="ch-quality" style="max-height:140px;"></canvas>
           <div class="d-flex flex-wrap justify-content-center gap-2 mt-2">
             <div class="d-flex align-items-center gap-1"><span class="chart-legend-dot" style="background:#16a34a;"></span><span class="chart-legend-label">Позитивный</span></div>
-            <div class="d-flex align-items-center gap-1"><span class="chart-legend-dot" style="background:#f59e0b;"></span><span class="chart-legend-label">Частично</span></div>
+            <div class="d-flex align-items-center gap-1"><span class="chart-legend-dot" style="background:#C2410C;"></span><span class="chart-legend-label">Частично</span></div>
             <div class="d-flex align-items-center gap-1"><span class="chart-legend-dot" style="background:#dc2626;"></span><span class="chart-legend-label">Негативный</span></div>
           </div>
         </div>
@@ -443,9 +443,9 @@ document.addEventListener('DOMContentLoaded', () => {
   donut('ch-repeat',   [D.repeat_visits.repeat,        D.repeat_visits.first_time],                          ['#2e7d32','#d1d5db']);
   donut('ch-sources',  [D.sources.from_cafe,            D.sources.from_stories],                              ['#1565c0','#00897b']);
   donut('ch-stories',  [D.vk_stories.uploaded,          D.vk_stories.not_uploaded],                           ['#c62828','#d1d5db']);
-  donut('ch-gifts',    [D.gift_sources.free,             D.gift_sources.coins],                                ['#f9a825','#6a1b9a']);
+  donut('ch-gifts',    [D.gift_sources.free,             D.gift_sources.coins],                                ['#0d9488','#6a1b9a']);
   donut('ch-staff',    [D.staff_involvement.served,      D.staff_involvement.not_served],                      ['#00897b','#d1d5db']);
-  donut('ch-quality',  [D.reviews_sentiment.positive,   D.reviews_sentiment.partial, D.reviews_sentiment.negative], ['#16a34a','#f59e0b','#dc2626']);
+  donut('ch-quality',  [D.reviews_sentiment.positive,   D.reviews_sentiment.partial, D.reviews_sentiment.negative], ['#16a34a','#C2410C','#dc2626']);
   donut('ch-reviews',  [D.reviews_ratio.left,            D.reviews_ratio.not_left],                            ['#3b82f6','#d1d5db']);
   donut('ch-quests',   [D.quests.completed,              D.quests.pending],                                    ['#00bcd4','#d1d5db']);
 
