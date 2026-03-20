@@ -13,8 +13,7 @@
 
 {% block extrastyle %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
 <style>
 :root {
   --navy:   #1a2744;
@@ -109,14 +108,14 @@
 .rpt-section-num {
   background: var(--blue);
   color: #fff;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   padding: 2px 9px;
   border-radius: 6px;
   min-width: 22px;
   text-align: center;
 }
-.rpt-section-title { font-size: 15px; font-weight: 700; color: #1e293b; }
+.rpt-section-title { font-size: 17px; font-weight: 700; color: #1e293b; }
 .rpt-section-body { padding: 18px 22px; }
 
 /* ── Metric grid ─────────────────────────────────────── */
@@ -131,8 +130,8 @@
   border-radius: 8px;
   padding: 12px 14px;
 }
-.rpt-metric-label { font-size: 11px; color: #64748b; margin-bottom: 4px; font-weight: 500; }
-.rpt-metric-value { font-size: 22px; font-weight: 800; color: #1e293b; line-height: 1; }
+.rpt-metric-label { font-size: 13px; color: #64748b; margin-bottom: 4px; font-weight: 500; }
+.rpt-metric-value { font-size: 26px; font-weight: 800; color: #1e293b; line-height: 1; }
 
 /* ── Index scale ─────────────────────────────────────── */
 .rpt-scale {
@@ -142,7 +141,7 @@
   margin-top: 10px;
 }
 .rpt-scale-item {
-  font-size: 10px;
+  font-size: 12px;
   padding: 3px 10px;
   border-radius: 6px;
   font-weight: 600;
@@ -161,8 +160,10 @@
   border-radius: 10px;
   padding: 14px;
   position: relative;
+  max-height: 220px;
+  overflow: hidden;
 }
-.rpt-chart-title { font-size: 11px; font-weight: 700; color: #4b5563; margin-bottom: 8px; text-transform: uppercase; letter-spacing: .5px; }
+.rpt-chart-title { font-size: 13px; font-weight: 700; color: #4b5563; margin-bottom: 8px; text-transform: uppercase; letter-spacing: .5px; }
 
 /* ── Comment block ───────────────────────────────────── */
 .rpt-comment {
@@ -171,7 +172,7 @@
   margin-top: 16px;
 }
 .rpt-comment-label {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .5px;
@@ -184,7 +185,7 @@
   border: 1px solid #d0d7de;
   border-radius: 8px;
   padding: 10px 12px;
-  font-size: 13px;
+  font-size: 15px;
   font-family: inherit;
   resize: vertical;
   line-height: 1.5;
@@ -193,9 +194,9 @@
 .rpt-comment-textarea:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(29,114,184,.12); }
 .rpt-comment-actions { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
 .rpt-comment-btn {
-  padding: 5px 14px;
+  padding: 6px 16px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   border: none;
@@ -204,13 +205,47 @@
 .rpt-comment-btn:disabled { opacity: .5; cursor: not-allowed; }
 .rpt-comment-btn-ai { background: #eff6ff; color: var(--blue); border: 1px solid #bfdbfe; }
 .rpt-comment-btn-ai:hover:not(:disabled) { background: #dbeafe; }
-.rpt-comment-status { font-size: 11px; color: #94a3b8; }
+.rpt-comment-status { font-size: 13px; color: #94a3b8; }
 
-/* ── PDF rendering helpers ───────────────────────────── */
-.pdf-rendering .rpt-comment-textarea { border: none !important; background: transparent !important; box-shadow: none !important; }
-.pdf-rendering .rpt-comment-actions { display: none !important; }
-.pdf-rendering .rpt-actions { display: none !important; }
-.pdf-rendering .rpt-filters { display: none !important; }
+/* ── Print / PDF styles ──────────────────────────────── */
+@media print {
+  /* Hide Django admin chrome */
+  #header, #breadcrumbs, .breadcrumbs, #nav-sidebar, #nav-global,
+  .rpt-actions, .rpt-filters, .rpt-comment-actions,
+  footer, .skip-to-content-link { display: none !important; }
+
+  /* Clean background */
+  body, html, #container, #content, .rpt-wrap { background: #fff !important; padding: 0 !important; margin: 0 !important; }
+  #content { margin-left: 0 !important; }
+  .rpt-wrap { max-width: 100% !important; min-height: auto !important; }
+
+  /* Section cards */
+  .rpt-section { break-inside: avoid; box-shadow: none !important; border: 1px solid #ddd !important; margin-bottom: 10px !important; }
+
+  /* Textareas → plain text */
+  .rpt-comment-textarea {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    resize: none !important;
+    overflow: visible !important;
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 4px 0 !important;
+  }
+
+  /* Charts — keep them small */
+  .rpt-chart-box { break-inside: avoid; }
+  canvas { max-height: 160px !important; }
+
+  /* Header gradient prints poorly — use solid */
+  .rpt-header { background: var(--navy) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  /* Metric colors */
+  .rpt-metric { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .rpt-section-num { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .rpt-scale-item { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
 </style>
 {% endblock %}
 
@@ -228,9 +263,9 @@
   <!-- Filters -->
   <div class="rpt-filters">
     <span class="rpt-filter-label">Точка:</span>
-    <a href="?{{ period_qs }}" class="btn btn-sm btn-outline-secondary rounded-pill {% if not active_branch_ids %}fw-bold{% endif %}" style="font-size:11px;">Все</a>
+    <a href="?{{ period_qs }}" class="btn btn-sm btn-outline-secondary rounded-pill {% if not active_branch_ids %}fw-bold{% endif %}" style="font-size:13px;">Все</a>
     {% for b in branches %}
-    <a href="?{{ period_qs }}&branches={{ b.id }}" class="btn btn-sm btn-outline-secondary rounded-pill {% if b.id in active_branch_ids %}fw-bold{% endif %}" style="font-size:11px;">{{ b.name }}</a>
+    <a href="?{{ period_qs }}&branches={{ b.id }}" class="btn btn-sm btn-outline-secondary rounded-pill {% if b.id in active_branch_ids %}fw-bold{% endif %}" style="font-size:13px;">{{ b.name }}</a>
     {% endfor %}
     <span class="rpt-filter-label" style="margin-left:12px;">Период:</span>
     <form method="get" class="d-flex align-items-center gap-2" style="display:inline-flex;">
@@ -312,11 +347,11 @@
       <div class="rpt-chart-row">
         <div class="rpt-chart-box">
           <div class="rpt-chart-title">Вовлечение гостей</div>
-          <canvas id="chart-engagement" height="180"></canvas>
+          <canvas id="chart-engagement" height="150"></canvas>
         </div>
         <div class="rpt-chart-box">
           <div class="rpt-chart-title">Рост базы</div>
-          <canvas id="chart-growth" height="180"></canvas>
+          <canvas id="chart-growth" height="150"></canvas>
         </div>
       </div>
 
@@ -431,7 +466,7 @@
       <div class="rpt-chart-row">
         <div class="rpt-chart-box">
           <div class="rpt-chart-title">Источники подключений</div>
-          <canvas id="chart-sources" height="180"></canvas>
+          <canvas id="chart-sources" height="150"></canvas>
         </div>
         <div class="rpt-chart-box" style="display:flex;align-items:center;justify-content:center;">
           <div style="text-align:center;">
@@ -508,7 +543,7 @@
           <div class="rpt-metric-value">{{ report.stories_referrals }}</div>
         </div>
       </div>
-      <div style="font-size:11px;color:#64748b;margin-top:8px;">Ориентиры: 30–40% — хороший уровень · 40–60% — высокий уровень</div>
+      <div style="font-size:13px;color:#64748b;margin-top:8px;">Ориентиры: 30–40% — хороший уровень · 40–60% — высокий уровень</div>
       <div class="rpt-comment">
         <div class="rpt-comment-label">💬 Комментарий менеджера</div>
         <textarea class="rpt-comment-textarea" id="comment-6" placeholder="Введите комментарий или нажмите AI..."></textarea>
@@ -550,7 +585,7 @@
       <div class="rpt-chart-row">
         <div class="rpt-chart-box">
           <div class="rpt-chart-title">Распределение отзывов</div>
-          <canvas id="chart-reviews" height="180"></canvas>
+          <canvas id="chart-reviews" height="150"></canvas>
         </div>
         <div class="rpt-chart-box" style="display:flex;align-items:center;justify-content:center;">
           <div style="text-align:center;">
@@ -590,11 +625,11 @@
       <div class="rpt-chart-row">
         <div class="rpt-chart-box">
           <div class="rpt-chart-title">Сегменты гостей</div>
-          <canvas id="chart-rf" height="200"></canvas>
+          <canvas id="chart-rf" height="160"></canvas>
         </div>
         <div class="rpt-chart-box">
           <div class="rpt-chart-title">Сводка RF</div>
-          <canvas id="chart-rf-summary" height="200"></canvas>
+          <canvas id="chart-rf-summary" height="160"></canvas>
         </div>
       </div>
       <div class="rpt-comment">
@@ -638,7 +673,7 @@
       <div class="rpt-chart-row">
         <div class="rpt-chart-box">
           <div class="rpt-chart-title">Миграция сегментов</div>
-          <canvas id="chart-migration" height="180"></canvas>
+          <canvas id="chart-migration" height="150"></canvas>
         </div>
         <div class="rpt-chart-box" style="display:flex;align-items:center;justify-content:center;">
           <div style="text-align:center;">
@@ -792,81 +827,8 @@ function generateAllComments() {
 }
 
 // ── PDF export ───────────────────────────────────────────
-async function downloadPDF() {
-  const btn = event.target;
-  btn.disabled = true;
-  btn.textContent = '⏳ Формирование PDF...';
-
-  const el = document.getElementById('report-content');
-  el.classList.add('pdf-rendering');
-
-  // Replace textareas with plain text for PDF
-  const textareas = el.querySelectorAll('.rpt-comment-textarea');
-  const originals = [];
-  textareas.forEach(ta => {
-    originals.push({ el: ta, display: ta.style.display });
-    const div = document.createElement('div');
-    div.className = 'rpt-comment-text-pdf';
-    div.style.cssText = 'font-size:13px;line-height:1.6;color:#1e293b;white-space:pre-wrap;min-height:20px;padding:4px 0;';
-    div.textContent = ta.value || '(не заполнено)';
-    if (!ta.value) div.style.color = '#94a3b8';
-    ta.style.display = 'none';
-    ta.parentNode.insertBefore(div, ta.nextSibling);
-  });
-
-  try {
-    const canvas = await html2canvas(el, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      windowWidth: 1100,
-      backgroundColor: '#f0f2f5',
-    });
-
-    const { jsPDF } = window.jspdf;
-    const imgW = 210;  // A4 width in mm
-    const pageH = 297; // A4 height in mm
-    const margin = 8;
-    const contentW = imgW - margin * 2;
-    const imgH = canvas.height * contentW / canvas.width;
-
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    let position = margin;
-    const pageContentH = pageH - margin * 2;
-
-    if (imgH <= pageContentH) {
-      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', margin, margin, contentW, imgH);
-    } else {
-      // Multi-page
-      let remainingH = imgH;
-      let srcY = 0;
-      let page = 0;
-      while (remainingH > 0) {
-        if (page > 0) pdf.addPage();
-        const sliceH = Math.min(pageContentH, remainingH);
-        const sliceCanvas = document.createElement('canvas');
-        sliceCanvas.width = canvas.width;
-        sliceCanvas.height = Math.ceil(sliceH / imgH * canvas.height);
-        const ctx = sliceCanvas.getContext('2d');
-        ctx.drawImage(canvas, 0, srcY, canvas.width, sliceCanvas.height, 0, 0, canvas.width, sliceCanvas.height);
-        pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.92), 'JPEG', margin, margin, contentW, sliceH);
-        srcY += sliceCanvas.height;
-        remainingH -= sliceH;
-        page++;
-      }
-    }
-
-    pdf.save('loyalty-report-{{ start }}-{{ end }}.pdf');
-  } catch (err) {
-    alert('Ошибка при создании PDF: ' + err.message);
-  }
-
-  // Restore textareas
-  el.querySelectorAll('.rpt-comment-text-pdf').forEach(d => d.remove());
-  originals.forEach(o => o.el.style.display = '');
-  el.classList.remove('pdf-rendering');
-  btn.disabled = false;
-  btn.textContent = '📄 Скачать PDF';
+function downloadPDF() {
+  window.print();
 }
 
 // ── Charts ───────────────────────────────────────────────
