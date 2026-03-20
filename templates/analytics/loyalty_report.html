@@ -1,5 +1,5 @@
 {% extends "admin/base_site.html" %}
-{% load i18n %}
+{% load i18n static %}
 
 {% block title %}Отчёт — {{ block.super }}{% endblock %}
 {% block breadcrumbs %}
@@ -12,1012 +12,822 @@
 {% block content_title %}{% endblock %}
 
 {% block extrastyle %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>
 
 <style>
+/* ═══════════════════════════════════════════════════════
+   CSS CUSTOM PROPERTIES — LevOne brand
+   ═══════════════════════════════════════════════════════ */
 :root {
-  --navy:   #1a2744;
-  --navy2:  #2d3a60;
-  --green:  #16a34a;
-  --blue:   #1d72b8;
-  --orange: #d97706;
-  --red:    #dc2626;
-  --purple: #7c3aed;
-  --teal:   #0d9488;
+  --gold: #C9A227;
+  --gold-light: #E8B82D;
+  --navy: #1B2838;
+  --navy-mid: #252F3D;
+  --cream: #FDF8F0;
+  --cream-border: #EDE8DF;
+  --white: #FFFFFF;
+  --tp: #1B2838;     /* text primary */
+  --ts: #6B7280;     /* text secondary */
+  --tm: #9CA3AF;     /* text muted */
+  --ok: #38A169;
+  --warn: #D69E2E;
+  --err: #E53E3E;
+  --inf: #3B82F6;
+  --teal: #0D9488;
+  --purple: #7C3AED;
+  --fd: 'Cormorant Garamond', 'Georgia', serif;
+  --fb: 'Nunito', 'Inter', -apple-system, sans-serif;
 }
-
 #content { padding: 0 !important; }
 
-.rpt-wrap {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #1e293b;
-  max-width: 1200px;
-  background: #f0f2f5;
-  min-height: 100vh;
+/* ═══════════════════════════════════════════════════════
+   REPORT WRAPPER
+   ═══════════════════════════════════════════════════════ */
+.R {
+  font-family: var(--fb);
+  color: var(--tp);
+  max-width: 860px;
+  margin: 0 auto;
+  background: var(--cream);
   padding: 24px 28px 60px;
 }
 
-/* ── Header ──────────────────────────────────────────── */
-.rpt-header {
-  background: linear-gradient(135deg, var(--navy) 0%, var(--navy2) 100%);
+/* ── Header ─────────────────────────────────────────── */
+.R-hd {
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 100%);
   color: #fff;
   padding: 32px 36px;
-  border-radius: 16px;
-  margin-bottom: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 16px;
+  border-radius: 14px;
+  margin-bottom: 10px;
+  position: relative;
+  overflow: hidden;
 }
-.rpt-header-left { display: flex; flex-direction: column; gap: 6px; }
-.rpt-header-title { font-size: 28px; font-weight: 700; letter-spacing: -.3px; }
-.rpt-header-meta { font-size: 16px; opacity: .7; }
-.rpt-header-right { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.R-hd::after {
+  content: '';
+  position: absolute;
+  top: -40px; right: -40px;
+  width: 200px; height: 200px;
+  background: var(--gold);
+  opacity: .07;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.R-hd-inner { position: relative; z-index: 1; display: flex; align-items: center; gap: 20px; }
+.R-logo { width: 56px; height: 56px; object-fit: contain; filter: brightness(0) invert(1); opacity: .85; flex-shrink: 0; }
+.R-hd-text { flex: 1; }
+.R-hd-title { font-family: var(--fd); font-size: 30px; font-weight: 700; letter-spacing: -.4px; margin-bottom: 4px; }
+.R-hd-bar { width: 40px; height: 3px; background: var(--gold); border-radius: 2px; margin: 6px 0; }
+.R-hd-sub { font-size: 15px; opacity: .55; font-weight: 600; }
 
-/* ── Filter bar ──────────────────────────────────────── */
-.rpt-filters {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 20px;
+/* ── Toolbar (filters + actions) ────────────────────── */
+.R-toolbar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 16px; padding: 12px 16px;
+  background: var(--white); border-radius: 10px; border: 1px solid var(--cream-border);
 }
-.rpt-filter-label { font-size: 15px; color: #64748b; font-weight: 600; }
+.R-toolbar-label { font-size: 13px; color: var(--ts); font-weight: 700; }
+.R-actions { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+.R-btn {
+  padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 700;
+  cursor: pointer; border: none; font-family: var(--fb); transition: all .12s;
+}
+.R-btn:disabled { opacity: .5; cursor: not-allowed; }
+.R-btn--ai { background: #EEF2FF; color: var(--inf); border: 1px solid #C7D2FE; }
+.R-btn--ai:hover:not(:disabled) { background: #E0E7FF; }
+.R-btn--pdf { background: var(--navy); color: #fff; }
+.R-btn--pdf:hover:not(:disabled) { background: #0F1B2A; }
+.R-btn--back { background: var(--white); color: var(--ts); border: 1px solid var(--cream-border); }
 
-/* ── Action buttons ──────────────────────────────────── */
-.rpt-actions {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
-}
-.rpt-btn {
-  padding: 12px 28px;
-  border-radius: 10px;
-  font-size: 16px;
-  font-weight: 700;
-  cursor: pointer;
-  border: none;
-  transition: all .15s;
-}
-.rpt-btn:disabled { opacity: .5; cursor: not-allowed; }
-.rpt-btn-ai { background: #eff6ff; color: var(--blue); border: 1px solid #bfdbfe; }
-.rpt-btn-ai:hover:not(:disabled) { background: #dbeafe; }
-.rpt-btn-pdf { background: var(--red); color: #fff; }
-.rpt-btn-pdf:hover:not(:disabled) { background: #b91c1c; }
-.rpt-btn-back { background: #fff; color: #64748b; border: 1px solid #d0d7de; }
-.rpt-btn-back:hover { background: #f8fafc; color: #1e293b; }
-
-/* ── Section card ────────────────────────────────────── */
-.rpt-section {
-  background: #fff;
-  border-radius: 16px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 16px rgba(0,0,0,.05);
-  margin-bottom: 20px;
-  overflow: visible;
-}
-.rpt-section-header {
-  padding: 20px 28px;
-  border-bottom: 2px solid #f0f2f5;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-.rpt-section-num {
-  background: var(--blue);
-  color: #fff;
-  font-size: 16px;
-  font-weight: 700;
-  padding: 4px 12px;
-  border-radius: 8px;
-  min-width: 28px;
-  text-align: center;
-}
-.rpt-section-title { font-size: 22px; font-weight: 700; color: #1e293b; }
-.rpt-section-body { padding: 24px 28px; }
-
-/* ── Metric grid ─────────────────────────────────────── */
-.rpt-metrics {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 14px;
-  margin-bottom: 20px;
-}
-.rpt-metric {
-  background: #f8fafc;
+/* ═══════════════════════════════════════════════════════
+   SECTION CARDS
+   ═══════════════════════════════════════════════════════ */
+.R-sec {
+  background: var(--white);
   border-radius: 12px;
-  padding: 18px 20px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--cream-border);
+  box-shadow: 0 1px 8px rgba(27,40,56,.04);
+  margin-bottom: 14px;
 }
-.rpt-metric-label { font-size: 15px; color: #64748b; margin-bottom: 6px; font-weight: 600; }
-.rpt-metric-value { font-size: 32px; font-weight: 800; color: #1e293b; line-height: 1.1; }
+.R-sec-hd {
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--cream-border);
+  display: flex; align-items: center; gap: 12px;
+}
+.R-sec-num {
+  background: var(--gold); color: var(--navy);
+  font-size: 13px; font-weight: 800;
+  width: 28px; height: 28px; border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.R-sec-title {
+  font-family: var(--fd); font-size: 21px; font-weight: 700;
+  color: var(--navy); letter-spacing: -.2px;
+}
+.R-sec-body { padding: 18px 22px; }
 
-/* ── Index scale ─────────────────────────────────────── */
-.rpt-scale {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 14px;
+/* ── Metric grid ────────────────────────────────────── */
+.R-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
 }
-.rpt-scale-item {
-  font-size: 15px;
-  padding: 6px 14px;
-  border-radius: 8px;
-  font-weight: 600;
+.R-grid--3 { grid-template-columns: repeat(3, 1fr); }
+.R-grid--2 { grid-template-columns: repeat(2, 1fr); }
+.R-card {
+  background: var(--cream); border-radius: 8px;
+  padding: 12px 14px; border: 1px solid var(--cream-border);
 }
+.R-card-lbl {
+  font-size: 11px; color: var(--ts); font-weight: 700;
+  text-transform: uppercase; letter-spacing: .4px; margin-bottom: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.R-card-val {
+  font-size: 26px; font-weight: 800; color: var(--navy); line-height: 1.15;
+}
+.R-card-val--sm { font-size: 14px; color: var(--tm); font-weight: 600; }
 
-/* ── Chart containers ────────────────────────────────── */
-.rpt-chart-row {
+/* ── Scale badges ───────────────────────────────────── */
+.R-scale { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 10px; }
+.R-scale-item { font-size: 11px; padding: 4px 10px; border-radius: 5px; font-weight: 700; }
+
+/* ── Chart containers ───────────────────────────────── */
+.R-charts {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 18px;
-  margin-bottom: 20px;
+  gap: 12px;
+  margin-bottom: 14px;
 }
-@media (max-width: 700px) { .rpt-chart-row { grid-template-columns: 1fr; } }
-.rpt-chart-box {
-  background: #f8fafc;
-  border-radius: 14px;
-  padding: 20px;
-  position: relative;
-  border: 1px solid #e2e8f0;
-  min-height: 280px;
+@media (max-width: 640px) { .R-charts { grid-template-columns: 1fr; } }
+.R-chart {
+  background: var(--cream); border-radius: 10px;
+  padding: 14px; border: 1px solid var(--cream-border);
 }
-.rpt-chart-title { font-size: 16px; font-weight: 700; color: #4b5563; margin-bottom: 12px; text-transform: uppercase; letter-spacing: .5px; }
+.R-chart-title {
+  font-size: 11px; font-weight: 800; color: var(--ts);
+  text-transform: uppercase; letter-spacing: .6px; margin-bottom: 8px;
+}
+.R-chart canvas {
+  width: 100% !important;
+  max-height: 200px;
+}
+.R-chart img.pdf-img {
+  width: 100%; height: auto; display: block;
+}
 
-/* ── Comment block ───────────────────────────────────── */
-.rpt-comment {
-  border-top: 2px solid #f0f2f5;
-  padding-top: 18px;
-  margin-top: 20px;
+/* ── Big stat (in chart right column) ───────────────── */
+.R-bignum {
+  display: flex; align-items: center; justify-content: center;
+  height: 100%; text-align: center; min-height: 140px;
 }
-.rpt-comment-label {
-  font-size: 15px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .5px;
-  color: var(--orange);
-  margin-bottom: 8px;
-}
-.rpt-comment-textarea {
-  width: 100%;
-  min-height: 80px;
-  border: 1px solid #d0d7de;
-  border-radius: 10px;
-  padding: 14px 16px;
-  font-size: 16px;
-  font-family: inherit;
-  resize: vertical;
-  line-height: 1.6;
-  box-sizing: border-box;
-}
-.rpt-comment-textarea:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(29,114,184,.12); }
-.rpt-comment-actions { display: flex; gap: 10px; margin-top: 10px; align-items: center; }
-.rpt-comment-btn {
-  padding: 10px 22px;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
-  transition: all .12s;
-}
-.rpt-comment-btn:disabled { opacity: .5; cursor: not-allowed; }
-.rpt-comment-btn-ai { background: #eff6ff; color: var(--blue); border: 1px solid #bfdbfe; }
-.rpt-comment-btn-ai:hover:not(:disabled) { background: #dbeafe; }
-.rpt-comment-status { font-size: 15px; color: #94a3b8; }
+.R-bignum-val { font-size: 44px; font-weight: 800; line-height: 1; }
+.R-bignum-lbl { font-size: 14px; color: var(--ts); font-weight: 600; margin-top: 4px; }
 
-/* ── PDF generation overlay ──────────────────────────── */
-.rpt-pdf-overlay {
-  display: none;
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,.5);
-  z-index: 9999;
-  align-items: center;
-  justify-content: center;
+/* ── Comment block ──────────────────────────────────── */
+.R-cmt {
+  border-top: 1px solid var(--cream-border);
+  padding-top: 12px; margin-top: 14px;
 }
-.rpt-pdf-overlay.active { display: flex; }
-.rpt-pdf-spinner {
-  background: #fff;
-  border-radius: 16px;
-  padding: 40px 50px;
-  text-align: center;
-  box-shadow: 0 20px 60px rgba(0,0,0,.2);
+.R-cmt-lbl {
+  font-size: 11px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: .6px; color: var(--gold); margin-bottom: 6px;
 }
-.rpt-pdf-spinner-icon {
-  font-size: 48px;
-  animation: rpt-spin 1s linear infinite;
-  display: inline-block;
-  margin-bottom: 16px;
+.R-cmt-ta {
+  width: 100%; min-height: 56px; border: 1px solid var(--cream-border);
+  border-radius: 8px; padding: 10px 12px; font-size: 14px;
+  font-family: var(--fb); resize: vertical; line-height: 1.55;
+  box-sizing: border-box; color: var(--tp); background: var(--cream);
 }
-@keyframes rpt-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-.rpt-pdf-spinner-text { font-size: 18px; color: #475569; font-weight: 600; }
+.R-cmt-ta:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201,162,39,.1); background: var(--white); }
+.R-cmt-acts { display: flex; gap: 6px; margin-top: 6px; align-items: center; }
+.R-cmt-btn {
+  padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 700;
+  cursor: pointer; border: none; font-family: var(--fb);
+  background: #EEF2FF; color: var(--inf); border: 1px solid #C7D2FE;
+}
+.R-cmt-btn:disabled { opacity: .5; cursor: not-allowed; }
+.R-cmt-status { font-size: 12px; color: var(--tm); }
 
-/* ── Print / PDF styles ──────────────────────────────── */
+/* ── PDF text (replaces textareas) ──────────────────── */
+.R-pdf-text { font-size: 13px; line-height: 1.55; color: var(--tp); white-space: pre-wrap; }
+
+/* ── Footer ─────────────────────────────────────────── */
+.R-footer {
+  text-align: center; padding: 20px 0 4px;
+  color: var(--tm); font-size: 12px; font-weight: 600;
+}
+.R-footer-brand { color: var(--gold); font-family: var(--fd); font-size: 16px; font-weight: 700; margin-bottom: 2px; }
+
+/* ── Overlay ────────────────────────────────────────── */
+.R-overlay {
+  display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(27,40,56,.65); z-index: 9999;
+  align-items: center; justify-content: center;
+}
+.R-overlay.on { display: flex; }
+.R-overlay-box {
+  background: var(--white); border-radius: 14px; padding: 36px 44px;
+  text-align: center; box-shadow: 0 16px 48px rgba(0,0,0,.2);
+}
+.R-overlay-spin { font-size: 40px; animation: R-spin 1s linear infinite; display: inline-block; margin-bottom: 12px; }
+@keyframes R-spin { to { transform: rotate(360deg); } }
+.R-overlay-txt { font-size: 16px; color: var(--navy); font-weight: 700; }
+
+/* ═══════════════════════════════════════════════════════
+   PDF-MODE — applied during html2pdf export
+   Key: A4 = 210mm. Margins 10mm each side = 190mm usable.
+   At scale 2: 190mm × 3.78 px/mm = ~718px.
+   We use 700px content + 22px padding = safe fit.
+   ═══════════════════════════════════════════════════════ */
+.R.pdf {
+  background: #fff !important;
+  padding: 0 !important;
+  max-width: 700px !important;
+}
+.R.pdf .R-hd { padding: 22px 26px; border-radius: 0; margin-bottom: 6px; }
+.R.pdf .R-hd-title { font-size: 24px; }
+.R.pdf .R-hd-sub { font-size: 13px; }
+.R.pdf .R-logo { width: 44px; height: 44px; }
+.R.pdf .R-sec { margin-bottom: 8px; box-shadow: none; border-radius: 8px; }
+.R.pdf .R-sec-hd { padding: 10px 16px; }
+.R.pdf .R-sec-num { width: 24px; height: 24px; font-size: 12px; border-radius: 5px; }
+.R.pdf .R-sec-title { font-size: 17px; }
+.R.pdf .R-sec-body { padding: 12px 16px; }
+.R.pdf .R-grid { gap: 6px; margin-bottom: 10px; }
+.R.pdf .R-card { padding: 8px 10px; border-radius: 6px; }
+.R.pdf .R-card-lbl { font-size: 9px; letter-spacing: .3px; }
+.R.pdf .R-card-val { font-size: 20px; }
+.R.pdf .R-card-val--sm { font-size: 11px; }
+.R.pdf .R-charts { gap: 8px; margin-bottom: 10px; }
+.R.pdf .R-chart { padding: 10px; border-radius: 8px; }
+.R.pdf .R-chart-title { font-size: 10px; margin-bottom: 6px; }
+.R.pdf .R-bignum-val { font-size: 34px; }
+.R.pdf .R-bignum-lbl { font-size: 12px; }
+.R.pdf .R-bignum { min-height: 100px; }
+.R.pdf .R-cmt { padding-top: 8px; margin-top: 10px; }
+.R.pdf .R-cmt-lbl { font-size: 10px; margin-bottom: 4px; }
+.R.pdf .R-pdf-text { font-size: 12px; line-height: 1.5; }
+.R.pdf .R-scale-item { font-size: 10px; padding: 3px 8px; }
+.R.pdf .R-footer { padding-top: 12px; }
+.R.pdf .R-footer-brand { font-size: 14px; }
+
+/* Page break helpers for PDF */
+.R.pdf .pb-after { page-break-after: always; }
+.R.pdf .pb-avoid { page-break-inside: avoid; }
+
+/* ═══════════════════════════════════════════════════════
+   PRINT (Ctrl+P fallback)
+   ═══════════════════════════════════════════════════════ */
 @media print {
-  /* Hide Django admin chrome */
   #header, #breadcrumbs, .breadcrumbs, #nav-sidebar, #nav-global,
-  .rpt-actions, .rpt-filters, .rpt-comment-actions,
+  .R-actions, .R-toolbar, .R-cmt-acts,
   footer, .skip-to-content-link { display: none !important; }
-
-  /* Clean background */
-  body, html, #container, #content, .rpt-wrap { background: #fff !important; padding: 0 !important; margin: 0 !important; }
+  body, html, #container, #content { background: #fff !important; padding: 0 !important; margin: 0 !important; }
   #content { margin-left: 0 !important; }
-  .rpt-wrap { max-width: 100% !important; min-height: auto !important; }
-
-  /* Section cards */
-  .rpt-section { break-inside: avoid; box-shadow: none !important; border: 1px solid #ddd !important; margin-bottom: 10px !important; }
-
-  /* Textareas → plain text */
-  .rpt-comment-textarea {
-    border: none !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    resize: none !important;
-    overflow: visible !important;
-    height: auto !important;
-    min-height: 0 !important;
-    padding: 4px 0 !important;
-    font-size: 14px !important;
-  }
-
-  /* Charts — no clipping */
-  .rpt-chart-box { break-inside: avoid; overflow: visible !important; }
-  canvas { max-height: 250px !important; }
-
-  /* Header gradient prints poorly — use solid */
-  .rpt-header { background: var(--navy) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-
-  /* Metric colors */
-  .rpt-metric { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .rpt-section-num { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .rpt-scale-item { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .R { max-width: 100% !important; background: #fff !important; padding: 0 !important; }
+  .R-sec { break-inside: avoid; box-shadow: none !important; }
+  .R-chart { break-inside: avoid; }
+  .R-cmt-ta { border: none !important; background: transparent !important; resize: none !important; }
+  .R-hd, .R-card, .R-sec-num, .R-scale-item { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="rpt-wrap" id="report-content">
+<div class="R" id="report-content">
 
-  <!-- Header -->
-  <div class="rpt-header">
-    <div class="rpt-header-left">
-      <div class="rpt-header-title">📊 Отчёт по системе лояльности</div>
-      <div class="rpt-header-meta">{{ company_name }} · {{ start_display }} — {{ end_display }}</div>
+  <!-- ─── Header ─────────────────────────────────────── -->
+  <div class="R-hd">
+    <div class="R-hd-inner">
+      <img src="{% static 'images/LevLogo.png' %}" alt="LevOne" class="R-logo">
+      <div class="R-hd-text">
+        <div class="R-hd-title">Отчёт по системе лояльности</div>
+        <div class="R-hd-bar"></div>
+        <div class="R-hd-sub">{{ company_name }} · {{ start_display }} — {{ end_display }}</div>
+      </div>
     </div>
   </div>
 
-  <!-- Filters -->
-  <div class="rpt-filters">
-    <span class="rpt-filter-label">Точка:</span>
-    <a href="?{{ period_qs }}" class="btn btn-sm btn-outline-secondary rounded-pill {% if not active_branch_ids %}fw-bold{% endif %}" style="font-size:15px;">Все</a>
+  <!-- ─── Toolbar (hidden in PDF) ────────────────────── -->
+  <div class="R-toolbar">
+    <span class="R-toolbar-label">Точка:</span>
+    <a href="?{{ period_qs }}" class="btn btn-sm btn-outline-secondary rounded-pill {% if not active_branch_ids %}fw-bold{% endif %}" style="font-size:13px;">Все</a>
     {% for b in branches %}
-    <a href="?{{ period_qs }}&branches={{ b.id }}" class="btn btn-sm btn-outline-secondary rounded-pill {% if b.id in active_branch_ids %}fw-bold{% endif %}" style="font-size:15px;">{{ b.name }}</a>
+    <a href="?{{ period_qs }}&branches={{ b.id }}" class="btn btn-sm btn-outline-secondary rounded-pill {% if b.id in active_branch_ids %}fw-bold{% endif %}" style="font-size:13px;">{{ b.name }}</a>
     {% endfor %}
-    <span class="rpt-filter-label" style="margin-left:12px;">Период:</span>
-    <form method="get" class="d-flex align-items-center gap-2" style="display:inline-flex;">
+    <span class="R-toolbar-label" style="margin-left:10px;">Период:</span>
+    <form method="get" style="display:inline-flex;align-items:center;gap:6px;">
       {% if active_branch_ids %}<input type="hidden" name="branches" value="{% for bid in active_branch_ids %}{{ bid }}{% if not forloop.last %},{% endif %}{% endfor %}">{% endif %}
-      <input type="date" name="start" value="{{ start }}" class="form-control form-control-sm" style="width:150px;font-size:15px;">
-      <span style="color:#94a3b8;font-weight:700;">—</span>
-      <input type="date" name="end" value="{{ end }}" class="form-control form-control-sm" style="width:150px;font-size:15px;">
-      <button type="submit" class="btn btn-sm btn-success" style="font-size:15px;">Применить</button>
+      <input type="date" name="start" value="{{ start }}" class="form-control form-control-sm" style="width:130px;font-size:13px;">
+      <span style="color:var(--tm);">—</span>
+      <input type="date" name="end" value="{{ end }}" class="form-control form-control-sm" style="width:130px;font-size:13px;">
+      <button type="submit" class="btn btn-sm btn-success" style="font-size:13px;">OK</button>
     </form>
   </div>
 
-  <!-- Actions -->
-  <div class="rpt-actions">
-    <button class="rpt-btn rpt-btn-ai" onclick="generateAllComments()">🤖 Сгенерировать все комментарии AI</button>
-    <button class="rpt-btn rpt-btn-pdf" onclick="downloadPDF()">📄 Скачать PDF</button>
-    <a href="{% url 'analytics-general' %}?{{ period_qs }}{% if active_branch_ids %}&branches={% for bid in active_branch_ids %}{{ bid }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}" class="rpt-btn rpt-btn-back">← Назад к аналитике</a>
+  <!-- ─── Actions (hidden in PDF) ────────────────────── -->
+  <div class="R-actions">
+    <button class="R-btn R-btn--ai" onclick="generateAllComments()">🤖 Сгенерировать все комментарии AI</button>
+    <button class="R-btn R-btn--pdf" onclick="downloadPDF()">📄 Скачать PDF</button>
+    <a href="{% url 'analytics-general' %}?{{ period_qs }}{% if active_branch_ids %}&branches={% for bid in active_branch_ids %}{{ bid }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}" class="R-btn R-btn--back">← К аналитике</a>
   </div>
 
-  <!-- ══════════════════════════════════════════════════════ -->
-  <!-- SECTION 1: Key metrics -->
-  <!-- ══════════════════════════════════════════════════════ -->
-  <div class="rpt-section" data-section="1" data-title="Ключевые метрики системы за период">
-    <div class="rpt-section-header">
-      <span class="rpt-section-num">1</span>
-      <span class="rpt-section-title">Ключевые метрики системы за период</span>
+  <!-- ═══════════════════════════════════════════════════
+       SECTION 1 — Key metrics (split: cards, then charts)
+       ═══════════════════════════════════════════════════ -->
+  <div class="R-sec pb-avoid" data-section="1" data-title="Ключевые метрики системы за период">
+    <div class="R-sec-hd">
+      <span class="R-sec-num">1</span>
+      <span class="R-sec-title">Ключевые метрики системы за период</span>
     </div>
-    <div class="rpt-section-body">
-      <div class="rpt-metrics">
-        <div class="rpt-metric" data-key="Подписались на сообщество" data-val="{{ report.new_community }}">
-          <div class="rpt-metric-label">Подписались на сообщество</div>
-          <div class="rpt-metric-value">{{ report.new_community }}</div>
-        </div>
-        <div class="rpt-metric" data-key="Подписались на рассылку" data-val="{{ report.new_newsletter }}">
-          <div class="rpt-metric-label">Подписались на рассылку</div>
-          <div class="rpt-metric-value">{{ report.new_newsletter }}</div>
-        </div>
-        <div class="rpt-metric" data-key="Оцифрованных гостей (всего)" data-val="{{ report.total_vk }}">
-          <div class="rpt-metric-label">Оцифрованных гостей (всего)</div>
-          <div class="rpt-metric-value">{{ report.total_vk }}</div>
-        </div>
-        <div class="rpt-metric" data-key="Новые + первый подарок" data-val="{{ report.new_with_gift }}">
-          <div class="rpt-metric-label">Новые + первый подарок</div>
-          <div class="rpt-metric-value">{{ report.new_with_gift }}</div>
-        </div>
-        <div class="rpt-metric" data-key="Отправлено поздравлений" data-val="{{ report.birthday_sent }}">
-          <div class="rpt-metric-label">Отправлено поздравлений</div>
-          <div class="rpt-metric-value">{{ report.birthday_sent }}</div>
-        </div>
-        <div class="rpt-metric" data-key="Пришли отметить" data-val="{{ report.birthday_came }}">
-          <div class="rpt-metric-label">Пришли отметить</div>
-          <div class="rpt-metric-value">{{ report.birthday_came }}</div>
-        </div>
-        <div class="rpt-metric" data-key="Вернулись повторно" data-val="{{ report.repeat_players }}">
-          <div class="rpt-metric-label">Вернулись повторно</div>
-          <div class="rpt-metric-value">{{ report.repeat_players }}</div>
-        </div>
-        <div class="rpt-metric" data-key="Купили за баллы" data-val="{{ report.coin_purchasers }}">
-          <div class="rpt-metric-label">Купили за баллы</div>
-          <div class="rpt-metric-value">{{ report.coin_purchasers }}</div>
-        </div>
-        <div class="rpt-metric" data-key="Отсканировали QR" data-val="{{ report.qr_scans }}">
-          <div class="rpt-metric-label">Отсканировали QR</div>
-          <div class="rpt-metric-value">{{ report.qr_scans }}</div>
-        </div>
-        <div class="rpt-metric" data-key="Опубликовали историю ВК" data-val="{{ report.stories_publishers }}">
-          <div class="rpt-metric-label">Опубликовали историю ВК</div>
-          <div class="rpt-metric-value">{{ report.stories_publishers }}</div>
-        </div>
-        <div class="rpt-metric" data-key="Переходы из историй" data-val="{{ report.stories_referrals }}">
-          <div class="rpt-metric-label">Переходы из историй</div>
-          <div class="rpt-metric-value">{{ report.stories_referrals }}</div>
-        </div>
-        <div class="rpt-metric" data-key="Открываемость сообщений" data-val="{{ report.message_open_rate }}%">
-          <div class="rpt-metric-label">Открываемость сообщений</div>
-          <div class="rpt-metric-value">{{ report.message_open_rate }}%</div>
-        </div>
+    <div class="R-sec-body">
+      <!-- Row 1: 4 cards -->
+      <div class="R-grid">
+        <div class="R-card" data-key="Подписались на сообщество" data-val="{{ report.new_community }}"><div class="R-card-lbl">Подписки на сообщество</div><div class="R-card-val">{{ report.new_community }}</div></div>
+        <div class="R-card" data-key="Подписались на рассылку" data-val="{{ report.new_newsletter }}"><div class="R-card-lbl">Подписки на рассылку</div><div class="R-card-val">{{ report.new_newsletter }}</div></div>
+        <div class="R-card" data-key="Оцифрованных гостей (всего)" data-val="{{ report.total_vk }}"><div class="R-card-lbl">Оцифрованных гостей</div><div class="R-card-val">{{ report.total_vk }}</div></div>
+        <div class="R-card" data-key="Новые + первый подарок" data-val="{{ report.new_with_gift }}"><div class="R-card-lbl">Новые + подарок</div><div class="R-card-val">{{ report.new_with_gift }}</div></div>
       </div>
-
-      <div class="rpt-chart-row">
-        <div class="rpt-chart-box">
-          <div class="rpt-chart-title">Вовлечение гостей</div>
-          <canvas id="chart-engagement" height="240"></canvas>
-        </div>
-        <div class="rpt-chart-box">
-          <div class="rpt-chart-title">Рост базы</div>
-          <canvas id="chart-growth" height="240"></canvas>
-        </div>
+      <!-- Row 2: 4 cards -->
+      <div class="R-grid">
+        <div class="R-card" data-key="Отправлено поздравлений" data-val="{{ report.birthday_sent }}"><div class="R-card-lbl">Поздравлений</div><div class="R-card-val">{{ report.birthday_sent }}</div></div>
+        <div class="R-card" data-key="Пришли отметить" data-val="{{ report.birthday_came }}"><div class="R-card-lbl">Пришли отметить</div><div class="R-card-val">{{ report.birthday_came }}</div></div>
+        <div class="R-card" data-key="Вернулись повторно" data-val="{{ report.repeat_players }}"><div class="R-card-lbl">Вернулись повторно</div><div class="R-card-val">{{ report.repeat_players }}</div></div>
+        <div class="R-card" data-key="Купили за баллы" data-val="{{ report.coin_purchasers }}"><div class="R-card-lbl">Купили за баллы</div><div class="R-card-val">{{ report.coin_purchasers }}</div></div>
       </div>
-
-      <div class="rpt-comment">
-        <div class="rpt-comment-label">💬 Комментарий менеджера</div>
-        <textarea class="rpt-comment-textarea" id="comment-1" placeholder="Введите комментарий или нажмите AI..."></textarea>
-        <div class="rpt-comment-actions">
-          <button class="rpt-comment-btn rpt-comment-btn-ai" onclick="generateComment(1)">✨ Сгенерировать AI</button>
-          <span class="rpt-comment-status" id="status-1"></span>
-        </div>
+      <!-- Row 3: 4 cards -->
+      <div class="R-grid">
+        <div class="R-card" data-key="Отсканировали QR" data-val="{{ report.qr_scans }}"><div class="R-card-lbl">Отсканировали QR</div><div class="R-card-val">{{ report.qr_scans }}</div></div>
+        <div class="R-card" data-key="Опубликовали историю ВК" data-val="{{ report.stories_publishers }}"><div class="R-card-lbl">Истории ВК</div><div class="R-card-val">{{ report.stories_publishers }}</div></div>
+        <div class="R-card" data-key="Переходы из историй" data-val="{{ report.stories_referrals }}"><div class="R-card-lbl">Переходы из историй</div><div class="R-card-val">{{ report.stories_referrals }}</div></div>
+        <div class="R-card" data-key="Открываемость сообщений" data-val="{{ report.message_open_rate }}%"><div class="R-card-lbl">Открываемость</div><div class="R-card-val">{{ report.message_open_rate }}%</div></div>
+      </div>
+      <!-- Charts -->
+      <div class="R-charts">
+        <div class="R-chart"><div class="R-chart-title">Вовлечение гостей</div><canvas id="chart-engagement"></canvas></div>
+        <div class="R-chart"><div class="R-chart-title">Рост базы</div><canvas id="chart-growth"></canvas></div>
+      </div>
+      <!-- Comment -->
+      <div class="R-cmt">
+        <div class="R-cmt-lbl">💬 Комментарий менеджера</div>
+        <textarea class="R-cmt-ta" id="comment-1" placeholder="Введите комментарий или нажмите AI..."></textarea>
+        <div class="R-cmt-acts"><button class="R-cmt-btn" onclick="genComment(1)">✨ AI</button><span class="R-cmt-status" id="st-1"></span></div>
       </div>
     </div>
   </div>
 
-  <!-- ══════════════════════════════════════════════════════ -->
-  <!-- SECTION 2: Client base growth -->
-  <!-- ══════════════════════════════════════════════════════ -->
-  <div class="rpt-section" data-section="2" data-title="Рост клиентской базы">
-    <div class="rpt-section-header">
-      <span class="rpt-section-num">2</span>
-      <span class="rpt-section-title">Рост клиентской базы</span>
-    </div>
-    <div class="rpt-section-body">
-      <div class="rpt-metrics">
-        <div class="rpt-metric" data-key="Новые гости в базе" data-val="{{ report.qr_scans }}">
-          <div class="rpt-metric-label">Новые гости в базе</div>
-          <div class="rpt-metric-value">{{ report.qr_scans }}</div>
-        </div>
-        <div class="rpt-metric" data-key="Подписались в группу" data-val="{{ report.new_community }}">
-          <div class="rpt-metric-label">Подписались в группу</div>
-          <div class="rpt-metric-value">{{ report.new_community }}</div>
-        </div>
-        <div class="rpt-metric" data-key="Подписались на рассылку" data-val="{{ report.new_newsletter }}">
-          <div class="rpt-metric-label">Подписались на рассылку</div>
-          <div class="rpt-metric-value">{{ report.new_newsletter }}</div>
-        </div>
-        <div class="rpt-metric" data-key="Получили первый подарок" data-val="{{ report.new_with_gift }}">
-          <div class="rpt-metric-label">Получили первый подарок</div>
-          <div class="rpt-metric-value">{{ report.new_with_gift }}</div>
-        </div>
+  <!-- ═══ SECTION 2 — Client base growth ════════════════ -->
+  <div class="R-sec pb-avoid" data-section="2" data-title="Рост клиентской базы">
+    <div class="R-sec-hd"><span class="R-sec-num">2</span><span class="R-sec-title">Рост клиентской базы</span></div>
+    <div class="R-sec-body">
+      <div class="R-grid">
+        <div class="R-card" data-key="Новые гости в базе" data-val="{{ report.qr_scans }}"><div class="R-card-lbl">Новые гости в базе</div><div class="R-card-val">{{ report.qr_scans }}</div></div>
+        <div class="R-card" data-key="Подписались в группу" data-val="{{ report.new_community }}"><div class="R-card-lbl">Подписались в группу</div><div class="R-card-val">{{ report.new_community }}</div></div>
+        <div class="R-card" data-key="Подписались на рассылку" data-val="{{ report.new_newsletter }}"><div class="R-card-lbl">Подписались на рассылку</div><div class="R-card-val">{{ report.new_newsletter }}</div></div>
+        <div class="R-card" data-key="Получили первый подарок" data-val="{{ report.new_with_gift }}"><div class="R-card-lbl">Получили подарок</div><div class="R-card-val">{{ report.new_with_gift }}</div></div>
       </div>
-      <div class="rpt-comment">
-        <div class="rpt-comment-label">💬 Комментарий менеджера</div>
-        <textarea class="rpt-comment-textarea" id="comment-2" placeholder="Введите комментарий или нажмите AI..."></textarea>
-        <div class="rpt-comment-actions">
-          <button class="rpt-comment-btn rpt-comment-btn-ai" onclick="generateComment(2)">✨ Сгенерировать AI</button>
-          <span class="rpt-comment-status" id="status-2"></span>
-        </div>
+      <div class="R-cmt">
+        <div class="R-cmt-lbl">💬 Комментарий менеджера</div>
+        <textarea class="R-cmt-ta" id="comment-2" placeholder="Введите комментарий или нажмите AI..."></textarea>
+        <div class="R-cmt-acts"><button class="R-cmt-btn" onclick="genComment(2)">✨ AI</button><span class="R-cmt-status" id="st-2"></span></div>
       </div>
     </div>
   </div>
 
-  <!-- ══════════════════════════════════════════════════════ -->
-  <!-- SECTION 3: Scan index -->
-  <!-- ══════════════════════════════════════════════════════ -->
-  <div class="rpt-section" data-section="3" data-title="Индекс оцифровки гостей">
-    <div class="rpt-section-header">
-      <span class="rpt-section-num">3</span>
-      <span class="rpt-section-title">Индекс оцифровки гостей</span>
-    </div>
-    <div class="rpt-section-body">
-      <div class="rpt-metrics">
-        <div class="rpt-metric" data-key="Гости POS" data-val="{{ report.pos_guests }}">
-          <div class="rpt-metric-label">Гости POS</div>
-          <div class="rpt-metric-value">{{ report.pos_guests|default:"—" }}</div>
-        </div>
-        <div class="rpt-metric" data-key="Сканирования QR" data-val="{{ report.qr_scans }}">
-          <div class="rpt-metric-label">Сканирования QR</div>
-          <div class="rpt-metric-value">{{ report.qr_scans }}</div>
-        </div>
-        <div class="rpt-metric" data-key="Индекс сканирования" data-val="{{ report.scan_index }}%">
-          <div class="rpt-metric-label">Индекс сканирования</div>
-          <div class="rpt-metric-value" style="color: {% if report.scan_index >= 30 %}var(--blue){% elif report.scan_index >= 20 %}var(--green){% elif report.scan_index >= 10 %}var(--orange){% else %}var(--red){% endif %};">{{ report.scan_index }}%</div>
-        </div>
+  <!-- ═══ SECTION 3 — Scan index ═══════════════════════ -->
+  <div class="R-sec pb-avoid" data-section="3" data-title="Индекс оцифровки гостей">
+    <div class="R-sec-hd"><span class="R-sec-num">3</span><span class="R-sec-title">Индекс оцифровки гостей</span></div>
+    <div class="R-sec-body">
+      <div class="R-grid R-grid--3">
+        <div class="R-card" data-key="Гости POS" data-val="{{ report.pos_guests }}"><div class="R-card-lbl">Гости POS</div><div class="R-card-val">{{ report.pos_guests|default:"—" }}</div></div>
+        <div class="R-card" data-key="Сканирования QR" data-val="{{ report.qr_scans }}"><div class="R-card-lbl">Сканирования QR</div><div class="R-card-val">{{ report.qr_scans }}</div></div>
+        <div class="R-card" data-key="Индекс сканирования" data-val="{{ report.scan_index }}%"><div class="R-card-lbl">Индекс сканирования</div><div class="R-card-val" style="color:{% if report.scan_index >= 30 %}var(--inf){% elif report.scan_index >= 20 %}var(--ok){% elif report.scan_index >= 10 %}var(--warn){% else %}var(--err){% endif %};">{{ report.scan_index }}%</div></div>
       </div>
-      <div class="rpt-scale">
-        <span class="rpt-scale-item" style="background:#fef2f2;color:#991b1b;">до 10% — низкий</span>
-        <span class="rpt-scale-item" style="background:#fffbeb;color:#92400e;">10–20% — нормальный</span>
-        <span class="rpt-scale-item" style="background:#f0fdf4;color:#166534;">20–30% — хороший</span>
-        <span class="rpt-scale-item" style="background:#eff6ff;color:#1e40af;">30–40% — отличный</span>
+      <div class="R-scale">
+        <span class="R-scale-item" style="background:#FEF2F2;color:#991B1B;">до 10% — низкий</span>
+        <span class="R-scale-item" style="background:#FFFBEB;color:#92400E;">10–20% — норма</span>
+        <span class="R-scale-item" style="background:#F0FDF4;color:#166534;">20–30% — хороший</span>
+        <span class="R-scale-item" style="background:#EFF6FF;color:#1E40AF;">30–40% — отличный</span>
       </div>
-      <div class="rpt-comment">
-        <div class="rpt-comment-label">💬 Комментарий менеджера</div>
-        <textarea class="rpt-comment-textarea" id="comment-3" placeholder="Введите комментарий или нажмите AI..."></textarea>
-        <div class="rpt-comment-actions">
-          <button class="rpt-comment-btn rpt-comment-btn-ai" onclick="generateComment(3)">✨ Сгенерировать AI</button>
-          <span class="rpt-comment-status" id="status-3"></span>
-        </div>
+      <div class="R-cmt">
+        <div class="R-cmt-lbl">💬 Комментарий менеджера</div>
+        <textarea class="R-cmt-ta" id="comment-3" placeholder="Введите комментарий или нажмите AI..."></textarea>
+        <div class="R-cmt-acts"><button class="R-cmt-btn" onclick="genComment(3)">✨ AI</button><span class="R-cmt-status" id="st-3"></span></div>
       </div>
     </div>
   </div>
 
-  <!-- ══════════════════════════════════════════════════════ -->
-  <!-- SECTION 4: Guest sources -->
-  <!-- ══════════════════════════════════════════════════════ -->
-  <div class="rpt-section" data-section="4" data-title="Источники подключения гостей">
-    <div class="rpt-section-header">
-      <span class="rpt-section-num">4</span>
-      <span class="rpt-section-title">Источники подключения гостей</span>
-    </div>
-    <div class="rpt-section-body">
-      <div class="rpt-metrics">
-        <div class="rpt-metric" data-key="Подключения в кафе" data-val="{{ report.from_cafe }} ({{ report.from_cafe_pct }}%)">
-          <div class="rpt-metric-label">Подключения в кафе</div>
-          <div class="rpt-metric-value">{{ report.from_cafe }} <span style="font-size:16px;color:#94a3b8;">({{ report.from_cafe_pct }}%)</span></div>
-        </div>
-        <div class="rpt-metric" data-key="Подключения через доставку" data-val="{{ report.from_delivery }} ({{ report.from_delivery_pct }}%)">
-          <div class="rpt-metric-label">Подключения через доставку</div>
-          <div class="rpt-metric-value">{{ report.from_delivery }} <span style="font-size:16px;color:#94a3b8;">({{ report.from_delivery_pct }}%)</span></div>
-        </div>
+  <!-- ═══ SECTION 4 — Sources ══════════════════════════ -->
+  <div class="R-sec pb-avoid" data-section="4" data-title="Источники подключения гостей">
+    <div class="R-sec-hd"><span class="R-sec-num">4</span><span class="R-sec-title">Источники подключения гостей</span></div>
+    <div class="R-sec-body">
+      <div class="R-grid R-grid--2">
+        <div class="R-card" data-key="Подключения в кафе" data-val="{{ report.from_cafe }} ({{ report.from_cafe_pct }}%)"><div class="R-card-lbl">Подключения в кафе</div><div class="R-card-val">{{ report.from_cafe }} <span class="R-card-val--sm">({{ report.from_cafe_pct }}%)</span></div></div>
+        <div class="R-card" data-key="Подключения через доставку" data-val="{{ report.from_delivery }} ({{ report.from_delivery_pct }}%)"><div class="R-card-lbl">Через доставку</div><div class="R-card-val">{{ report.from_delivery }} <span class="R-card-val--sm">({{ report.from_delivery_pct }}%)</span></div></div>
       </div>
-      <div class="rpt-chart-row">
-        <div class="rpt-chart-box">
-          <div class="rpt-chart-title">Источники подключений</div>
-          <canvas id="chart-sources" height="240"></canvas>
-        </div>
-        <div class="rpt-chart-box" style="display:flex;align-items:center;justify-content:center;">
-          <div style="text-align:center;">
-            <div style="font-size:56px;font-weight:800;color:var(--navy);">{{ report.from_cafe_pct }}%</div>
-            <div style="font-size:18px;color:#64748b;">подключений в кафе</div>
-          </div>
-        </div>
+      <div class="R-charts">
+        <div class="R-chart"><div class="R-chart-title">Источники подключений</div><canvas id="chart-sources"></canvas></div>
+        <div class="R-chart"><div class="R-bignum"><div><div class="R-bignum-val" style="color:var(--navy);">{{ report.from_cafe_pct }}%</div><div class="R-bignum-lbl">подключений в кафе</div></div></div></div>
       </div>
-      <div class="rpt-comment">
-        <div class="rpt-comment-label">💬 Комментарий менеджера</div>
-        <textarea class="rpt-comment-textarea" id="comment-4" placeholder="Введите комментарий или нажмите AI..."></textarea>
-        <div class="rpt-comment-actions">
-          <button class="rpt-comment-btn rpt-comment-btn-ai" onclick="generateComment(4)">✨ Сгенерировать AI</button>
-          <span class="rpt-comment-status" id="status-4"></span>
-        </div>
+      <div class="R-cmt">
+        <div class="R-cmt-lbl">💬 Комментарий менеджера</div>
+        <textarea class="R-cmt-ta" id="comment-4" placeholder="Введите комментарий или нажмите AI..."></textarea>
+        <div class="R-cmt-acts"><button class="R-cmt-btn" onclick="genComment(4)">✨ AI</button><span class="R-cmt-status" id="st-4"></span></div>
       </div>
     </div>
   </div>
 
-  <!-- ══════════════════════════════════════════════════════ -->
-  <!-- SECTION 5: Engagement -->
-  <!-- ══════════════════════════════════════════════════════ -->
-  <div class="rpt-section" data-section="5" data-title="Вовлечение гостей">
-    <div class="rpt-section-header">
-      <span class="rpt-section-num">5</span>
-      <span class="rpt-section-title">Вовлечение гостей</span>
-    </div>
-    <div class="rpt-section-body">
-      <div class="rpt-metrics">
-        <div class="rpt-metric" data-key="Повторная игра" data-val="{{ report.repeat_players }}">
-          <div class="rpt-metric-label">Повторная игра</div>
-          <div class="rpt-metric-value">{{ report.repeat_players }}</div>
-        </div>
-        <div class="rpt-metric" data-key="Покупки за баллы" data-val="{{ report.coin_purchasers }}">
-          <div class="rpt-metric-label">Покупки за баллы</div>
-          <div class="rpt-metric-value">{{ report.coin_purchasers }}</div>
-        </div>
-        <div class="rpt-metric" data-key="Опубликовали истории" data-val="{{ report.stories_publishers }}">
-          <div class="rpt-metric-label">Опубликовали истории</div>
-          <div class="rpt-metric-value">{{ report.stories_publishers }}</div>
-        </div>
-        <div class="rpt-metric" data-key="Отсканировали QR" data-val="{{ report.qr_scans }}">
-          <div class="rpt-metric-label">Отсканировали QR</div>
-          <div class="rpt-metric-value">{{ report.qr_scans }}</div>
-        </div>
+  <!-- ═══ SECTION 5 — Engagement ═══════════════════════ -->
+  <div class="R-sec pb-avoid" data-section="5" data-title="Вовлечение гостей">
+    <div class="R-sec-hd"><span class="R-sec-num">5</span><span class="R-sec-title">Вовлечение гостей</span></div>
+    <div class="R-sec-body">
+      <div class="R-grid">
+        <div class="R-card" data-key="Повторная игра" data-val="{{ report.repeat_players }}"><div class="R-card-lbl">Повторная игра</div><div class="R-card-val">{{ report.repeat_players }}</div></div>
+        <div class="R-card" data-key="Покупки за баллы" data-val="{{ report.coin_purchasers }}"><div class="R-card-lbl">Покупки за баллы</div><div class="R-card-val">{{ report.coin_purchasers }}</div></div>
+        <div class="R-card" data-key="Опубликовали истории" data-val="{{ report.stories_publishers }}"><div class="R-card-lbl">Истории ВК</div><div class="R-card-val">{{ report.stories_publishers }}</div></div>
+        <div class="R-card" data-key="Отсканировали QR" data-val="{{ report.qr_scans }}"><div class="R-card-lbl">QR-сканы</div><div class="R-card-val">{{ report.qr_scans }}</div></div>
       </div>
-      <div class="rpt-comment">
-        <div class="rpt-comment-label">💬 Комментарий менеджера</div>
-        <textarea class="rpt-comment-textarea" id="comment-5" placeholder="Введите комментарий или нажмите AI..."></textarea>
-        <div class="rpt-comment-actions">
-          <button class="rpt-comment-btn rpt-comment-btn-ai" onclick="generateComment(5)">✨ Сгенерировать AI</button>
-          <span class="rpt-comment-status" id="status-5"></span>
-        </div>
+      <div class="R-cmt">
+        <div class="R-cmt-lbl">💬 Комментарий менеджера</div>
+        <textarea class="R-cmt-ta" id="comment-5" placeholder="Введите комментарий или нажмите AI..."></textarea>
+        <div class="R-cmt-acts"><button class="R-cmt-btn" onclick="genComment(5)">✨ AI</button><span class="R-cmt-status" id="st-5"></span></div>
       </div>
     </div>
   </div>
 
-  <!-- ══════════════════════════════════════════════════════ -->
-  <!-- SECTION 6: Communications -->
-  <!-- ══════════════════════════════════════════════════════ -->
-  <div class="rpt-section" data-section="6" data-title="Коммуникации с гостями">
-    <div class="rpt-section-header">
-      <span class="rpt-section-num">6</span>
-      <span class="rpt-section-title">Коммуникации с гостями</span>
-    </div>
-    <div class="rpt-section-body">
-      <div class="rpt-metrics">
-        <div class="rpt-metric" data-key="Открываемость сообщений" data-val="{{ report.message_open_rate }}%">
-          <div class="rpt-metric-label">Открываемость сообщений</div>
-          <div class="rpt-metric-value">{{ report.message_open_rate }}%</div>
-        </div>
-        <div class="rpt-metric" data-key="Переходы из историй" data-val="{{ report.stories_referrals }}">
-          <div class="rpt-metric-label">Переходы из историй</div>
-          <div class="rpt-metric-value">{{ report.stories_referrals }}</div>
-        </div>
+  <!-- ═══ SECTION 6 — Communications ═══════════════════ -->
+  <div class="R-sec pb-avoid" data-section="6" data-title="Коммуникации с гостями">
+    <div class="R-sec-hd"><span class="R-sec-num">6</span><span class="R-sec-title">Коммуникации с гостями</span></div>
+    <div class="R-sec-body">
+      <div class="R-grid R-grid--2">
+        <div class="R-card" data-key="Открываемость сообщений" data-val="{{ report.message_open_rate }}%"><div class="R-card-lbl">Открываемость сообщений</div><div class="R-card-val">{{ report.message_open_rate }}%</div></div>
+        <div class="R-card" data-key="Переходы из историй" data-val="{{ report.stories_referrals }}"><div class="R-card-lbl">Переходы из историй</div><div class="R-card-val">{{ report.stories_referrals }}</div></div>
       </div>
-      <div style="font-size:16px;color:#64748b;margin-top:12px;">Ориентиры: 30–40% — хороший уровень · 40–60% — высокий уровень</div>
-      <div class="rpt-comment">
-        <div class="rpt-comment-label">💬 Комментарий менеджера</div>
-        <textarea class="rpt-comment-textarea" id="comment-6" placeholder="Введите комментарий или нажмите AI..."></textarea>
-        <div class="rpt-comment-actions">
-          <button class="rpt-comment-btn rpt-comment-btn-ai" onclick="generateComment(6)">✨ Сгенерировать AI</button>
-          <span class="rpt-comment-status" id="status-6"></span>
-        </div>
+      <div style="font-size:13px;color:var(--ts);margin-top:8px;font-weight:600;">Ориентиры: 30–40% — хороший · 40–60% — высокий</div>
+      <div class="R-cmt">
+        <div class="R-cmt-lbl">💬 Комментарий менеджера</div>
+        <textarea class="R-cmt-ta" id="comment-6" placeholder="Введите комментарий или нажмите AI..."></textarea>
+        <div class="R-cmt-acts"><button class="R-cmt-btn" onclick="genComment(6)">✨ AI</button><span class="R-cmt-status" id="st-6"></span></div>
       </div>
     </div>
   </div>
 
-  <!-- ══════════════════════════════════════════════════════ -->
-  <!-- SECTION 7: Reviews -->
-  <!-- ══════════════════════════════════════════════════════ -->
-  <div class="rpt-section" data-section="7" data-title="Отзывы гостей">
-    <div class="rpt-section-header">
-      <span class="rpt-section-num">7</span>
-      <span class="rpt-section-title">Отзывы гостей</span>
-    </div>
-    <div class="rpt-section-body">
-      <div class="rpt-metrics">
-        <div class="rpt-metric" data-key="Позитивные" data-val="{{ report.reviews.positive }}">
-          <div class="rpt-metric-label" style="color:var(--green);">Позитивные</div>
-          <div class="rpt-metric-value" style="color:var(--green);">{{ report.reviews.positive }}</div>
-        </div>
-        <div class="rpt-metric" data-key="Нейтральные" data-val="{{ report.reviews.neutral }}">
-          <div class="rpt-metric-label" style="color:var(--blue);">Нейтральные</div>
-          <div class="rpt-metric-value" style="color:var(--blue);">{{ report.reviews.neutral }}</div>
-        </div>
-        <div class="rpt-metric" data-key="Частично негативные" data-val="{{ report.reviews.partial }}">
-          <div class="rpt-metric-label" style="color:var(--orange);">Частично негативные</div>
-          <div class="rpt-metric-value" style="color:var(--orange);">{{ report.reviews.partial }}</div>
-        </div>
-        <div class="rpt-metric" data-key="Негативные" data-val="{{ report.reviews.negative }}">
-          <div class="rpt-metric-label" style="color:var(--red);">Негативные</div>
-          <div class="rpt-metric-value" style="color:var(--red);">{{ report.reviews.negative }}</div>
-        </div>
+  <!-- ═══ SECTION 7 — Reviews ══════════════════════════ -->
+  <div class="R-sec pb-avoid" data-section="7" data-title="Отзывы гостей">
+    <div class="R-sec-hd"><span class="R-sec-num">7</span><span class="R-sec-title">Отзывы гостей</span></div>
+    <div class="R-sec-body">
+      <div class="R-grid">
+        <div class="R-card" data-key="Позитивные" data-val="{{ report.reviews.positive }}"><div class="R-card-lbl" style="color:var(--ok);">Позитивные</div><div class="R-card-val" style="color:var(--ok);">{{ report.reviews.positive }}</div></div>
+        <div class="R-card" data-key="Нейтральные" data-val="{{ report.reviews.neutral }}"><div class="R-card-lbl" style="color:var(--inf);">Нейтральные</div><div class="R-card-val" style="color:var(--inf);">{{ report.reviews.neutral }}</div></div>
+        <div class="R-card" data-key="Частично негативные" data-val="{{ report.reviews.partial }}"><div class="R-card-lbl" style="color:var(--warn);">Частич. негат.</div><div class="R-card-val" style="color:var(--warn);">{{ report.reviews.partial }}</div></div>
+        <div class="R-card" data-key="Негативные" data-val="{{ report.reviews.negative }}"><div class="R-card-lbl" style="color:var(--err);">Негативные</div><div class="R-card-val" style="color:var(--err);">{{ report.reviews.negative }}</div></div>
       </div>
-      <div class="rpt-chart-row">
-        <div class="rpt-chart-box">
-          <div class="rpt-chart-title">Распределение отзывов</div>
-          <canvas id="chart-reviews" height="240"></canvas>
-        </div>
-        <div class="rpt-chart-box" style="display:flex;align-items:center;justify-content:center;">
-          <div style="text-align:center;">
-            <div style="font-size:56px;font-weight:800;color:var(--green);">{{ report.reviews.positive }}</div>
-            <div style="font-size:18px;color:#64748b;">позитивных из {{ report.reviews.total }}</div>
-          </div>
-        </div>
+      <div class="R-charts">
+        <div class="R-chart"><div class="R-chart-title">Распределение отзывов</div><canvas id="chart-reviews"></canvas></div>
+        <div class="R-chart"><div class="R-bignum"><div><div class="R-bignum-val" style="color:var(--ok);">{{ report.reviews.positive }}</div><div class="R-bignum-lbl">позитивных из {{ report.reviews.total }}</div></div></div></div>
       </div>
-      <div class="rpt-comment">
-        <div class="rpt-comment-label">💬 Комментарий менеджера</div>
-        <textarea class="rpt-comment-textarea" id="comment-7" placeholder="Введите комментарий или нажмите AI..."></textarea>
-        <div class="rpt-comment-actions">
-          <button class="rpt-comment-btn rpt-comment-btn-ai" onclick="generateComment(7)">✨ Сгенерировать AI</button>
-          <span class="rpt-comment-status" id="status-7"></span>
-        </div>
+      <div class="R-cmt">
+        <div class="R-cmt-lbl">💬 Комментарий менеджера</div>
+        <textarea class="R-cmt-ta" id="comment-7" placeholder="Введите комментарий или нажмите AI..."></textarea>
+        <div class="R-cmt-acts"><button class="R-cmt-btn" onclick="genComment(7)">✨ AI</button><span class="R-cmt-status" id="st-7"></span></div>
       </div>
     </div>
   </div>
 
-  <!-- ══════════════════════════════════════════════════════ -->
-  <!-- SECTION 8: RF Matrix -->
-  <!-- ══════════════════════════════════════════════════════ -->
-  <div class="rpt-section" data-section="8" data-title="Структура базы (RF-матрица)">
-    <div class="rpt-section-header">
-      <span class="rpt-section-num">8</span>
-      <span class="rpt-section-title">Структура базы (RF-матрица)</span>
-    </div>
-    <div class="rpt-section-body">
-      <div class="rpt-metrics" id="rf-segment-metrics">
+  <!-- ═══ SECTION 8 — RF Matrix ════════════════════════ -->
+  <div class="R-sec pb-avoid" data-section="8" data-title="Структура базы (RF-матрица)">
+    <div class="R-sec-hd"><span class="R-sec-num">8</span><span class="R-sec-title">Структура базы (RF-матрица)</span></div>
+    <div class="R-sec-body">
+      <div class="R-grid" id="rf-segment-metrics">
         {% for name, count in report.segment_counts.items %}
-        <div class="rpt-metric" data-key="{{ name }}" data-val="{{ count }}">
-          <div class="rpt-metric-label">{{ name }}</div>
-          <div class="rpt-metric-value">{{ count }}</div>
-        </div>
+        <div class="R-card" data-key="{{ name }}" data-val="{{ count }}"><div class="R-card-lbl">{{ name }}</div><div class="R-card-val">{{ count }}</div></div>
         {% endfor %}
       </div>
-      <div class="rpt-chart-row">
-        <div class="rpt-chart-box">
-          <div class="rpt-chart-title">Сегменты гостей</div>
-          <canvas id="chart-rf" height="240"></canvas>
-        </div>
-        <div class="rpt-chart-box">
-          <div class="rpt-chart-title">Сводка RF</div>
-          <canvas id="chart-rf-summary" height="240"></canvas>
-        </div>
+      <div class="R-charts">
+        <div class="R-chart"><div class="R-chart-title">Сегменты гостей</div><canvas id="chart-rf"></canvas></div>
+        <div class="R-chart"><div class="R-chart-title">Сводка RF</div><canvas id="chart-rf-summary"></canvas></div>
       </div>
-      <div class="rpt-comment">
-        <div class="rpt-comment-label">💬 Комментарий менеджера</div>
-        <textarea class="rpt-comment-textarea" id="comment-8" placeholder="Введите комментарий или нажмите AI..."></textarea>
-        <div class="rpt-comment-actions">
-          <button class="rpt-comment-btn rpt-comment-btn-ai" onclick="generateComment(8)">✨ Сгенерировать AI</button>
-          <span class="rpt-comment-status" id="status-8"></span>
-        </div>
+      <div class="R-cmt">
+        <div class="R-cmt-lbl">💬 Комментарий менеджера</div>
+        <textarea class="R-cmt-ta" id="comment-8" placeholder="Введите комментарий или нажмите AI..."></textarea>
+        <div class="R-cmt-acts"><button class="R-cmt-btn" onclick="genComment(8)">✨ AI</button><span class="R-cmt-status" id="st-8"></span></div>
       </div>
     </div>
   </div>
 
-  <!-- ══════════════════════════════════════════════════════ -->
-  <!-- SECTION 9: Migration -->
-  <!-- ══════════════════════════════════════════════════════ -->
-  <div class="rpt-section" data-section="9" data-title="Динамика базы (миграция сегментов)">
-    <div class="rpt-section-header">
-      <span class="rpt-section-num">9</span>
-      <span class="rpt-section-title">Динамика базы (миграция сегментов)</span>
-    </div>
-    <div class="rpt-section-body">
-      <div class="rpt-metrics">
-        <div class="rpt-metric" data-key="Рост лояльности" data-val="{{ report.migration.growth }}">
-          <div class="rpt-metric-label" style="color:var(--green);">📈 Рост лояльности</div>
-          <div class="rpt-metric-value" style="color:var(--green);">+{{ report.migration.growth }}</div>
-        </div>
-        <div class="rpt-metric" data-key="Остывание" data-val="{{ report.migration.cooling }}">
-          <div class="rpt-metric-label" style="color:var(--orange);">🌡 Остывание</div>
-          <div class="rpt-metric-value" style="color:var(--orange);">{{ report.migration.cooling }}</div>
-        </div>
-        <div class="rpt-metric" data-key="Отток" data-val="{{ report.migration.lost_to_r0 }}">
-          <div class="rpt-metric-label" style="color:var(--red);">📉 Отток</div>
-          <div class="rpt-metric-value" style="color:var(--red);">{{ report.migration.lost_to_r0 }}</div>
-        </div>
-        <div class="rpt-metric" data-key="Реактивация" data-val="{{ report.migration.reactivated }}">
-          <div class="rpt-metric-label" style="color:var(--teal);">🔄 Реактивация</div>
-          <div class="rpt-metric-value" style="color:var(--teal);">{{ report.migration.reactivated }}</div>
-        </div>
+  <!-- ═══ SECTION 9 — Migration ════════════════════════ -->
+  <div class="R-sec pb-avoid" data-section="9" data-title="Динамика базы (миграция сегментов)">
+    <div class="R-sec-hd"><span class="R-sec-num">9</span><span class="R-sec-title">Динамика базы (миграция сегментов)</span></div>
+    <div class="R-sec-body">
+      <div class="R-grid">
+        <div class="R-card" data-key="Рост лояльности" data-val="{{ report.migration.growth }}"><div class="R-card-lbl" style="color:var(--ok);">📈 Рост</div><div class="R-card-val" style="color:var(--ok);">+{{ report.migration.growth }}</div></div>
+        <div class="R-card" data-key="Остывание" data-val="{{ report.migration.cooling }}"><div class="R-card-lbl" style="color:var(--warn);">🌡 Остывание</div><div class="R-card-val" style="color:var(--warn);">{{ report.migration.cooling }}</div></div>
+        <div class="R-card" data-key="Отток" data-val="{{ report.migration.lost_to_r0 }}"><div class="R-card-lbl" style="color:var(--err);">📉 Отток</div><div class="R-card-val" style="color:var(--err);">{{ report.migration.lost_to_r0 }}</div></div>
+        <div class="R-card" data-key="Реактивация" data-val="{{ report.migration.reactivated }}"><div class="R-card-lbl" style="color:var(--teal);">🔄 Реактивация</div><div class="R-card-val" style="color:var(--teal);">{{ report.migration.reactivated }}</div></div>
       </div>
-      <div class="rpt-chart-row">
-        <div class="rpt-chart-box">
-          <div class="rpt-chart-title">Миграция сегментов</div>
-          <canvas id="chart-migration" height="240"></canvas>
-        </div>
-        <div class="rpt-chart-box" style="display:flex;align-items:center;justify-content:center;">
-          <div style="text-align:center;">
-            <div style="font-size:56px;font-weight:800;color:var(--green);">+{{ report.migration.growth }}</div>
-            <div style="font-size:18px;color:#64748b;">рост лояльности</div>
-          </div>
-        </div>
+      <div class="R-charts">
+        <div class="R-chart"><div class="R-chart-title">Миграция сегментов</div><canvas id="chart-migration"></canvas></div>
+        <div class="R-chart"><div class="R-bignum"><div><div class="R-bignum-val" style="color:var(--ok);">+{{ report.migration.growth }}</div><div class="R-bignum-lbl">рост лояльности</div></div></div></div>
       </div>
-      <div class="rpt-comment">
-        <div class="rpt-comment-label">💬 Комментарий менеджера</div>
-        <textarea class="rpt-comment-textarea" id="comment-9" placeholder="Введите комментарий или нажмите AI..."></textarea>
-        <div class="rpt-comment-actions">
-          <button class="rpt-comment-btn rpt-comment-btn-ai" onclick="generateComment(9)">✨ Сгенерировать AI</button>
-          <span class="rpt-comment-status" id="status-9"></span>
-        </div>
+      <div class="R-cmt">
+        <div class="R-cmt-lbl">💬 Комментарий менеджера</div>
+        <textarea class="R-cmt-ta" id="comment-9" placeholder="Введите комментарий или нажмите AI..."></textarea>
+        <div class="R-cmt-acts"><button class="R-cmt-btn" onclick="genComment(9)">✨ AI</button><span class="R-cmt-status" id="st-9"></span></div>
       </div>
     </div>
   </div>
 
-  <!-- ══════════════════════════════════════════════════════ -->
-  <!-- SECTION 10: Conclusions -->
-  <!-- ══════════════════════════════════════════════════════ -->
-  <div class="rpt-section" data-section="10" data-title="Итоговые выводы">
-    <div class="rpt-section-header">
-      <span class="rpt-section-num">10</span>
-      <span class="rpt-section-title">Итоговые выводы</span>
-    </div>
-    <div class="rpt-section-body">
-      <div class="rpt-comment" style="border-top:none;padding-top:0;margin-top:0;">
-        <div class="rpt-comment-label">💬 Комментарий менеджера</div>
-        <textarea class="rpt-comment-textarea" id="comment-10" placeholder="Сформулируйте 3 ключевых вывода или нажмите AI..." style="min-height:80px;"></textarea>
-        <div class="rpt-comment-actions">
-          <button class="rpt-comment-btn rpt-comment-btn-ai" onclick="generateComment(10)">✨ Сгенерировать AI</button>
-          <span class="rpt-comment-status" id="status-10"></span>
-        </div>
+  <!-- ═══ SECTION 10 — Conclusions ═════════════════════ -->
+  <div class="R-sec pb-avoid" data-section="10" data-title="Итоговые выводы">
+    <div class="R-sec-hd"><span class="R-sec-num">10</span><span class="R-sec-title">Итоговые выводы</span></div>
+    <div class="R-sec-body">
+      <div class="R-cmt" style="border-top:none;padding-top:0;margin-top:0;">
+        <div class="R-cmt-lbl">💬 Комментарий менеджера</div>
+        <textarea class="R-cmt-ta" id="comment-10" placeholder="Сформулируйте 3 ключевых вывода или нажмите AI..." style="min-height:70px;"></textarea>
+        <div class="R-cmt-acts"><button class="R-cmt-btn" onclick="genComment(10)">✨ AI</button><span class="R-cmt-status" id="st-10"></span></div>
       </div>
     </div>
   </div>
 
-  <!-- ══════════════════════════════════════════════════════ -->
-  <!-- SECTION 11: Recommendations -->
-  <!-- ══════════════════════════════════════════════════════ -->
-  <div class="rpt-section" data-section="11" data-title="Рекомендации">
-    <div class="rpt-section-header">
-      <span class="rpt-section-num">11</span>
-      <span class="rpt-section-title">Рекомендации</span>
-    </div>
-    <div class="rpt-section-body">
-      <div class="rpt-comment" style="border-top:none;padding-top:0;margin-top:0;">
-        <div class="rpt-comment-label">💬 Комментарий менеджера</div>
-        <textarea class="rpt-comment-textarea" id="comment-11" placeholder="Укажите 3 действия для усиления результата или нажмите AI..." style="min-height:80px;"></textarea>
-        <div class="rpt-comment-actions">
-          <button class="rpt-comment-btn rpt-comment-btn-ai" onclick="generateComment(11)">✨ Сгенерировать AI</button>
-          <span class="rpt-comment-status" id="status-11"></span>
-        </div>
+  <!-- ═══ SECTION 11 — Recommendations ═════════════════ -->
+  <div class="R-sec pb-avoid" data-section="11" data-title="Рекомендации">
+    <div class="R-sec-hd"><span class="R-sec-num">11</span><span class="R-sec-title">Рекомендации</span></div>
+    <div class="R-sec-body">
+      <div class="R-cmt" style="border-top:none;padding-top:0;margin-top:0;">
+        <div class="R-cmt-lbl">💬 Комментарий менеджера</div>
+        <textarea class="R-cmt-ta" id="comment-11" placeholder="Укажите 3 действия для усиления результата или нажмите AI..." style="min-height:70px;"></textarea>
+        <div class="R-cmt-acts"><button class="R-cmt-btn" onclick="genComment(11)">✨ AI</button><span class="R-cmt-status" id="st-11"></span></div>
       </div>
     </div>
   </div>
 
-</div>
-
-<!-- PDF generation overlay -->
-<div class="rpt-pdf-overlay" id="pdf-overlay">
-  <div class="rpt-pdf-spinner">
-    <div class="rpt-pdf-spinner-icon">⏳</div>
-    <div class="rpt-pdf-spinner-text">Генерация PDF-отчёта...</div>
+  <!-- Footer -->
+  <div class="R-footer">
+    <div class="R-footer-brand">LevOne Restaurant Group</div>
+    <div>Система лояльности LevelUp · Отчёт сформирован автоматически</div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════ -->
-<!-- SCRIPTS -->
-<!-- ═══════════════════════════════════════════════════════ -->
+<!-- PDF overlay -->
+<div class="R-overlay" id="pdf-overlay">
+  <div class="R-overlay-box">
+    <div class="R-overlay-spin">⚙️</div>
+    <div class="R-overlay-txt">Формируем PDF-отчёт...</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extrascript %}
 <script>
-const CHARTS_DATA = {{ charts_json|safe }};
+/* ═══════════════════════════════════════════════════════
+   DATA
+   ═══════════════════════════════════════════════════════ */
+const D = {{ charts_json|safe }};
 
-function getCookie(name) {
-  const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
-  return v ? v.pop() : '';
-}
+/* ═══════════════════════════════════════════════════════
+   HELPERS
+   ═══════════════════════════════════════════════════════ */
+function ck(n){const m=document.cookie.match('(^|;)\\s*'+n+'\\s*=\\s*([^;]+)');return m?m.pop():'';}
 
-// ── Collect section metrics ──────────────────────────────
-function getSectionMetrics(sectionNum) {
-  const section = document.querySelector(`[data-section="${sectionNum}"]`);
-  if (!section) return {};
-  const metrics = {};
-  section.querySelectorAll('.rpt-metric').forEach(m => {
-    const key = m.getAttribute('data-key');
-    const val = m.getAttribute('data-val');
-    if (key) metrics[key] = val;
+function secMetrics(num){
+  const s=document.querySelector(`[data-section="${num}"]`);
+  if(!s) return {};
+  const m={};
+  s.querySelectorAll('.R-card').forEach(el=>{
+    const k=el.getAttribute('data-key'), v=el.getAttribute('data-val');
+    if(k&&v) m[k]=v;
   });
-  return metrics;
+  return m;
 }
 
-// ── AI comment generation ────────────────────────────────
-function generateComment(num) {
-  const btn = event.target;
-  const statusEl = document.getElementById('status-' + num);
-  const textarea = document.getElementById('comment-' + num);
-  const section = document.querySelector(`[data-section="${num}"]`);
-  const title = section ? section.getAttribute('data-title') : '';
-  const metrics = getSectionMetrics(num);
-
-  btn.disabled = true;
-  btn.textContent = '⏳ Генерация...';
-  statusEl.textContent = 'AI генерирует комментарий...';
-  statusEl.style.color = '#94a3b8';
-
-  fetch('/api/v1/analytics/report/generate-comment/', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-    body: JSON.stringify({
-      section_num: num,
-      section_title: title,
-      metrics_json: JSON.stringify(metrics),
-    }),
-  })
-    .then(r => r.json())
-    .then(data => {
-      if (data.error) {
-        statusEl.textContent = '✗ ' + data.error;
-        statusEl.style.color = '#dc2626';
-      } else {
-        textarea.value = data.text || '';
-        statusEl.textContent = '✓ Готово';
-        statusEl.style.color = '#16a34a';
-      }
-    })
-    .catch(() => { statusEl.textContent = '✗ Ошибка соединения'; statusEl.style.color = '#dc2626'; })
-    .finally(() => { btn.disabled = false; btn.textContent = '✨ Сгенерировать AI'; });
+/* ═══════════════════════════════════════════════════════
+   AI COMMENTS
+   ═══════════════════════════════════════════════════════ */
+function genComment(n){
+  const btn=event.target, s=document.querySelector(`[data-section="${n}"]`);
+  const title=s?s.getAttribute('data-title'):'';
+  const st=document.getElementById('st-'+n), ta=document.getElementById('comment-'+n);
+  btn.disabled=true; btn.textContent='⏳'; st.textContent='';
+  fetch('/api/v1/analytics/report/generate-comment/',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-CSRFToken':ck('csrftoken')},
+    body:JSON.stringify({section_num:n,section_title:title,metrics_json:JSON.stringify(secMetrics(n))}),
+  }).then(r=>r.json()).then(d=>{
+    if(d.error){st.textContent='✗ '+d.error;st.style.color='var(--err)';}
+    else{ta.value=d.text||'';st.textContent='✓';st.style.color='var(--ok)';}
+  }).catch(()=>{st.textContent='✗';st.style.color='var(--err)';})
+  .finally(()=>{btn.disabled=false;btn.textContent='✨ AI';});
 }
 
-function generateAllComments() {
-  const btn = event.target;
-  btn.disabled = true;
-  btn.textContent = '⏳ Генерация всех...';
-  let done = 0;
-  for (let i = 1; i <= 11; i++) {
-    const section = document.querySelector(`[data-section="${i}"]`);
-    const title = section ? section.getAttribute('data-title') : '';
-    const metrics = getSectionMetrics(i);
-    const statusEl = document.getElementById('status-' + i);
-    const textarea = document.getElementById('comment-' + i);
-    statusEl.textContent = '⏳ Ожидание...';
-    statusEl.style.color = '#94a3b8';
-
-    fetch('/api/v1/analytics/report/generate-comment/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-      body: JSON.stringify({ section_num: i, section_title: title, metrics_json: JSON.stringify(metrics) }),
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (data.text) { textarea.value = data.text; statusEl.textContent = '✓'; statusEl.style.color = '#16a34a'; }
-        else { statusEl.textContent = '✗'; statusEl.style.color = '#dc2626'; }
-      })
-      .catch(() => { statusEl.textContent = '✗'; statusEl.style.color = '#dc2626'; })
-      .finally(() => { done++; if (done >= 11) { btn.disabled = false; btn.textContent = '🤖 Сгенерировать все комментарии AI'; } });
+function generateAllComments(){
+  const btn=event.target; btn.disabled=true; btn.textContent='⏳ Генерация...';
+  let done=0;
+  for(let i=1;i<=11;i++){
+    const s=document.querySelector(`[data-section="${i}"]`);
+    const title=s?s.getAttribute('data-title'):'';
+    const st=document.getElementById('st-'+i), ta=document.getElementById('comment-'+i);
+    st.textContent='⏳'; st.style.color='var(--tm)';
+    fetch('/api/v1/analytics/report/generate-comment/',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-CSRFToken':ck('csrftoken')},
+      body:JSON.stringify({section_num:i,section_title:title,metrics_json:JSON.stringify(secMetrics(i))}),
+    }).then(r=>r.json()).then(d=>{
+      if(d.text){ta.value=d.text;st.textContent='✓';st.style.color='var(--ok)';}
+      else{st.textContent='✗';st.style.color='var(--err)';}
+    }).catch(()=>{st.textContent='✗';st.style.color='var(--err)';})
+    .finally(()=>{done++;if(done>=11){btn.disabled=false;btn.textContent='🤖 Сгенерировать все комментарии AI';}});
   }
 }
 
-// ── PDF export ───────────────────────────────────────────
-function downloadPDF() {
+/* ═══════════════════════════════════════════════════════
+   PDF EXPORT — THE KEY FIX
+   1. Switch to pdf mode (700px width)
+   2. Hide interactive elements
+   3. Convert ALL canvases to PNG <img> elements
+   4. Wait for ALL images to fully load (Promise.all)
+   5. Replace textareas with static divs
+   6. ONLY THEN call html2pdf
+   7. Restore everything after
+   ═══════════════════════════════════════════════════════ */
+async function downloadPDF() {
   const overlay = document.getElementById('pdf-overlay');
-  overlay.classList.add('active');
+  overlay.classList.add('on');
 
-  const element = document.getElementById('report-content');
+  const el = document.getElementById('report-content');
 
-  // Hide interactive elements for PDF
-  const actions = element.querySelectorAll('.rpt-actions, .rpt-filters, .rpt-comment-actions');
-  actions.forEach(el => el.style.display = 'none');
+  // 1. PDF mode
+  el.classList.add('pdf');
 
-  // Convert textareas to divs for clean PDF look
-  const textareas = element.querySelectorAll('.rpt-comment-textarea');
-  const savedValues = [];
-  textareas.forEach(ta => {
-    savedValues.push(ta.value);
+  // 2. Hide interactive elements
+  const hideEls = el.querySelectorAll('.R-actions, .R-toolbar, .R-cmt-acts');
+  hideEls.forEach(e => e.style.display = 'none');
+
+  // 3. Convert canvases → images and WAIT for them to load
+  const canvases = el.querySelectorAll('canvas');
+  const canvasData = [];
+
+  const imageLoadPromises = [];
+  canvases.forEach(c => {
+    const dataURL = c.toDataURL('image/png', 1.0);
+    const img = document.createElement('img');
+    img.className = 'pdf-img';
+    img.style.cssText = 'width:100%;height:auto;display:block;';
+
+    const p = new Promise(resolve => {
+      img.onload = resolve;
+      img.onerror = resolve; // don't block on error
+    });
+    imageLoadPromises.push(p);
+    img.src = dataURL;
+
+    c.style.display = 'none';
+    c.parentNode.insertBefore(img, c.nextSibling);
+    canvasData.push({ canvas: c, img });
+  });
+
+  // Wait for all images to be decoded
+  await Promise.all(imageLoadPromises);
+  // Extra safety: wait 200ms for reflow
+  await new Promise(r => setTimeout(r, 200));
+
+  // 4. Replace textareas with static text
+  const tas = el.querySelectorAll('.R-cmt-ta');
+  tas.forEach(ta => {
     const div = document.createElement('div');
-    div.style.cssText = 'font-size:16px;line-height:1.6;color:#1e293b;padding:8px 0;white-space:pre-wrap;min-height:20px;';
+    div.className = 'R-pdf-text _pdf-replacement';
     div.textContent = ta.value || '—';
     ta.style.display = 'none';
     ta.parentNode.insertBefore(div, ta.nextSibling);
-    div.classList.add('rpt-pdf-text-replacement');
   });
 
-  const companyName = '{{ company_name|escapejs }}';
-  const period = '{{ start_display }} — {{ end_display }}';
+  // 5. Generate PDF
+  const company = '{{ company_name|escapejs }}';
+  const period = '{{ start_display }}_{{ end_display }}';
 
-  const opt = {
-    margin:       [10, 10, 10, 10],
-    filename:     'Отчёт_лояльности_' + companyName + '_' + period.replace(/ /g, '') + '.pdf',
-    image:        { type: 'jpeg', quality: 0.98 },
-    html2canvas:  { scale: 2, useCORS: true, logging: false, letterRendering: true },
-    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] },
-  };
+  try {
+    await html2pdf().set({
+      margin:      [6, 8, 6, 8],
+      filename:    'Отчёт_лояльности_' + company + '_' + period.replace(/\./g, '_').replace(/ /g, '') + '.pdf',
+      image:       { type: 'png', quality: 1.0 },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        width: 700,
+        windowWidth: 700,
+      },
+      jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak:   { mode: ['css'] },
+    }).from(el).save();
+  } catch (err) {
+    console.error('PDF generation error:', err);
+    alert('Ошибка при генерации PDF.');
+  }
 
-  html2pdf().set(opt).from(element).save().then(() => {
-    // Restore interactive elements
-    actions.forEach(el => el.style.display = '');
-    element.querySelectorAll('.rpt-pdf-text-replacement').forEach(el => el.remove());
-    textareas.forEach((ta, i) => {
-      ta.style.display = '';
-    });
-    overlay.classList.remove('active');
-  }).catch(() => {
-    actions.forEach(el => el.style.display = '');
-    element.querySelectorAll('.rpt-pdf-text-replacement').forEach(el => el.remove());
-    textareas.forEach(ta => { ta.style.display = ''; });
-    overlay.classList.remove('active');
-    alert('Ошибка при генерации PDF. Попробуйте ещё раз.');
-  });
+  // 6. Restore
+  el.classList.remove('pdf');
+  hideEls.forEach(e => e.style.display = '');
+  canvasData.forEach(({ canvas, img }) => { canvas.style.display = ''; img.remove(); });
+  el.querySelectorAll('._pdf-replacement').forEach(e => e.remove());
+  tas.forEach(ta => ta.style.display = '');
+  overlay.classList.remove('on');
 }
 
-// ── Charts ───────────────────────────────────────────────
-const chartDefaults = {
+/* ═══════════════════════════════════════════════════════
+   CHARTS — compact, readable, proper aspect ratios
+   ═══════════════════════════════════════════════════════ */
+const C = {
+  navy: '#1B2838', gold: '#C9A227', ok: '#38A169', inf: '#3B82F6',
+  warn: '#D69E2E', err: '#E53E3E', teal: '#0D9488', purple: '#7C3AED',
+};
+
+// Shared config: compact legend, good fonts
+const base = {
   responsive: true,
   maintainAspectRatio: true,
   plugins: {
-    legend: { display: true, position: 'bottom', labels: { font: { size: 15 }, padding: 16, usePointStyle: true, pointStyleWidth: 10 } },
+    legend: {
+      display: true, position: 'bottom',
+      labels: {
+        font: { family: "'Nunito',sans-serif", size: 11, weight: '600' },
+        padding: 10, usePointStyle: true, pointStyleWidth: 8, color: '#6B7280',
+        boxWidth: 12,
+      },
+    },
   },
 };
 
-// 1. Engagement bar chart
+const barOpts = (noLegend) => ({
+  ...base,
+  aspectRatio: 1.6,
+  plugins: { ...base.plugins, legend: { display: !noLegend, ...base.plugins.legend } },
+  scales: {
+    y: { beginAtZero: true, grid: { color: '#F3F4F6' }, ticks: { font: { family: "'Nunito'", size: 11 }, color: '#6B7280' } },
+    x: { grid: { display: false }, ticks: { font: { family: "'Nunito'", size: 11 }, color: '#6B7280' } },
+  },
+});
+
+const doughOpts = { ...base, aspectRatio: 1.2, cutout: '55%' };
+
+// 1. Engagement
 new Chart(document.getElementById('chart-engagement'), {
   type: 'bar',
   data: {
     labels: ['QR-сканы', 'Повторные', 'Покупки', 'Истории'],
-    datasets: [{
-      label: 'Гостей',
-      data: [
-        CHARTS_DATA.engagement.qr_scans,
-        CHARTS_DATA.engagement.repeat_players,
-        CHARTS_DATA.engagement.coin_purchasers,
-        CHARTS_DATA.engagement.stories,
-      ],
-      backgroundColor: ['#1d72b8', '#0d9488', '#7c3aed', '#d97706'],
-      borderRadius: 6,
-      barThickness: 36,
-    }],
+    datasets: [{ data: [D.engagement.qr_scans, D.engagement.repeat_players, D.engagement.coin_purchasers, D.engagement.stories], backgroundColor: [C.inf, C.teal, C.purple, C.gold], borderRadius: 5, barThickness: 28 }],
   },
-  options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 14 } } }, x: { grid: { display: false }, ticks: { font: { size: 14 } } } } },
+  options: barOpts(true),
 });
 
-// 2. Growth bar chart
+// 2. Growth
 new Chart(document.getElementById('chart-growth'), {
   type: 'bar',
   data: {
     labels: ['Сообщество', 'Рассылка', 'С подарком'],
-    datasets: [{
-      label: 'Новых',
-      data: [
-        CHARTS_DATA.growth.new_community,
-        CHARTS_DATA.growth.new_newsletter,
-        CHARTS_DATA.growth.new_with_gift,
-      ],
-      backgroundColor: ['#16a34a', '#1d72b8', '#d97706'],
-      borderRadius: 6,
-      barThickness: 36,
-    }],
+    datasets: [{ data: [D.growth.new_community, D.growth.new_newsletter, D.growth.new_with_gift], backgroundColor: [C.ok, C.inf, C.gold], borderRadius: 5, barThickness: 28 }],
   },
-  options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 14 } } }, x: { grid: { display: false }, ticks: { font: { size: 14 } } } } },
+  options: barOpts(true),
 });
 
 // 3. Sources doughnut
 new Chart(document.getElementById('chart-sources'), {
   type: 'doughnut',
-  data: {
-    labels: ['В кафе', 'Доставка'],
-    datasets: [{
-      data: [CHARTS_DATA.sources.cafe, CHARTS_DATA.sources.delivery],
-      backgroundColor: ['#1d72b8', '#d97706'],
-      borderWidth: 0,
-    }],
-  },
-  options: { ...chartDefaults, cutout: '55%' },
+  data: { labels: ['В кафе', 'Доставка'], datasets: [{ data: [D.sources.cafe, D.sources.delivery], backgroundColor: [C.navy, C.gold], borderWidth: 0 }] },
+  options: doughOpts,
 });
 
 // 4. Reviews doughnut
 new Chart(document.getElementById('chart-reviews'), {
   type: 'doughnut',
-  data: {
-    labels: ['Позитив', 'Нейтрал', 'Частич.негат.', 'Негатив'],
-    datasets: [{
-      data: [
-        CHARTS_DATA.reviews_sentiment.positive,
-        CHARTS_DATA.reviews_sentiment.neutral,
-        CHARTS_DATA.reviews_sentiment.partial,
-        CHARTS_DATA.reviews_sentiment.negative,
-      ],
-      backgroundColor: ['#16a34a', '#1d72b8', '#d97706', '#dc2626'],
-      borderWidth: 0,
-    }],
-  },
-  options: { ...chartDefaults, cutout: '55%' },
+  data: { labels: ['Позитив', 'Нейтрал', 'Частич.негат.', 'Негатив'], datasets: [{ data: [D.reviews_sentiment.positive, D.reviews_sentiment.neutral, D.reviews_sentiment.partial, D.reviews_sentiment.negative], backgroundColor: [C.ok, C.inf, C.warn, C.err], borderWidth: 0 }] },
+  options: doughOpts,
 });
 
-// 5. RF segments horizontal bar
-(function() {
-  const segLabels = Object.keys(CHARTS_DATA.rf_segments);
-  const segValues = Object.values(CHARTS_DATA.rf_segments);
-  const colors = ['#16a34a','#1d72b8','#7c3aed','#d97706','#dc2626','#94a3b8','#0d9488','#e11d48','#6366f1','#84cc16','#f97316','#64748b'];
+// 5. RF segments (horizontal bar)
+(function(){
+  const l = Object.keys(D.rf_segments), v = Object.values(D.rf_segments);
+  const cols = [C.ok, C.inf, C.purple, C.gold, C.err, '#94A3B8', C.teal, '#E11D48', '#6366F1', '#84CC16', '#F97316', '#64748B'];
   new Chart(document.getElementById('chart-rf'), {
     type: 'bar',
-    data: {
-      labels: segLabels,
-      datasets: [{
-        label: 'Гостей',
-        data: segValues,
-        backgroundColor: segLabels.map((_, i) => colors[i % colors.length]),
-        borderRadius: 4,
-        barThickness: 24,
-      }],
+    data: { labels: l, datasets: [{ data: v, backgroundColor: l.map((_, i) => cols[i % cols.length]), borderRadius: 3, barThickness: 18 }] },
+    options: {
+      ...base,
+      indexAxis: 'y',
+      aspectRatio: l.length > 8 ? 0.8 : 1.2,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { beginAtZero: true, grid: { color: '#F3F4F6' }, ticks: { font: { family: "'Nunito'", size: 10 }, color: '#6B7280' } },
+        y: { grid: { display: false }, ticks: { font: { family: "'Nunito'", size: 10 }, color: '#6B7280' } },
+      },
     },
-    options: { ...chartDefaults, indexAxis: 'y', plugins: { ...chartDefaults.plugins, legend: { display: false } }, scales: { x: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 14 } } }, y: { grid: { display: false }, ticks: { font: { size: 14 } } } } },
   });
 })();
 
@@ -1025,7 +835,7 @@ new Chart(document.getElementById('chart-reviews'), {
 new Chart(document.getElementById('chart-rf-summary'), {
   type: 'doughnut',
   data: {
-    labels: ['VIP (частые)', 'Под угрозой', 'Потерянные', 'Остальные'],
+    labels: ['VIP', 'Под угрозой', 'Потерянные', 'Остальные'],
     datasets: [{
       data: [
         {{ report.rf_summary.vip_f3|default:"0" }},
@@ -1033,32 +843,20 @@ new Chart(document.getElementById('chart-rf-summary'), {
         {{ report.rf_summary.lost_r0|default:"0" }},
         Math.max(0, {{ report.rf_summary.total|default:"0" }} - {{ report.rf_summary.vip_f3|default:"0" }} - {{ report.rf_summary.at_risk|default:"0" }} - {{ report.rf_summary.lost_r0|default:"0" }}),
       ],
-      backgroundColor: ['#7c3aed', '#d97706', '#dc2626', '#e2e8f0'],
-      borderWidth: 0,
+      backgroundColor: [C.purple, C.warn, C.err, '#E5E7EB'], borderWidth: 0,
     }],
   },
-  options: { ...chartDefaults, cutout: '55%' },
+  options: doughOpts,
 });
 
-// 7. Migration bar chart
+// 7. Migration
 new Chart(document.getElementById('chart-migration'), {
   type: 'bar',
   data: {
     labels: ['Рост', 'Остывание', 'Отток', 'Реактивация'],
-    datasets: [{
-      label: 'Гостей',
-      data: [
-        CHARTS_DATA.migration.growth,
-        CHARTS_DATA.migration.cooling,
-        CHARTS_DATA.migration.lost_to_r0,
-        CHARTS_DATA.migration.reactivated,
-      ],
-      backgroundColor: ['#16a34a', '#d97706', '#dc2626', '#0d9488'],
-      borderRadius: 6,
-      barThickness: 36,
-    }],
+    datasets: [{ data: [D.migration.growth, D.migration.cooling, D.migration.lost_to_r0, D.migration.reactivated], backgroundColor: [C.ok, C.warn, C.err, C.teal], borderRadius: 5, barThickness: 28 }],
   },
-  options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 14 } } }, x: { grid: { display: false }, ticks: { font: { size: 14 } } } } },
+  options: barOpts(true),
 });
 </script>
 {% endblock %}
