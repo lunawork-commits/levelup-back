@@ -129,13 +129,14 @@
 
 /* ── Metric grid ────────────────────────────────────── */
 .R-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 14px;
 }
-.R-grid--3 { grid-template-columns: repeat(3, 1fr); }
-.R-grid--2 { grid-template-columns: repeat(2, 1fr); }
+.R-grid .R-card    { flex: 1 1 140px; min-width: 0; }
+.R-grid--3 .R-card { flex: 1 1 180px; min-width: 0; }
+.R-grid--2 .R-card { flex: 1 1 240px; min-width: 0; }
 .R-card {
   background: var(--cream); border-radius: 8px;
   padding: 12px 14px; border: 1px solid var(--cream-border);
@@ -257,8 +258,11 @@
 .R.pdf .R-sec-num { width: 28px; height: 28px; font-size: 14px; border-radius: 6px; }
 .R.pdf .R-sec-title { font-size: 20px; }
 .R.pdf .R-sec-body { padding: 16px 20px; }
-.R.pdf .R-grid { gap: 8px; margin-bottom: 12px; }
-.R.pdf .R-card { padding: 12px 14px; border-radius: 7px; }
+.R.pdf .R-grid { gap: 6px; margin-bottom: 10px; }
+.R.pdf .R-grid .R-card    { flex: 1 1 120px; }
+.R.pdf .R-grid--3 .R-card { flex: 1 1 160px; }
+.R.pdf .R-grid--2 .R-card { flex: 1 1 200px; }
+.R.pdf .R-card { padding: 10px 12px; border-radius: 7px; }
 .R.pdf .R-card-lbl { font-size: 13px; letter-spacing: .3px; }
 .R.pdf .R-card-val { font-size: 26px; }
 .R.pdf .R-card-val--sm { font-size: 14px; }
