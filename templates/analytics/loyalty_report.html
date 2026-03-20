@@ -74,7 +74,7 @@
   pointer-events: none;
 }
 .R-hd-inner { position: relative; z-index: 1; display: flex; align-items: center; gap: 20px; }
-.R-logo { width: 56px; height: 56px; object-fit: contain; filter: brightness(0) invert(1); opacity: .85; flex-shrink: 0; }
+.R-logo { width: 56px; height: 56px; object-fit: contain; flex-shrink: 0; }
 .R-hd-text { flex: 1; }
 .R-hd-title { font-family: var(--fd); font-size: 30px; font-weight: 700; letter-spacing: -.4px; margin-bottom: 4px; }
 .R-hd-bar { width: 40px; height: 3px; background: var(--gold); border-radius: 2px; margin: 6px 0; }
@@ -115,7 +115,7 @@
   display: flex; align-items: center; gap: 12px;
 }
 .R-sec-num {
-  background: var(--gold); color: var(--navy);
+  background: var(--gold); color: white;
   font-size: 13px; font-weight: 800;
   width: 28px; height: 28px; border-radius: 7px;
   display: flex; align-items: center; justify-content: center;
@@ -141,18 +141,18 @@
   padding: 12px 14px; border: 1px solid var(--cream-border);
 }
 .R-card-lbl {
-  font-size: 11px; color: var(--ts); font-weight: 700;
+  font-size: 13px; color: var(--ts); font-weight: 700;
   text-transform: uppercase; letter-spacing: .4px; margin-bottom: 2px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .R-card-val {
-  font-size: 26px; font-weight: 800; color: var(--navy); line-height: 1.15;
+  font-size: 30px; font-weight: 800; color: var(--navy); line-height: 1.15;
 }
-.R-card-val--sm { font-size: 14px; color: var(--tm); font-weight: 600; }
+.R-card-val--sm { font-size: 16px; color: var(--tm); font-weight: 600; }
 
 /* ── Scale badges ───────────────────────────────────── */
 .R-scale { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 10px; }
-.R-scale-item { font-size: 11px; padding: 4px 10px; border-radius: 5px; font-weight: 700; }
+.R-scale-item { font-size: 13px; padding: 4px 10px; border-radius: 5px; font-weight: 700; }
 
 /* ── Chart containers ───────────────────────────────── */
 .R-charts {
@@ -167,7 +167,7 @@
   padding: 14px; border: 1px solid var(--cream-border);
 }
 .R-chart-title {
-  font-size: 11px; font-weight: 800; color: var(--ts);
+  font-size: 13px; font-weight: 800; color: var(--ts);
   text-transform: uppercase; letter-spacing: .6px; margin-bottom: 8px;
 }
 .R-chart canvas {
@@ -184,7 +184,7 @@
   height: 100%; text-align: center; min-height: 140px;
 }
 .R-bignum-val { font-size: 44px; font-weight: 800; line-height: 1; }
-.R-bignum-lbl { font-size: 14px; color: var(--ts); font-weight: 600; margin-top: 4px; }
+.R-bignum-lbl { font-size: 16px; color: var(--ts); font-weight: 600; margin-top: 4px; }
 
 /* ── Comment block ──────────────────────────────────── */
 .R-cmt {
@@ -751,7 +751,7 @@ const base = {
     legend: {
       display: true, position: 'bottom',
       labels: {
-        font: { family: "'Nunito',sans-serif", size: 11, weight: '600' },
+        font: { family: "'Nunito',sans-serif", size: 13, weight: '600' },
         padding: 10, usePointStyle: true, pointStyleWidth: 8, color: '#6B7280',
         boxWidth: 12,
       },
@@ -762,10 +762,10 @@ const base = {
 const barOpts = (noLegend) => ({
   ...base,
   aspectRatio: 1.6,
-  plugins: { ...base.plugins, legend: { display: !noLegend, ...base.plugins.legend } },
+  plugins: { ...base.plugins, legend: { ...base.plugins.legend, display: !noLegend } },
   scales: {
-    y: { beginAtZero: true, grid: { color: '#F3F4F6' }, ticks: { font: { family: "'Nunito'", size: 11 }, color: '#6B7280' } },
-    x: { grid: { display: false }, ticks: { font: { family: "'Nunito'", size: 11 }, color: '#6B7280' } },
+    y: { beginAtZero: true, grid: { color: '#F3F4F6' }, ticks: { font: { family: "'Nunito'", size: 13 }, color: '#6B7280' } },
+    x: { grid: { display: false }, ticks: { font: { family: "'Nunito'", size: 13 }, color: '#6B7280' } },
   },
 });
 
@@ -794,7 +794,7 @@ new Chart(document.getElementById('chart-growth'), {
 // 3. Sources doughnut
 new Chart(document.getElementById('chart-sources'), {
   type: 'doughnut',
-  data: { labels: ['В кафе', 'Доставка'], datasets: [{ data: [D.sources.cafe, D.sources.delivery], backgroundColor: [C.navy, C.gold], borderWidth: 0 }] },
+  data: { labels: ['В кафе', 'Доставка'], datasets: [{ data: [D.sources.cafe, D.sources.delivery], backgroundColor: [C.inf, '#D4A017'], borderWidth: 0 }] },
   options: doughOpts,
 });
 
