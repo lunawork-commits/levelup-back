@@ -740,13 +740,19 @@ async function downloadPDF() {
         logging: false,
         backgroundColor: '#ffffff',
         onclone: (clonedDoc) => {
-          const clonedEl = clonedDoc.getElementById('report-content');
-          if (!clonedEl) return;
-          clonedEl.parentNode.removeChild(clonedEl);
-          const body = clonedDoc.body;
-          body.innerHTML = '';
-          body.style.cssText = 'margin:0;padding:0;background:#fff;';
-          body.appendChild(clonedEl);
+          // Hide sidebar
+          const sb = clonedDoc.getElementById('nav-sidebar');
+          if (sb) sb.style.display = 'none';
+          const hd = clonedDoc.getElementById('header');
+          if (hd) hd.style.display = 'none';
+          // Walk up from report and reset all ancestor layout offsets
+          const rpt = clonedDoc.getElementById('report-content');
+          if (!rpt) return;
+          let n = rpt.parentElement;
+          while (n && n !== clonedDoc.documentElement) {
+            n.style.cssText = 'margin:0!important;padding:0!important;float:none!important;width:100%!important;max-width:none!important;overflow:visible!important;';
+            n = n.parentElement;
+          }
         },
       },
       jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
