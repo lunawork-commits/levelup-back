@@ -648,14 +648,8 @@ async function downloadPDF() {
   overlay.classList.add('on');
 
   const el = document.getElementById('report-content');
-
-  // 0. Hide Django admin sidebar to avoid left-offset clipping
-  const sidebar = document.getElementById('nav-sidebar');
-  const contentDiv = document.getElementById('content');
-  const prevSidebar = sidebar ? sidebar.style.display : null;
-  const prevMargin = contentDiv ? contentDiv.style.marginLeft : null;
-  if (sidebar) sidebar.style.display = 'none';
-  if (contentDiv) contentDiv.style.marginLeft = '0';
+  const elParent = el.parentNode;
+  const elNext = el.nextSibling;
 
   // 1. PDF mode
   el.classList.add('pdf');
@@ -677,7 +671,7 @@ async function downloadPDF() {
 
     const p = new Promise(resolve => {
       img.onload = resolve;
-      img.onerror = resolve; // don't block on error
+      img.onerror = resolve;
     });
     imageLoadPromises.push(p);
     img.src = dataURL;
@@ -687,10 +681,7 @@ async function downloadPDF() {
     canvasData.push({ canvas: c, img });
   });
 
-  // Wait for all images to be decoded
   await Promise.all(imageLoadPromises);
-  // Extra safety: wait 200ms for reflow
-  await new Promise(r => setTimeout(r, 200));
 
   // 4. Replace textareas with static text
   const tas = el.querySelectorAll('.R-cmt-ta');
@@ -702,7 +693,12 @@ async function downloadPDF() {
     ta.parentNode.insertBefore(div, ta.nextSibling);
   });
 
-  // 5. Generate PDF
+  // 5. Move element to <body> at position 0,0 to avoid Django admin layout offsets
+  el.style.cssText = 'position:absolute;top:0;left:0;z-index:-9999;';
+  document.body.appendChild(el);
+  await new Promise(r => setTimeout(r, 150));
+
+  // 6. Generate PDF
   const company = '{{ company_name|escapejs }}';
   const period = '{{ start_display }}_{{ end_display }}';
 
@@ -717,7 +713,6 @@ async function downloadPDF() {
         allowTaint: true,
         logging: false,
         backgroundColor: '#ffffff',
-        windowWidth: el.scrollWidth,
       },
       jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
       pagebreak:   { mode: ['css'] },
@@ -727,14 +722,14 @@ async function downloadPDF() {
     alert('Ошибка при генерации PDF.');
   }
 
-  // 6. Restore
+  // 7. Restore element to original position
+  el.style.cssText = '';
+  elParent.insertBefore(el, elNext);
   el.classList.remove('pdf');
   hideEls.forEach(e => e.style.display = '');
   canvasData.forEach(({ canvas, img }) => { canvas.style.display = ''; img.remove(); });
   el.querySelectorAll('._pdf-replacement').forEach(e => e.remove());
   tas.forEach(ta => ta.style.display = '');
-  if (sidebar) sidebar.style.display = prevSidebar;
-  if (contentDiv) contentDiv.style.marginLeft = prevMargin;
   overlay.classList.remove('on');
 }
 
