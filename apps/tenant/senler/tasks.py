@@ -137,7 +137,7 @@ def send_birthday_broadcasts_task() -> dict:
                         else:
                             attachment = None
 
-                        ok, err = send_vk_message(
+                        ok, err, _ = send_vk_message(
                             senler_cfg, vk_id, template.message_text, attachment
                         )
                         if ok:
@@ -298,7 +298,7 @@ def send_after_game_broadcast_task(process_evening: bool = False) -> dict:
                     else:
                         attachment = None
 
-                    ok, err = send_vk_message(
+                    ok, err, _ = send_vk_message(
                         senler_cfg, vk_id, template.message_text, attachment
                     )
                     if ok:
@@ -333,3 +333,122 @@ def send_after_game_broadcast_task(process_evening: bool = False) -> dict:
             )
 
     return {'sent': total_sent}
+
+
+# ── Read-status polling ──────────────────────────────────────────────────────
+
+@shared_task(name='apps.tenant.senler.tasks.check_read_status_task')
+def check_read_status_task() -> dict:
+    """
+    Hourly task: polls VK API to check which sent messages have been read.
+
+    For each tenant with active SenlerConfig, checks BroadcastRecipient records
+    that were sent in the last 7 days and haven't been marked as read yet.
+
+    Uses VK API `messages.getConversationsById` to compare `in_read` (ID of the
+    last message read by the user) with the stored `vk_message_id`. If
+    `in_read >= vk_message_id`, the message was read.
+
+    Schedule: every hour via Celery Beat.
+    """
+    from collections import defaultdict
+
+    from django_tenants.utils import get_tenant_model, schema_context
+
+    from apps.tenant.senler.models import (
+        BroadcastRecipient, RecipientStatus, SenlerConfig,
+    )
+    from apps.tenant.senler.services import _vk_call
+
+    TenantModel = get_tenant_model()
+    tenants = TenantModel.objects.exclude(schema_name='public')
+
+    total_marked = 0
+    cutoff = timezone.now() - timedelta(days=7)
+
+    for tenant in tenants:
+        try:
+            with schema_context(tenant.schema_name):
+                # Find all sent-but-unread recipients with a vk_message_id
+                unread = list(
+                    BroadcastRecipient.objects.filter(
+                        status=RecipientStatus.SENT,
+                        vk_message_id__isnull=False,
+                        read_at__isnull=True,
+                        sent_at__gte=cutoff,
+                    ).select_related(
+                        'send__broadcast__branch__senler_config',
+                    )
+                )
+
+                if not unread:
+                    continue
+
+                # Group by SenlerConfig to batch VK API calls per community
+                by_config: dict[int, list[BroadcastRecipient]] = defaultdict(list)
+                for r in unread:
+                    try:
+                        cfg = r.send.broadcast.branch.senler_config
+                        if cfg.is_active:
+                            by_config[cfg.pk].append(r)
+                    except (SenlerConfig.DoesNotExist, AttributeError):
+                        continue
+
+                for cfg_pk, recipients in by_config.items():
+                    try:
+                        cfg = SenlerConfig.objects.get(pk=cfg_pk)
+                    except SenlerConfig.DoesNotExist:
+                        continue
+
+                    # VK API allows up to 100 peer_ids per call
+                    for i in range(0, len(recipients), 100):
+                        batch = recipients[i:i + 100]
+                        peer_ids = ','.join(str(r.vk_id) for r in batch)
+
+                        try:
+                            data = _vk_call('messages.getConversationsById', {
+                                'peer_ids': peer_ids,
+                                'access_token': cfg.vk_community_token,
+                                'v': '5.131',
+                            })
+                            if 'error' in data:
+                                logger.warning(
+                                    'VK getConversationsById error tenant=%s cfg=%s: %s',
+                                    tenant.schema_name, cfg_pk,
+                                    data['error'].get('error_msg', ''),
+                                )
+                                continue
+
+                            # Build map: peer_id → in_read (last read msg id by user)
+                            items = data.get('response', {}).get('items', [])
+                            read_map: dict[int, int] = {}
+                            for conv in items:
+                                peer_id = conv.get('peer', {}).get('id')
+                                in_read = conv.get('in_read', 0)
+                                if peer_id:
+                                    read_map[peer_id] = in_read
+
+                            now = timezone.now()
+                            for r in batch:
+                                last_read = read_map.get(r.vk_id, 0)
+                                if r.vk_message_id and last_read >= r.vk_message_id:
+                                    r.read_at = now
+                                    r.save(update_fields=['read_at'])
+                                    total_marked += 1
+
+                        except Exception as exc:
+                            logger.warning(
+                                'check_read_status batch error tenant=%s: %s',
+                                tenant.schema_name, exc,
+                            )
+                            continue
+
+                        time.sleep(0.5)  # VK rate limit
+
+        except Exception as exc:
+            logger.exception(
+                'check_read_status_task failed tenant=%s: %s',
+                tenant.schema_name, exc,
+            )
+
+    return {'marked_read': total_marked}

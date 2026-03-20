@@ -139,11 +139,11 @@ def send_vk_message(
     vk_user_id: int,
     message: str,
     attachment: str | None = None,
-) -> tuple[bool, str]:
+) -> tuple[bool, str, int | None]:
     """
     Sends a message from the VK community to a user via messages.send.
 
-    Returns (success: bool, error: str).
+    Returns (success: bool, error: str, vk_message_id: int | None).
     Requires the user to have started a dialog with the community or
     subscribed to community messages.
 
@@ -152,7 +152,7 @@ def send_vk_message(
     try:
         import requests
     except ImportError:
-        return False, 'requests library not installed'
+        return False, 'requests library not installed', None
 
     payload: dict = {
         'user_id':      vk_user_id,
@@ -172,10 +172,12 @@ def send_vk_message(
         )
         data = resp.json()
         if 'error' in data:
-            return False, data['error'].get('error_msg', 'VK API error')
-        return True, ''
+            return False, data['error'].get('error_msg', 'VK API error'), None
+        # VK returns message_id as the response value
+        vk_message_id = data.get('response')
+        return True, '', vk_message_id
     except Exception as exc:
-        return False, str(exc)
+        return False, str(exc), None
 
 
 # ── Broadcast runner ──────────────────────────────────────────────────────────
@@ -263,7 +265,7 @@ def run_broadcast(send: BroadcastSend) -> None:
             skipped += 1
             continue
 
-        ok, error_msg = send_vk_message(
+        ok, error_msg, vk_msg_id = send_vk_message(
             config,
             recipient.vk_id,
             send.broadcast.message_text,
@@ -273,7 +275,8 @@ def run_broadcast(send: BroadcastSend) -> None:
         if ok:
             recipient.status  = RecipientStatus.SENT
             recipient.sent_at = timezone.now()
-            recipient.save(update_fields=['status', 'sent_at'])
+            recipient.vk_message_id = vk_msg_id
+            recipient.save(update_fields=['status', 'sent_at', 'vk_message_id'])
             sent += 1
         else:
             recipient.status = RecipientStatus.FAILED

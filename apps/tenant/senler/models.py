@@ -313,6 +313,18 @@ class BroadcastRecipient(models.Model):
     sent_at = models.DateTimeField(null=True, blank=True, verbose_name='Отправлено')
     error   = models.CharField(max_length=512, blank=True, verbose_name='Ошибка')
 
+    # ── Read tracking ────────────────────────────────────────────────────────
+    vk_message_id = models.PositiveBigIntegerField(
+        null=True, blank=True,
+        verbose_name='VK message ID',
+        help_text='ID сообщения из ответа messages.send — для отслеживания прочтений.',
+    )
+    read_at = models.DateTimeField(
+        null=True, blank=True,
+        verbose_name='Прочитано',
+        help_text='Когда сообщение было прочитано (из VK API).',
+    )
+
     def __str__(self):
         return f'vk{self.vk_id} — {self.get_status_display()}'
 

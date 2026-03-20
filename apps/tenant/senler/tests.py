@@ -98,7 +98,7 @@ class TestVkCall(TestCase):
 
 
 class TestSendVkMessage(TestCase):
-    """send_vk_message returns (True, '') on success or (False, error) on failure."""
+    """send_vk_message returns (True, '', msg_id) on success or (False, error, None) on failure."""
 
     def _cfg(self):
         c = MagicMock()
@@ -112,10 +112,11 @@ class TestSendVkMessage(TestCase):
         mock_resp.json.return_value = {'response': 12345}
 
         with patch('requests.post', return_value=mock_resp):
-            ok, err = send_vk_message(self._cfg(), 99999, 'Hello')
+            ok, err, _msg_id = send_vk_message(self._cfg(), 99999, 'Hello')
 
         self.assertTrue(ok)
         self.assertEqual(err, '')
+        self.assertEqual(_msg_id, 12345)
 
     def test_vk_api_error_returns_false(self):
         from apps.tenant.senler.services import send_vk_message
@@ -126,7 +127,7 @@ class TestSendVkMessage(TestCase):
         }
 
         with patch('requests.post', return_value=mock_resp):
-            ok, err = send_vk_message(self._cfg(), 99999, 'Hello')
+            ok, err, _msg_id = send_vk_message(self._cfg(), 99999, 'Hello')
 
         self.assertFalse(ok)
         self.assertEqual(err, 'Permission denied')
@@ -135,7 +136,7 @@ class TestSendVkMessage(TestCase):
         from apps.tenant.senler.services import send_vk_message
 
         with patch('requests.post', side_effect=ConnectionError('timeout')):
-            ok, err = send_vk_message(self._cfg(), 99999, 'Hello')
+            ok, err, _msg_id = send_vk_message(self._cfg(), 99999, 'Hello')
 
         self.assertFalse(ok)
         self.assertIn('timeout', err)
@@ -250,7 +251,7 @@ class SendBirthdayBroadcastsTaskTest(TestCase):
     _TIME   = 'apps.tenant.senler.tasks.time'
 
     def _run(self, tenants, tpl_list, candidates_items,
-             already_sent_ids=None, send_result=(True, ''),
+             already_sent_ids=None, send_result=(True, '', 12345),
              upload_result=('photo1_2', '')):
         """
         Runs send_birthday_broadcasts_task with full mocking.
@@ -375,7 +376,7 @@ class SendBirthdayBroadcastsTaskTest(TestCase):
              patch(self._CB) as MockCB, \
              patch(self._LOG) as MockLog, \
              patch(self._BS) as MockBS, \
-             patch(self._SEND, return_value=(False, 'VK error')), \
+             patch(self._SEND, return_value=(False, 'VK error', None)), \
              patch(self._TIME):
 
             mock_gtm.return_value.objects.exclude.return_value = [_tenant()]
@@ -478,7 +479,7 @@ class SendBirthdayBroadcastsTaskTest(TestCase):
              patch(self._CB) as MockCB, \
              patch(self._LOG) as MockLog, \
              patch(self._BS), \
-             patch(self._SEND, return_value=(True, '')) as mock_send, \
+             patch(self._SEND, return_value=(True, '', 12345)) as mock_send, \
              patch(self._TIME):
 
             mock_gtm.return_value.objects.exclude.return_value = [_tenant()]
@@ -519,7 +520,7 @@ class SendAfterGameBroadcastTaskTest(TestCase):
         return m
 
     def _run_normal(self, tenants, attempts_items,
-                    already_sent_ids=None, send_result=(True, ''),
+                    already_sent_ids=None, send_result=(True, '', 12345),
                     upload_result=('photo_x', ''), hour=14,
                     template_image=None):
         """Runs after-game task in normal (non-evening) mode with full mocking."""
@@ -730,7 +731,7 @@ class SendAfterGameBroadcastTaskTest(TestCase):
         _, _, _, _, _, mock_time = self._run_normal(
             tenants=[_tenant()],
             attempts_items=[attempt],
-            send_result=(False, 'error'),
+            send_result=(False, 'error', None),
         )
 
         mock_time.sleep.assert_called_once_with(0.05)

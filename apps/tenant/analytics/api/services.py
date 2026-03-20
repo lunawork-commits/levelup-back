@@ -247,11 +247,29 @@ def get_message_open_rate(
 ) -> float:
     """
     % of sent VK messages that were read in the period.
-    TODO: BroadcastRecipient needs a 'read_at' field and a Celery task
-          that polls VK messages.getLongPollServer / messages.getHistory
-          to update read status. Returns 0.0 until implemented.
+
+    Reads from BroadcastRecipient.read_at — populated by the hourly
+    Celery task `check_read_status_task` which polls VK API
+    `messages.getConversationsById` to detect read receipts.
+
+    Returns 0.0 if no messages were sent in the period.
     """
-    return 0.0
+    from apps.tenant.senler.models import BroadcastRecipient, RecipientStatus
+
+    qs = BroadcastRecipient.objects.filter(
+        status=RecipientStatus.SENT,
+        sent_at__date__gte=start_date,
+        sent_at__date__lte=end_date,
+    )
+    if branch_ids:
+        qs = qs.filter(send__broadcast__branch__in=branch_ids)
+
+    total_sent = qs.count()
+    if total_sent == 0:
+        return 0.0
+
+    total_read = qs.filter(read_at__isnull=False).count()
+    return round(total_read / total_sent * 100, 1)
 
 
 # ── Metric 11 & 12: VK stories (not yet implemented) ─────────────────────────
