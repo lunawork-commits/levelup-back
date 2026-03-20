@@ -740,12 +740,12 @@ async function downloadPDF() {
         logging: false,
         backgroundColor: '#ffffff',
         onclone: (clonedDoc, clonedEl) => {
-          // Put only the report in a clean body — eliminates all Django admin layout offsets
-          const copy = clonedEl.cloneNode(true);
+          // Remove clonedEl BEFORE clearing body so it stays alive
+          clonedEl.parentNode && clonedEl.parentNode.removeChild(clonedEl);
           const body = clonedDoc.body;
           body.innerHTML = '';
           body.style.cssText = 'margin:0;padding:0;background:#fff;';
-          body.appendChild(copy);
+          body.appendChild(clonedEl);
         },
       },
       jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
