@@ -13,6 +13,7 @@
 
 {% block extrastyle %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>
 
 <style>
 :root {
@@ -31,51 +32,51 @@
 .rpt-wrap {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: #1e293b;
-  max-width: 1100px;
+  max-width: 1200px;
   background: #f0f2f5;
   min-height: 100vh;
-  padding: 18px 20px 60px;
+  padding: 24px 28px 60px;
 }
 
 /* ── Header ──────────────────────────────────────────── */
 .rpt-header {
   background: linear-gradient(135deg, var(--navy) 0%, var(--navy2) 100%);
   color: #fff;
-  padding: 22px 28px;
-  border-radius: 12px;
-  margin-bottom: 16px;
+  padding: 32px 36px;
+  border-radius: 16px;
+  margin-bottom: 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 16px;
 }
-.rpt-header-left { display: flex; flex-direction: column; gap: 4px; }
-.rpt-header-title { font-size: 20px; font-weight: 700; letter-spacing: -.3px; }
-.rpt-header-meta { font-size: 12px; opacity: .6; }
-.rpt-header-right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.rpt-header-left { display: flex; flex-direction: column; gap: 6px; }
+.rpt-header-title { font-size: 28px; font-weight: 700; letter-spacing: -.3px; }
+.rpt-header-meta { font-size: 16px; opacity: .7; }
+.rpt-header-right { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 
 /* ── Filter bar ──────────────────────────────────────── */
 .rpt-filters {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
-.rpt-filter-label { font-size: 12px; color: #64748b; font-weight: 600; }
+.rpt-filter-label { font-size: 15px; color: #64748b; font-weight: 600; }
 
 /* ── Action buttons ──────────────────────────────────── */
 .rpt-actions {
   display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
+  gap: 12px;
+  margin-bottom: 24px;
   flex-wrap: wrap;
 }
 .rpt-btn {
-  padding: 9px 20px;
-  border-radius: 8px;
-  font-size: 13px;
+  padding: 12px 28px;
+  border-radius: 10px;
+  font-size: 16px;
   font-weight: 700;
   cursor: pointer;
   border: none;
@@ -92,58 +93,59 @@
 /* ── Section card ────────────────────────────────────── */
 .rpt-section {
   background: #fff;
-  border-radius: 12px;
-  border: 1px solid #e8edf3;
-  box-shadow: 0 2px 8px rgba(0,0,0,.04);
-  margin-bottom: 14px;
-  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 16px rgba(0,0,0,.05);
+  margin-bottom: 20px;
+  overflow: visible;
 }
 .rpt-section-header {
-  padding: 16px 22px;
-  border-bottom: 1px solid #f0f0f0;
+  padding: 20px 28px;
+  border-bottom: 2px solid #f0f2f5;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
 }
 .rpt-section-num {
   background: var(--blue);
   color: #fff;
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 700;
-  padding: 2px 9px;
-  border-radius: 6px;
-  min-width: 22px;
+  padding: 4px 12px;
+  border-radius: 8px;
+  min-width: 28px;
   text-align: center;
 }
-.rpt-section-title { font-size: 17px; font-weight: 700; color: #1e293b; }
-.rpt-section-body { padding: 18px 22px; }
+.rpt-section-title { font-size: 22px; font-weight: 700; color: #1e293b; }
+.rpt-section-body { padding: 24px 28px; }
 
 /* ── Metric grid ─────────────────────────────────────── */
 .rpt-metrics {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 10px;
-  margin-bottom: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
 }
 .rpt-metric {
   background: #f8fafc;
-  border-radius: 8px;
-  padding: 12px 14px;
+  border-radius: 12px;
+  padding: 18px 20px;
+  border: 1px solid #e2e8f0;
 }
-.rpt-metric-label { font-size: 13px; color: #64748b; margin-bottom: 4px; font-weight: 500; }
-.rpt-metric-value { font-size: 26px; font-weight: 800; color: #1e293b; line-height: 1; }
+.rpt-metric-label { font-size: 15px; color: #64748b; margin-bottom: 6px; font-weight: 600; }
+.rpt-metric-value { font-size: 32px; font-weight: 800; color: #1e293b; line-height: 1.1; }
 
 /* ── Index scale ─────────────────────────────────────── */
 .rpt-scale {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
-  margin-top: 10px;
+  margin-top: 14px;
 }
 .rpt-scale-item {
-  font-size: 12px;
-  padding: 3px 10px;
-  border-radius: 6px;
+  font-size: 15px;
+  padding: 6px 14px;
+  border-radius: 8px;
   font-weight: 600;
 }
 
@@ -151,52 +153,52 @@
 .rpt-chart-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  margin-bottom: 16px;
+  gap: 18px;
+  margin-bottom: 20px;
 }
 @media (max-width: 700px) { .rpt-chart-row { grid-template-columns: 1fr; } }
 .rpt-chart-box {
   background: #f8fafc;
-  border-radius: 10px;
-  padding: 14px;
+  border-radius: 14px;
+  padding: 20px;
   position: relative;
-  max-height: 220px;
-  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  min-height: 280px;
 }
-.rpt-chart-title { font-size: 13px; font-weight: 700; color: #4b5563; margin-bottom: 8px; text-transform: uppercase; letter-spacing: .5px; }
+.rpt-chart-title { font-size: 16px; font-weight: 700; color: #4b5563; margin-bottom: 12px; text-transform: uppercase; letter-spacing: .5px; }
 
 /* ── Comment block ───────────────────────────────────── */
 .rpt-comment {
-  border-top: 1px solid #f0f0f0;
-  padding-top: 14px;
-  margin-top: 16px;
+  border-top: 2px solid #f0f2f5;
+  padding-top: 18px;
+  margin-top: 20px;
 }
 .rpt-comment-label {
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .5px;
   color: var(--orange);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 .rpt-comment-textarea {
   width: 100%;
-  min-height: 60px;
+  min-height: 80px;
   border: 1px solid #d0d7de;
-  border-radius: 8px;
-  padding: 10px 12px;
-  font-size: 15px;
+  border-radius: 10px;
+  padding: 14px 16px;
+  font-size: 16px;
   font-family: inherit;
   resize: vertical;
-  line-height: 1.5;
+  line-height: 1.6;
   box-sizing: border-box;
 }
 .rpt-comment-textarea:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(29,114,184,.12); }
-.rpt-comment-actions { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
+.rpt-comment-actions { display: flex; gap: 10px; margin-top: 10px; align-items: center; }
 .rpt-comment-btn {
-  padding: 6px 16px;
-  border-radius: 6px;
-  font-size: 14px;
+  padding: 10px 22px;
+  border-radius: 8px;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   border: none;
@@ -205,7 +207,34 @@
 .rpt-comment-btn:disabled { opacity: .5; cursor: not-allowed; }
 .rpt-comment-btn-ai { background: #eff6ff; color: var(--blue); border: 1px solid #bfdbfe; }
 .rpt-comment-btn-ai:hover:not(:disabled) { background: #dbeafe; }
-.rpt-comment-status { font-size: 13px; color: #94a3b8; }
+.rpt-comment-status { font-size: 15px; color: #94a3b8; }
+
+/* ── PDF generation overlay ──────────────────────────── */
+.rpt-pdf-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,.5);
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+}
+.rpt-pdf-overlay.active { display: flex; }
+.rpt-pdf-spinner {
+  background: #fff;
+  border-radius: 16px;
+  padding: 40px 50px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,.2);
+}
+.rpt-pdf-spinner-icon {
+  font-size: 48px;
+  animation: rpt-spin 1s linear infinite;
+  display: inline-block;
+  margin-bottom: 16px;
+}
+@keyframes rpt-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.rpt-pdf-spinner-text { font-size: 18px; color: #475569; font-weight: 600; }
 
 /* ── Print / PDF styles ──────────────────────────────── */
 @media print {
@@ -232,11 +261,12 @@
     height: auto !important;
     min-height: 0 !important;
     padding: 4px 0 !important;
+    font-size: 14px !important;
   }
 
-  /* Charts — keep them small */
-  .rpt-chart-box { break-inside: avoid; }
-  canvas { max-height: 160px !important; }
+  /* Charts — no clipping */
+  .rpt-chart-box { break-inside: avoid; overflow: visible !important; }
+  canvas { max-height: 250px !important; }
 
   /* Header gradient prints poorly — use solid */
   .rpt-header { background: var(--navy) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -263,17 +293,17 @@
   <!-- Filters -->
   <div class="rpt-filters">
     <span class="rpt-filter-label">Точка:</span>
-    <a href="?{{ period_qs }}" class="btn btn-sm btn-outline-secondary rounded-pill {% if not active_branch_ids %}fw-bold{% endif %}" style="font-size:13px;">Все</a>
+    <a href="?{{ period_qs }}" class="btn btn-sm btn-outline-secondary rounded-pill {% if not active_branch_ids %}fw-bold{% endif %}" style="font-size:15px;">Все</a>
     {% for b in branches %}
-    <a href="?{{ period_qs }}&branches={{ b.id }}" class="btn btn-sm btn-outline-secondary rounded-pill {% if b.id in active_branch_ids %}fw-bold{% endif %}" style="font-size:13px;">{{ b.name }}</a>
+    <a href="?{{ period_qs }}&branches={{ b.id }}" class="btn btn-sm btn-outline-secondary rounded-pill {% if b.id in active_branch_ids %}fw-bold{% endif %}" style="font-size:15px;">{{ b.name }}</a>
     {% endfor %}
     <span class="rpt-filter-label" style="margin-left:12px;">Период:</span>
     <form method="get" class="d-flex align-items-center gap-2" style="display:inline-flex;">
       {% if active_branch_ids %}<input type="hidden" name="branches" value="{% for bid in active_branch_ids %}{{ bid }}{% if not forloop.last %},{% endif %}{% endfor %}">{% endif %}
-      <input type="date" name="start" value="{{ start }}" class="form-control form-control-sm" style="width:130px;font-size:12px;">
+      <input type="date" name="start" value="{{ start }}" class="form-control form-control-sm" style="width:150px;font-size:15px;">
       <span style="color:#94a3b8;font-weight:700;">—</span>
-      <input type="date" name="end" value="{{ end }}" class="form-control form-control-sm" style="width:130px;font-size:12px;">
-      <button type="submit" class="btn btn-sm btn-success" style="font-size:12px;">Применить</button>
+      <input type="date" name="end" value="{{ end }}" class="form-control form-control-sm" style="width:150px;font-size:15px;">
+      <button type="submit" class="btn btn-sm btn-success" style="font-size:15px;">Применить</button>
     </form>
   </div>
 
@@ -347,11 +377,11 @@
       <div class="rpt-chart-row">
         <div class="rpt-chart-box">
           <div class="rpt-chart-title">Вовлечение гостей</div>
-          <canvas id="chart-engagement" height="150"></canvas>
+          <canvas id="chart-engagement" height="240"></canvas>
         </div>
         <div class="rpt-chart-box">
           <div class="rpt-chart-title">Рост базы</div>
-          <canvas id="chart-growth" height="150"></canvas>
+          <canvas id="chart-growth" height="240"></canvas>
         </div>
       </div>
 
@@ -456,22 +486,22 @@
       <div class="rpt-metrics">
         <div class="rpt-metric" data-key="Подключения в кафе" data-val="{{ report.from_cafe }} ({{ report.from_cafe_pct }}%)">
           <div class="rpt-metric-label">Подключения в кафе</div>
-          <div class="rpt-metric-value">{{ report.from_cafe }} <span style="font-size:13px;color:#94a3b8;">({{ report.from_cafe_pct }}%)</span></div>
+          <div class="rpt-metric-value">{{ report.from_cafe }} <span style="font-size:16px;color:#94a3b8;">({{ report.from_cafe_pct }}%)</span></div>
         </div>
         <div class="rpt-metric" data-key="Подключения через доставку" data-val="{{ report.from_delivery }} ({{ report.from_delivery_pct }}%)">
           <div class="rpt-metric-label">Подключения через доставку</div>
-          <div class="rpt-metric-value">{{ report.from_delivery }} <span style="font-size:13px;color:#94a3b8;">({{ report.from_delivery_pct }}%)</span></div>
+          <div class="rpt-metric-value">{{ report.from_delivery }} <span style="font-size:16px;color:#94a3b8;">({{ report.from_delivery_pct }}%)</span></div>
         </div>
       </div>
       <div class="rpt-chart-row">
         <div class="rpt-chart-box">
           <div class="rpt-chart-title">Источники подключений</div>
-          <canvas id="chart-sources" height="150"></canvas>
+          <canvas id="chart-sources" height="240"></canvas>
         </div>
         <div class="rpt-chart-box" style="display:flex;align-items:center;justify-content:center;">
           <div style="text-align:center;">
-            <div style="font-size:42px;font-weight:800;color:var(--navy);">{{ report.from_cafe_pct }}%</div>
-            <div style="font-size:12px;color:#64748b;">подключений в кафе</div>
+            <div style="font-size:56px;font-weight:800;color:var(--navy);">{{ report.from_cafe_pct }}%</div>
+            <div style="font-size:18px;color:#64748b;">подключений в кафе</div>
           </div>
         </div>
       </div>
@@ -543,7 +573,7 @@
           <div class="rpt-metric-value">{{ report.stories_referrals }}</div>
         </div>
       </div>
-      <div style="font-size:13px;color:#64748b;margin-top:8px;">Ориентиры: 30–40% — хороший уровень · 40–60% — высокий уровень</div>
+      <div style="font-size:16px;color:#64748b;margin-top:12px;">Ориентиры: 30–40% — хороший уровень · 40–60% — высокий уровень</div>
       <div class="rpt-comment">
         <div class="rpt-comment-label">💬 Комментарий менеджера</div>
         <textarea class="rpt-comment-textarea" id="comment-6" placeholder="Введите комментарий или нажмите AI..."></textarea>
@@ -585,12 +615,12 @@
       <div class="rpt-chart-row">
         <div class="rpt-chart-box">
           <div class="rpt-chart-title">Распределение отзывов</div>
-          <canvas id="chart-reviews" height="150"></canvas>
+          <canvas id="chart-reviews" height="240"></canvas>
         </div>
         <div class="rpt-chart-box" style="display:flex;align-items:center;justify-content:center;">
           <div style="text-align:center;">
-            <div style="font-size:42px;font-weight:800;color:var(--green);">{{ report.reviews.positive }}</div>
-            <div style="font-size:12px;color:#64748b;">позитивных из {{ report.reviews.total }}</div>
+            <div style="font-size:56px;font-weight:800;color:var(--green);">{{ report.reviews.positive }}</div>
+            <div style="font-size:18px;color:#64748b;">позитивных из {{ report.reviews.total }}</div>
           </div>
         </div>
       </div>
@@ -625,11 +655,11 @@
       <div class="rpt-chart-row">
         <div class="rpt-chart-box">
           <div class="rpt-chart-title">Сегменты гостей</div>
-          <canvas id="chart-rf" height="160"></canvas>
+          <canvas id="chart-rf" height="240"></canvas>
         </div>
         <div class="rpt-chart-box">
           <div class="rpt-chart-title">Сводка RF</div>
-          <canvas id="chart-rf-summary" height="160"></canvas>
+          <canvas id="chart-rf-summary" height="240"></canvas>
         </div>
       </div>
       <div class="rpt-comment">
@@ -673,12 +703,12 @@
       <div class="rpt-chart-row">
         <div class="rpt-chart-box">
           <div class="rpt-chart-title">Миграция сегментов</div>
-          <canvas id="chart-migration" height="150"></canvas>
+          <canvas id="chart-migration" height="240"></canvas>
         </div>
         <div class="rpt-chart-box" style="display:flex;align-items:center;justify-content:center;">
           <div style="text-align:center;">
-            <div style="font-size:42px;font-weight:800;color:var(--green);">+{{ report.migration.growth }}</div>
-            <div style="font-size:12px;color:#64748b;">рост лояльности</div>
+            <div style="font-size:56px;font-weight:800;color:var(--green);">+{{ report.migration.growth }}</div>
+            <div style="font-size:18px;color:#64748b;">рост лояльности</div>
           </div>
         </div>
       </div>
@@ -733,6 +763,14 @@
     </div>
   </div>
 
+</div>
+
+<!-- PDF generation overlay -->
+<div class="rpt-pdf-overlay" id="pdf-overlay">
+  <div class="rpt-pdf-spinner">
+    <div class="rpt-pdf-spinner-icon">⏳</div>
+    <div class="rpt-pdf-spinner-text">Генерация PDF-отчёта...</div>
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════ -->
@@ -828,15 +866,63 @@ function generateAllComments() {
 
 // ── PDF export ───────────────────────────────────────────
 function downloadPDF() {
-  window.print();
+  const overlay = document.getElementById('pdf-overlay');
+  overlay.classList.add('active');
+
+  const element = document.getElementById('report-content');
+
+  // Hide interactive elements for PDF
+  const actions = element.querySelectorAll('.rpt-actions, .rpt-filters, .rpt-comment-actions');
+  actions.forEach(el => el.style.display = 'none');
+
+  // Convert textareas to divs for clean PDF look
+  const textareas = element.querySelectorAll('.rpt-comment-textarea');
+  const savedValues = [];
+  textareas.forEach(ta => {
+    savedValues.push(ta.value);
+    const div = document.createElement('div');
+    div.style.cssText = 'font-size:16px;line-height:1.6;color:#1e293b;padding:8px 0;white-space:pre-wrap;min-height:20px;';
+    div.textContent = ta.value || '—';
+    ta.style.display = 'none';
+    ta.parentNode.insertBefore(div, ta.nextSibling);
+    div.classList.add('rpt-pdf-text-replacement');
+  });
+
+  const companyName = '{{ company_name|escapejs }}';
+  const period = '{{ start_display }} — {{ end_display }}';
+
+  const opt = {
+    margin:       [10, 10, 10, 10],
+    filename:     'Отчёт_лояльности_' + companyName + '_' + period.replace(/ /g, '') + '.pdf',
+    image:        { type: 'jpeg', quality: 0.98 },
+    html2canvas:  { scale: 2, useCORS: true, logging: false, letterRendering: true },
+    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] },
+  };
+
+  html2pdf().set(opt).from(element).save().then(() => {
+    // Restore interactive elements
+    actions.forEach(el => el.style.display = '');
+    element.querySelectorAll('.rpt-pdf-text-replacement').forEach(el => el.remove());
+    textareas.forEach((ta, i) => {
+      ta.style.display = '';
+    });
+    overlay.classList.remove('active');
+  }).catch(() => {
+    actions.forEach(el => el.style.display = '');
+    element.querySelectorAll('.rpt-pdf-text-replacement').forEach(el => el.remove());
+    textareas.forEach(ta => { ta.style.display = ''; });
+    overlay.classList.remove('active');
+    alert('Ошибка при генерации PDF. Попробуйте ещё раз.');
+  });
 }
 
 // ── Charts ───────────────────────────────────────────────
 const chartDefaults = {
   responsive: true,
-  maintainAspectRatio: false,
+  maintainAspectRatio: true,
   plugins: {
-    legend: { display: true, position: 'bottom', labels: { font: { size: 11 }, padding: 12, usePointStyle: true, pointStyleWidth: 8 } },
+    legend: { display: true, position: 'bottom', labels: { font: { size: 15 }, padding: 16, usePointStyle: true, pointStyleWidth: 10 } },
   },
 };
 
@@ -855,10 +941,10 @@ new Chart(document.getElementById('chart-engagement'), {
       ],
       backgroundColor: ['#1d72b8', '#0d9488', '#7c3aed', '#d97706'],
       borderRadius: 6,
-      barThickness: 28,
+      barThickness: 36,
     }],
   },
-  options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 11 } } }, x: { grid: { display: false }, ticks: { font: { size: 10 } } } } },
+  options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 14 } } }, x: { grid: { display: false }, ticks: { font: { size: 14 } } } } },
 });
 
 // 2. Growth bar chart
@@ -875,10 +961,10 @@ new Chart(document.getElementById('chart-growth'), {
       ],
       backgroundColor: ['#16a34a', '#1d72b8', '#d97706'],
       borderRadius: 6,
-      barThickness: 28,
+      barThickness: 36,
     }],
   },
-  options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 11 } } }, x: { grid: { display: false }, ticks: { font: { size: 10 } } } } },
+  options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 14 } } }, x: { grid: { display: false }, ticks: { font: { size: 14 } } } } },
 });
 
 // 3. Sources doughnut
@@ -928,10 +1014,10 @@ new Chart(document.getElementById('chart-reviews'), {
         data: segValues,
         backgroundColor: segLabels.map((_, i) => colors[i % colors.length]),
         borderRadius: 4,
-        barThickness: 18,
+        barThickness: 24,
       }],
     },
-    options: { ...chartDefaults, indexAxis: 'y', plugins: { ...chartDefaults.plugins, legend: { display: false } }, scales: { x: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 10 } } }, y: { grid: { display: false }, ticks: { font: { size: 10 } } } } },
+    options: { ...chartDefaults, indexAxis: 'y', plugins: { ...chartDefaults.plugins, legend: { display: false } }, scales: { x: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 14 } } }, y: { grid: { display: false }, ticks: { font: { size: 14 } } } } },
   });
 })();
 
@@ -969,10 +1055,10 @@ new Chart(document.getElementById('chart-migration'), {
       ],
       backgroundColor: ['#16a34a', '#d97706', '#dc2626', '#0d9488'],
       borderRadius: 6,
-      barThickness: 28,
+      barThickness: 36,
     }],
   },
-  options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 11 } } }, x: { grid: { display: false }, ticks: { font: { size: 10 } } } } },
+  options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#f0f0f0' }, ticks: { font: { size: 14 } } }, x: { grid: { display: false }, ticks: { font: { size: 14 } } } } },
 });
 </script>
 {% endblock %}
