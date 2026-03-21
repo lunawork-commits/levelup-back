@@ -340,43 +340,43 @@
    ═══════════════════════════════════════════════════════ */
 .R.pdf {
   background: #fff !important;
-  padding: 16px 20px 32px !important;
+  padding: 20px 24px 40px !important;
   max-width: none !important;
   width: 100% !important;
-  font-size: 14px;
+  font-size: 17px;
   margin: 0 !important;
   box-sizing: border-box;
 }
-.R.pdf .R-hd { padding: 28px 32px; border-radius: 12px; margin-bottom: 12px; }
-.R.pdf .R-hd-title { font-size: 28px; }
-.R.pdf .R-hd-sub { font-size: 13px; opacity: .6; }
-.R.pdf .R-logo { width: 52px; height: 52px; }
-.R.pdf .R-sec { margin-bottom: 12px; box-shadow: none; border-radius: 12px; border-color: #D1D5DB; }
-.R.pdf .R-sec-hd { padding: 16px 22px; }
-.R.pdf .R-sec-num { width: 28px; height: 28px; font-size: 12px; border-radius: 7px; }
-.R.pdf .R-sec-title { font-size: 19px; }
-.R.pdf .R-sec-body { padding: 18px 22px; }
-.R.pdf .R-grid { gap: 8px; margin-bottom: 12px; }
-.R.pdf .R-grid .R-card    { flex: 1 1 140px; }
-.R.pdf .R-grid--3 .R-card { flex: 1 1 170px; }
-.R.pdf .R-grid--2 .R-card { flex: 1 1 220px; }
-.R.pdf .R-card { padding: 12px 14px; border-radius: 8px; }
-.R.pdf .R-card-lbl { font-size: 11px; letter-spacing: .4px; margin-bottom: 4px; }
-.R.pdf .R-card-val { font-size: 26px; }
-.R.pdf .R-card-val--sm { font-size: 13px; }
-.R.pdf .R-charts { grid-template-columns: 1fr !important; gap: 14px; margin-bottom: 16px; }
-.R.pdf .R-chart { padding: 24px 28px; border-radius: 12px; }
-.R.pdf .R-chart-title { font-size: 13px; margin-bottom: 14px; }
-.R.pdf .R-chart canvas, .R.pdf .R-chart img.pdf-img { max-height: 400px; }
-.R.pdf .R-bignum-val { font-size: 56px; }
-.R.pdf .R-bignum-lbl { font-size: 16px; }
-.R.pdf .R-bignum { min-height: 180px; }
-.R.pdf .R-cmt { padding-top: 12px; margin-top: 12px; }
-.R.pdf .R-cmt-lbl { font-size: 10px; margin-bottom: 6px; }
-.R.pdf .R-pdf-text { font-size: 13px; line-height: 1.55; }
-.R.pdf .R-scale-item { font-size: 11px; padding: 4px 10px; }
-.R.pdf .R-footer { padding-top: 20px; font-size: 11px; }
-.R.pdf .R-footer-brand { font-size: 16px; }
+.R.pdf .R-hd { padding: 32px 36px; border-radius: 14px; margin-bottom: 16px; }
+.R.pdf .R-hd-title { font-size: 32px; }
+.R.pdf .R-hd-sub { font-size: 16px; opacity: .6; }
+.R.pdf .R-logo { width: 56px; height: 56px; }
+.R.pdf .R-sec { margin-bottom: 16px; box-shadow: none; border-radius: 14px; border-color: #D1D5DB; }
+.R.pdf .R-sec-hd { padding: 20px 26px; }
+.R.pdf .R-sec-num { width: 32px; height: 32px; font-size: 14px; border-radius: 8px; }
+.R.pdf .R-sec-title { font-size: 24px; }
+.R.pdf .R-sec-body { padding: 22px 26px; }
+.R.pdf .R-grid { gap: 10px; margin-bottom: 14px; }
+.R.pdf .R-grid .R-card    { flex: 1 1 160px; }
+.R.pdf .R-grid--3 .R-card { flex: 1 1 190px; }
+.R.pdf .R-grid--2 .R-card { flex: 1 1 240px; }
+.R.pdf .R-card { padding: 16px 18px; border-radius: 10px; }
+.R.pdf .R-card-lbl { font-size: 14px; letter-spacing: .4px; margin-bottom: 6px; }
+.R.pdf .R-card-val { font-size: 32px; }
+.R.pdf .R-card-val--sm { font-size: 15px; }
+.R.pdf .R-charts { grid-template-columns: 1fr !important; gap: 16px; margin-bottom: 20px; }
+.R.pdf .R-chart { padding: 28px 32px; border-radius: 14px; }
+.R.pdf .R-chart-title { font-size: 16px; margin-bottom: 16px; }
+.R.pdf .R-chart canvas, .R.pdf .R-chart img.pdf-img { max-height: 480px; }
+.R.pdf .R-bignum-val { font-size: 64px; }
+.R.pdf .R-bignum-lbl { font-size: 20px; }
+.R.pdf .R-bignum { min-height: 200px; }
+.R.pdf .R-cmt { padding-top: 14px; margin-top: 14px; }
+.R.pdf .R-cmt-lbl { font-size: 13px; margin-bottom: 8px; }
+.R.pdf .R-pdf-text { font-size: 16px; line-height: 1.6; }
+.R.pdf .R-scale-item { font-size: 14px; padding: 6px 12px; }
+.R.pdf .R-footer { padding-top: 24px; font-size: 14px; }
+.R.pdf .R-footer-brand { font-size: 20px; }
 /* ── Page breaks: keep blocks together across A4 pages ── */
 .R.pdf .R-hd       { page-break-inside: avoid; break-inside: avoid; page-break-after: avoid; break-after: avoid; }
 .R.pdf .R-sec-hd   { page-break-after: avoid; break-after: avoid; page-break-inside: avoid; break-inside: avoid; }
@@ -767,20 +767,55 @@ async function downloadPDF() {
   const hideEls = el.querySelectorAll('.R-actions, .R-toolbar, .R-cmt-acts');
   hideEls.forEach(e => e.style.display = 'none');
 
-  // 3. Re-render each Chart.js chart at 3x for crisp PDF
+  // 3. Re-render each Chart.js chart at 3x with LARGE fonts for PDF readability
   const chartCanvases = el.querySelectorAll('canvas');
   const origSizes = [];
+  const PDF_FONT_SIZE_TICK  = 18;
+  const PDF_FONT_SIZE_LEGEND = 18;
+  const PDF_FONT_SIZE_TOOLTIP_TITLE = 18;
+  const PDF_FONT_SIZE_TOOLTIP_BODY  = 16;
+
   chartCanvases.forEach(c => {
     const chart = Chart.getChart(c);
     if (chart) {
-      origSizes.push({ chart, dpr: chart.options.devicePixelRatio });
-      chart.options.devicePixelRatio = 2;
+      const origOpts = JSON.parse(JSON.stringify({
+        dpr: chart.options.devicePixelRatio,
+        legendFontSize: chart.options.plugins?.legend?.labels?.font?.size,
+        tooltipTitleSize: chart.options.plugins?.tooltip?.titleFont?.size,
+        tooltipBodySize: chart.options.plugins?.tooltip?.bodyFont?.size,
+        xTickSize: chart.options.scales?.x?.ticks?.font?.size,
+        yTickSize: chart.options.scales?.y?.ticks?.font?.size,
+      }));
+      origSizes.push({ chart, origOpts });
+
+      // Increase pixel ratio for crisp rendering
+      chart.options.devicePixelRatio = 3;
+
+      // Increase legend font
+      if (chart.options.plugins?.legend?.labels?.font) {
+        chart.options.plugins.legend.labels.font.size = PDF_FONT_SIZE_LEGEND;
+      }
+      // Increase tooltip fonts
+      if (chart.options.plugins?.tooltip?.titleFont) {
+        chart.options.plugins.tooltip.titleFont.size = PDF_FONT_SIZE_TOOLTIP_TITLE;
+      }
+      if (chart.options.plugins?.tooltip?.bodyFont) {
+        chart.options.plugins.tooltip.bodyFont.size = PDF_FONT_SIZE_TOOLTIP_BODY;
+      }
+      // Increase axis tick fonts
+      if (chart.options.scales?.x?.ticks?.font) {
+        chart.options.scales.x.ticks.font.size = PDF_FONT_SIZE_TICK;
+      }
+      if (chart.options.scales?.y?.ticks?.font) {
+        chart.options.scales.y.ticks.font.size = PDF_FONT_SIZE_TICK;
+      }
+
       chart.resize();
       chart.update('none');
     }
   });
 
-  await new Promise(r => setTimeout(r, 300));
+  await new Promise(r => setTimeout(r, 600));
 
   // 4. Convert canvases to images
   const canvases = el.querySelectorAll('canvas');
@@ -824,14 +859,14 @@ async function downloadPDF() {
   const period = '{{ start_display }}_{{ end_display }}';
 
   try {
-    const PDF_WIDTH_PX = 780;
+    const PDF_WIDTH_PX = 1000;
 
     await html2pdf().set({
-      margin:      [10, 8, 12, 8],
+      margin:      [12, 10, 14, 10],
       filename:    'Отчёт_лояльности_' + company + '_' + period.replace(/\./g, '_').replace(/ /g, '') + '.pdf',
       image:       { type: 'png', quality: 1.0 },
       html2canvas: {
-        scale: 2,
+        scale: 2.5,
         useCORS: true,
         allowTaint: true,
         logging: false,
@@ -852,25 +887,45 @@ async function downloadPDF() {
           const rpt = clonedDoc.getElementById('report-content');
           if (!rpt) return;
 
-          rpt.style.cssText = 'width:' + PDF_WIDTH_PX + 'px!important;max-width:none!important;margin:0!important;padding:16px 20px 32px!important;box-sizing:border-box!important;overflow:visible!important;';
+          rpt.style.cssText = 'width:' + PDF_WIDTH_PX + 'px!important;max-width:' + PDF_WIDTH_PX + 'px!important;min-width:0!important;margin:0!important;padding:20px 24px 40px!important;box-sizing:border-box!important;overflow:visible!important;';
 
           let node = rpt.parentElement;
           while (node && node !== clonedDoc.documentElement) {
-            node.style.cssText = 'margin:0!important;padding:0!important;float:none!important;width:' + PDF_WIDTH_PX + 'px!important;max-width:none!important;overflow:visible!important;min-height:0!important;display:block!important;position:static!important;';
+            node.style.cssText = 'margin:0!important;padding:0!important;float:none!important;width:' + PDF_WIDTH_PX + 'px!important;max-width:' + PDF_WIDTH_PX + 'px!important;overflow:visible!important;min-height:0!important;display:block!important;position:static!important;';
             node = node.parentElement;
           }
-          clonedDoc.body.style.cssText = 'margin:0!important;padding:0!important;width:' + PDF_WIDTH_PX + 'px!important;overflow:visible!important;';
-          clonedDoc.documentElement.style.cssText = 'margin:0!important;padding:0!important;width:' + PDF_WIDTH_PX + 'px!important;overflow:visible!important;';
+          clonedDoc.body.style.cssText = 'margin:0!important;padding:0!important;width:' + PDF_WIDTH_PX + 'px!important;max-width:' + PDF_WIDTH_PX + 'px!important;overflow:visible!important;';
+          clonedDoc.documentElement.style.cssText = 'margin:0!important;padding:0!important;width:' + PDF_WIDTH_PX + 'px!important;max-width:' + PDF_WIDTH_PX + 'px!important;overflow:visible!important;';
 
+          // Ensure all grids fit within the page width
           rpt.querySelectorAll('.R-grid').forEach(g => {
-            g.style.cssText = 'display:flex!important;flex-wrap:wrap!important;gap:6px!important;width:100%!important;overflow:visible!important;';
+            g.style.cssText = 'display:flex!important;flex-wrap:wrap!important;gap:10px!important;width:100%!important;max-width:100%!important;overflow:visible!important;';
           });
           rpt.querySelectorAll('.R-card').forEach(c => {
             c.style.overflow = 'visible';
             c.style.wordWrap = 'break-word';
+            c.style.maxWidth = '100%';
           });
           rpt.querySelectorAll('.R-charts').forEach(ch => {
-            ch.style.cssText = 'display:grid!important;grid-template-columns:1fr!important;gap:14px!important;width:100%!important;overflow:visible!important;';
+            ch.style.cssText = 'display:grid!important;grid-template-columns:1fr!important;gap:16px!important;width:100%!important;max-width:100%!important;overflow:visible!important;';
+          });
+          rpt.querySelectorAll('.R-chart').forEach(ch => {
+            ch.style.maxWidth = '100%';
+            ch.style.overflow = 'visible';
+          });
+          rpt.querySelectorAll('img.pdf-img').forEach(img => {
+            img.style.maxWidth = '100%';
+            img.style.height = 'auto';
+          });
+          // Make header fit
+          rpt.querySelectorAll('.R-hd').forEach(hd => {
+            hd.style.maxWidth = '100%';
+            hd.style.overflow = 'hidden';
+          });
+          // Make sections fit
+          rpt.querySelectorAll('.R-sec').forEach(sec => {
+            sec.style.maxWidth = '100%';
+            sec.style.overflow = 'visible';
           });
         },
       },
@@ -889,8 +944,23 @@ async function downloadPDF() {
   el.querySelectorAll('._pdf-replacement').forEach(e => e.remove());
   tas.forEach(ta => ta.style.display = '');
 
-  origSizes.forEach(({ chart, dpr }) => {
-    chart.options.devicePixelRatio = dpr || undefined;
+  origSizes.forEach(({ chart, origOpts }) => {
+    chart.options.devicePixelRatio = origOpts.dpr || undefined;
+    if (chart.options.plugins?.legend?.labels?.font) {
+      chart.options.plugins.legend.labels.font.size = origOpts.legendFontSize || 15;
+    }
+    if (chart.options.plugins?.tooltip?.titleFont) {
+      chart.options.plugins.tooltip.titleFont.size = origOpts.tooltipTitleSize || 15;
+    }
+    if (chart.options.plugins?.tooltip?.bodyFont) {
+      chart.options.plugins.tooltip.bodyFont.size = origOpts.tooltipBodySize || 14;
+    }
+    if (chart.options.scales?.x?.ticks?.font) {
+      chart.options.scales.x.ticks.font.size = origOpts.xTickSize || 14;
+    }
+    if (chart.options.scales?.y?.ticks?.font) {
+      chart.options.scales.y.ticks.font.size = origOpts.yTickSize || 14;
+    }
     chart.resize();
     chart.update('none');
   });
