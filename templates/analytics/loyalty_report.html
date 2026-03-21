@@ -886,15 +886,29 @@ async function downloadPDF() {
           const mmToPx = PDF_WIDTH_PX / 194;
           const pageH = 279 * mmToPx;
 
+          // Helper: absolute top offset relative to report root
+          function absTop(el) {
+            let top = 0, cur = el;
+            while (cur && cur !== rpt) {
+              top += cur.offsetTop;
+              cur = cur.offsetParent;
+            }
+            return top;
+          }
+
           // Force layout recalc
           rpt.offsetHeight;
 
-          // Process each block sequentially — re-read position after each spacer
-          const blocks = Array.from(rpt.querySelectorAll('.R-hd, .R-sec, .R-footer'));
+          // Process sections AND inner blocks (charts, grids, etc.)
+          const blocks = Array.from(rpt.querySelectorAll(
+            '.R-hd, .R-sec, .R-footer, .R-chart, .R-grid, .R-cmt, .R-scale'
+          ));
+          blocks.sort((a, b) => absTop(a) - absTop(b));
+
           for (let i = 0; i < blocks.length; i++) {
             const blk = blocks[i];
-            // Re-read position (DOM changed from previous spacers)
-            const top = blk.offsetTop;
+            rpt.offsetHeight;
+            const top = absTop(blk);
             const h = blk.offsetHeight;
             if (h >= pageH) continue; // too tall for one page
             const pageEnd = (Math.floor(top / pageH) + 1) * pageH;
@@ -903,8 +917,6 @@ async function downloadPDF() {
               const spacer = clonedDoc.createElement('div');
               spacer.style.cssText = 'height:' + gap + 'px;width:100%;flex-shrink:0;';
               blk.parentNode.insertBefore(spacer, blk);
-              // Force layout recalc after insertion
-              rpt.offsetHeight;
             }
           }
         },
