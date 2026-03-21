@@ -377,19 +377,20 @@
 .R.pdf .R-scale-item { font-size: 11px; padding: 4px 10px; }
 .R.pdf .R-footer { padding-top: 20px; font-size: 11px; }
 .R.pdf .R-footer-brand { font-size: 16px; }
-/* ── Page breaks: keep everything together ────────── */
-.R.pdf .R-card    { page-break-inside: avoid; break-inside: avoid; }
-.R.pdf .R-chart   { page-break-inside: avoid; break-inside: avoid; }
-.R.pdf .R-hd      { page-break-inside: avoid; break-inside: avoid; }
-.R.pdf .R-grid    { page-break-inside: avoid; break-inside: avoid; }
-.R.pdf .R-charts  { page-break-inside: avoid; break-inside: avoid; }
-.R.pdf .R-cmt     { page-break-inside: avoid; break-inside: avoid; }
-.R.pdf .R-scale   { page-break-inside: avoid; break-inside: avoid; }
-.R.pdf .R-footer  { page-break-inside: avoid; break-inside: avoid; }
-/* Sections: keep whole, move to next page if doesn't fit */
-.R.pdf .R-sec     { page-break-inside: avoid; break-inside: avoid; }
-.R.pdf .R-sec-hd  { page-break-after: avoid; break-after: avoid; }
-.R.pdf, .R.pdf *  { overflow: visible !important; }
+/* ── Page breaks: keep blocks together across A4 pages ── */
+.R.pdf .R-hd       { page-break-inside: avoid; break-inside: avoid; page-break-after: avoid; break-after: avoid; }
+.R.pdf .R-sec      { page-break-inside: avoid; break-inside: avoid; }
+.R.pdf .R-sec-hd   { page-break-after: avoid; break-after: avoid; page-break-inside: avoid; break-inside: avoid; }
+.R.pdf .R-sec-body { page-break-before: avoid; break-before: avoid; }
+.R.pdf .R-grid     { page-break-inside: avoid; break-inside: avoid; }
+.R.pdf .R-charts   { page-break-inside: avoid; break-inside: avoid; }
+.R.pdf .R-chart    { page-break-inside: avoid; break-inside: avoid; }
+.R.pdf .R-card     { page-break-inside: avoid; break-inside: avoid; }
+.R.pdf .R-cmt      { page-break-inside: avoid; break-inside: avoid; }
+.R.pdf .R-scale    { page-break-inside: avoid; break-inside: avoid; }
+.R.pdf .R-bignum   { page-break-inside: avoid; break-inside: avoid; }
+.R.pdf .R-footer   { page-break-inside: avoid; break-inside: avoid; }
+.R.pdf, .R.pdf *   { overflow: visible !important; }
 
 /* ── Print ──────────────────────────────────────────── */
 @media print {
@@ -774,7 +775,7 @@ async function downloadPDF() {
     const chart = Chart.getChart(c);
     if (chart) {
       origSizes.push({ chart, dpr: chart.options.devicePixelRatio });
-      chart.options.devicePixelRatio = 3;
+      chart.options.devicePixelRatio = 2;
       chart.resize();
       chart.update('none');
     }
@@ -824,26 +825,14 @@ async function downloadPDF() {
   const period = '{{ start_display }}_{{ end_display }}';
 
   try {
-    // A4 width = 210mm. With 8mm margins each side = 194mm usable.
     const PDF_WIDTH_PX = 780;
 
-    // Measure content to create a single continuous page (no splits)
-    const origElStyle = el.style.cssText;
-    el.style.width = PDF_WIDTH_PX + 'px';
-    el.style.maxWidth = 'none';
-    el.offsetHeight;
-    const measuredH = el.scrollHeight;
-    el.style.cssText = origElStyle || '';
-
-    const pxToMm = 194 / PDF_WIDTH_PX;
-    const pageHeightMm = Math.ceil(measuredH * pxToMm) + 24;
-
     await html2pdf().set({
-      margin:      [8, 8, 10, 8],
+      margin:      [10, 8, 12, 8],
       filename:    'Отчёт_лояльности_' + company + '_' + period.replace(/\./g, '_').replace(/ /g, '') + '.pdf',
       image:       { type: 'png', quality: 1.0 },
       html2canvas: {
-        scale: 3,
+        scale: 2,
         useCORS: true,
         allowTaint: true,
         logging: false,
@@ -855,31 +844,25 @@ async function downloadPDF() {
         y: 0,
         width: PDF_WIDTH_PX,
         onclone: (clonedDoc) => {
-          // Hide ALL Django admin chrome
           ['nav-sidebar', 'header', 'nav-global'].forEach(id => {
             const e = clonedDoc.getElementById(id);
             if (e) e.remove();
           });
           clonedDoc.querySelectorAll('.breadcrumbs, .skip-to-content-link, footer').forEach(e => e.remove());
 
-          // Force report to fill full width, strip ALL parent interference
           const rpt = clonedDoc.getElementById('report-content');
           if (!rpt) return;
 
-          // Set report itself
           rpt.style.cssText = 'width:' + PDF_WIDTH_PX + 'px!important;max-width:none!important;margin:0!important;padding:16px 20px 32px!important;box-sizing:border-box!important;overflow:visible!important;';
 
-          // Nuke every ancestor's layout
-          let n = rpt.parentElement;
-          while (n && n !== clonedDoc.documentElement) {
-            n.style.cssText = 'margin:0!important;padding:0!important;float:none!important;width:' + PDF_WIDTH_PX + 'px!important;max-width:none!important;overflow:visible!important;min-height:0!important;display:block!important;position:static!important;';
-            n = n.parentElement;
+          let node = rpt.parentElement;
+          while (node && node !== clonedDoc.documentElement) {
+            node.style.cssText = 'margin:0!important;padding:0!important;float:none!important;width:' + PDF_WIDTH_PX + 'px!important;max-width:none!important;overflow:visible!important;min-height:0!important;display:block!important;position:static!important;';
+            node = node.parentElement;
           }
-          // Body & html
           clonedDoc.body.style.cssText = 'margin:0!important;padding:0!important;width:' + PDF_WIDTH_PX + 'px!important;overflow:visible!important;';
           clonedDoc.documentElement.style.cssText = 'margin:0!important;padding:0!important;width:' + PDF_WIDTH_PX + 'px!important;overflow:visible!important;';
 
-          // Ensure all cards and grids fit within the width
           rpt.querySelectorAll('.R-grid').forEach(g => {
             g.style.cssText = 'display:flex!important;flex-wrap:wrap!important;gap:6px!important;width:100%!important;overflow:visible!important;';
           });
@@ -890,11 +873,10 @@ async function downloadPDF() {
           rpt.querySelectorAll('.R-charts').forEach(ch => {
             ch.style.cssText = 'display:grid!important;grid-template-columns:1fr!important;gap:14px!important;width:100%!important;overflow:visible!important;';
           });
-
         },
       },
-      jsPDF:       { unit: 'mm', format: [210, pageHeightMm], orientation: 'portrait' },
-      pagebreak:   { mode: [], before: [], after: [], avoid: [] },
+      jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak:   { mode: ['css', 'legacy'], avoid: ['.R-sec', '.R-hd', '.R-chart', '.R-charts', '.R-grid', '.R-cmt', '.R-footer', '.R-scale', '.R-bignum'] },
     }).from(el).save();
   } catch (err) {
     console.error('PDF generation error:', err);
