@@ -647,7 +647,7 @@ _VK_NONE_STYLE    = _BADGE + 'background:#f5f5f5;color:#9e9e9e;border:1px solid 
 class ClientVKStatusAdmin(admin.ModelAdmin):
     list_display = (
         'client_col', 'branch_col',
-        'community_badge', 'newsletter_badge',
+        'community_badge', 'newsletter_badge', 'is_story_uploaded',
         'checked_at',
     )
     list_display_links = ('client_col',)
