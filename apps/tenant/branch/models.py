@@ -899,6 +899,12 @@ class TestimonialMessage(models.Model):
         'VK ID сообщения', max_length=50, blank=True, db_index=True,
     )
 
+    # ── Read tracking (for ADMIN_REPLY messages) ───────────────────────────────
+    read_at = models.DateTimeField(
+        'Прочитано', null=True, blank=True,
+        help_text='Заполняется Celery-задачей при обнаружении прочтения через VK API.',
+    )
+
     created_at = models.DateTimeField('Время', auto_now_add=True, db_index=True)
 
     def __str__(self):

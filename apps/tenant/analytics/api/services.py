@@ -248,27 +248,48 @@ def get_message_open_rate(
     """
     % of sent VK messages that were read in the period.
 
-    Reads from BroadcastRecipient.read_at — populated by the hourly
-    Celery task `check_read_status_task` which polls VK API
-    `messages.getConversationsById` to detect read receipts.
+    Counts messages from all three outgoing channels:
+    - BroadcastRecipient (рассылки и авторассылки)
+    - TestimonialMessage(source=ADMIN_REPLY) (ответы на отзывы)
+
+    read_at is populated by the hourly Celery task `check_read_status_task`
+    which polls VK API `messages.getConversationsById`.
 
     Returns 0.0 if no messages were sent in the period.
     """
     from apps.tenant.senler.models import BroadcastRecipient, RecipientStatus
+    from apps.tenant.branch.models import TestimonialMessage
 
-    qs = BroadcastRecipient.objects.filter(
+    # ── Broadcasts & auto-broadcasts ─────────────────────────────────────────
+    bc_qs = BroadcastRecipient.objects.filter(
         status=RecipientStatus.SENT,
         sent_at__date__gte=start_date,
         sent_at__date__lte=end_date,
     )
     if branch_ids:
-        qs = qs.filter(send__broadcast__branch__in=branch_ids)
+        bc_qs = bc_qs.filter(send__broadcast__branch__in=branch_ids)
 
-    total_sent = qs.count()
+    bc_sent = bc_qs.count()
+    bc_read = bc_qs.filter(read_at__isnull=False).count()
+
+    # ── Admin replies (ответы на отзывы) ──────────────────────────────────────
+    reply_qs = TestimonialMessage.objects.filter(
+        source=TestimonialMessage.Source.ADMIN_REPLY,
+        vk_message_id__gt='',
+        created_at__date__gte=start_date,
+        created_at__date__lte=end_date,
+    )
+    if branch_ids:
+        reply_qs = reply_qs.filter(conversation__branch__in=branch_ids)
+
+    reply_sent = reply_qs.count()
+    reply_read = reply_qs.filter(read_at__isnull=False).count()
+
+    total_sent = bc_sent + reply_sent
     if total_sent == 0:
         return 0.0
 
-    total_read = qs.filter(read_at__isnull=False).count()
+    total_read = bc_read + reply_read
     return round(total_read / total_sent * 100, 1)
 
 

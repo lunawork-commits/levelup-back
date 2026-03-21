@@ -957,10 +957,12 @@ def send_vk_reply(
     if 'error' in result:
         raise ValueError(f'VK API error: {result["error"].get("error_msg", result["error"])}')
 
+    vk_msg_id = result.get('response', '')
     msg = TestimonialMessage.objects.create(
         conversation=conversation,
         source=TestimonialMessage.Source.ADMIN_REPLY,
         text=reply_text,
+        vk_message_id=str(vk_msg_id) if vk_msg_id else '',
     )
 
     conversation.is_replied = True

@@ -337,13 +337,65 @@ def send_after_game_broadcast_task(process_evening: bool = False) -> dict:
 
 # ── Read-status polling ──────────────────────────────────────────────────────
 
+def _check_read_for_config(cfg, items_with_vk_id, now, tenant_schema):
+    """
+    Given a SenlerConfig and a list of (vk_id, vk_message_id_int, save_fn) tuples,
+    polls VK API and calls save_fn(item) for each message that was read.
+    Returns count of newly marked items.
+    """
+    from apps.tenant.senler.services import _vk_call
+
+    marked = 0
+    for i in range(0, len(items_with_vk_id), 100):
+        batch = items_with_vk_id[i:i + 100]
+        peer_ids = ','.join(str(vk_id) for vk_id, _, _ in batch)
+        try:
+            data = _vk_call('messages.getConversationsById', {
+                'peer_ids': peer_ids,
+                'access_token': cfg.vk_community_token,
+                'v': '5.131',
+            })
+            if 'error' in data:
+                logger.warning(
+                    'VK getConversationsById error tenant=%s cfg=%s: %s',
+                    tenant_schema, cfg.pk,
+                    data['error'].get('error_msg', ''),
+                )
+                continue
+
+            read_map: dict[int, int] = {}
+            for conv in data.get('response', {}).get('items', []):
+                peer_id = conv.get('peer', {}).get('id')
+                in_read = conv.get('in_read', 0)
+                if peer_id:
+                    read_map[peer_id] = in_read
+
+            for vk_id, msg_id_int, save_fn in batch:
+                last_read = read_map.get(vk_id, 0)
+                if msg_id_int and last_read >= msg_id_int:
+                    save_fn(now)
+                    marked += 1
+
+        except Exception as exc:
+            logger.warning(
+                'check_read_status batch error tenant=%s: %s',
+                tenant_schema, exc,
+            )
+            continue
+
+        time.sleep(0.5)  # VK rate limit
+
+    return marked
+
+
 @shared_task(name='apps.tenant.senler.tasks.check_read_status_task')
 def check_read_status_task() -> dict:
     """
     Hourly task: polls VK API to check which sent messages have been read.
 
-    For each tenant with active SenlerConfig, checks BroadcastRecipient records
-    that were sent in the last 7 days and haven't been marked as read yet.
+    Checks two types of outgoing messages:
+    1. BroadcastRecipient — рассылки и авторассылки
+    2. TestimonialMessage(source=ADMIN_REPLY) — ответы на отзывы
 
     Uses VK API `messages.getConversationsById` to compare `in_read` (ID of the
     last message read by the user) with the stored `vk_message_id`. If
@@ -358,7 +410,6 @@ def check_read_status_task() -> dict:
     from apps.tenant.senler.models import (
         BroadcastRecipient, RecipientStatus, SenlerConfig,
     )
-    from apps.tenant.senler.services import _vk_call
 
     TenantModel = get_tenant_model()
     tenants = TenantModel.objects.exclude(schema_name='public')
@@ -369,8 +420,8 @@ def check_read_status_task() -> dict:
     for tenant in tenants:
         try:
             with schema_context(tenant.schema_name):
-                # Find all sent-but-unread recipients with a vk_message_id
-                unread = list(
+                # ── 1. BroadcastRecipient (рассылки и авторассылки) ──────────
+                unread_broadcasts = list(
                     BroadcastRecipient.objects.filter(
                         status=RecipientStatus.SENT,
                         vk_message_id__isnull=False,
@@ -381,69 +432,66 @@ def check_read_status_task() -> dict:
                     )
                 )
 
-                if not unread:
-                    continue
-
-                # Group by SenlerConfig to batch VK API calls per community
-                by_config: dict[int, list[BroadcastRecipient]] = defaultdict(list)
-                for r in unread:
+                by_config: dict[int, list] = defaultdict(list)
+                for r in unread_broadcasts:
                     try:
                         cfg = r.send.broadcast.branch.senler_config
                         if cfg.is_active:
-                            by_config[cfg.pk].append(r)
+                            def _save_broadcast(now, _r=r):
+                                _r.read_at = now
+                                _r.save(update_fields=['read_at'])
+                            by_config[cfg.pk].append(
+                                (r.vk_id, r.vk_message_id, _save_broadcast)
+                            )
                     except (SenlerConfig.DoesNotExist, AttributeError):
                         continue
 
-                for cfg_pk, recipients in by_config.items():
+                # ── 2. TestimonialMessage ADMIN_REPLY (ответы на отзывы) ─────
+                from apps.tenant.branch.models import TestimonialMessage
+
+                unread_replies = list(
+                    TestimonialMessage.objects.filter(
+                        source=TestimonialMessage.Source.ADMIN_REPLY,
+                        vk_message_id__gt='',
+                        read_at__isnull=True,
+                        created_at__gte=cutoff,
+                    ).select_related(
+                        'conversation__branch__senler_config',
+                    )
+                )
+
+                for msg in unread_replies:
+                    try:
+                        cfg = msg.conversation.branch.senler_config
+                        vk_id = msg.conversation.vk_sender_id
+                        if not cfg.is_active or not vk_id:
+                            continue
+                        try:
+                            msg_id_int = int(msg.vk_message_id)
+                        except (ValueError, TypeError):
+                            continue
+
+                        def _save_reply(now, _msg=msg):
+                            _msg.read_at = now
+                            _msg.save(update_fields=['read_at'])
+
+                        by_config[cfg.pk].append(
+                            (int(vk_id), msg_id_int, _save_reply)
+                        )
+                    except (SenlerConfig.DoesNotExist, AttributeError):
+                        continue
+
+                # ── Poll VK API per config ────────────────────────────────────
+                now = timezone.now()
+                for cfg_pk, items in by_config.items():
                     try:
                         cfg = SenlerConfig.objects.get(pk=cfg_pk)
                     except SenlerConfig.DoesNotExist:
                         continue
 
-                    # VK API allows up to 100 peer_ids per call
-                    for i in range(0, len(recipients), 100):
-                        batch = recipients[i:i + 100]
-                        peer_ids = ','.join(str(r.vk_id) for r in batch)
-
-                        try:
-                            data = _vk_call('messages.getConversationsById', {
-                                'peer_ids': peer_ids,
-                                'access_token': cfg.vk_community_token,
-                                'v': '5.131',
-                            })
-                            if 'error' in data:
-                                logger.warning(
-                                    'VK getConversationsById error tenant=%s cfg=%s: %s',
-                                    tenant.schema_name, cfg_pk,
-                                    data['error'].get('error_msg', ''),
-                                )
-                                continue
-
-                            # Build map: peer_id → in_read (last read msg id by user)
-                            items = data.get('response', {}).get('items', [])
-                            read_map: dict[int, int] = {}
-                            for conv in items:
-                                peer_id = conv.get('peer', {}).get('id')
-                                in_read = conv.get('in_read', 0)
-                                if peer_id:
-                                    read_map[peer_id] = in_read
-
-                            now = timezone.now()
-                            for r in batch:
-                                last_read = read_map.get(r.vk_id, 0)
-                                if r.vk_message_id and last_read >= r.vk_message_id:
-                                    r.read_at = now
-                                    r.save(update_fields=['read_at'])
-                                    total_marked += 1
-
-                        except Exception as exc:
-                            logger.warning(
-                                'check_read_status batch error tenant=%s: %s',
-                                tenant.schema_name, exc,
-                            )
-                            continue
-
-                        time.sleep(0.5)  # VK rate limit
+                    total_marked += _check_read_for_config(
+                        cfg, items, now, tenant.schema_name,
+                    )
 
         except Exception as exc:
             logger.exception(
