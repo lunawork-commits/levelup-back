@@ -824,9 +824,19 @@ async function downloadPDF() {
   const period = '{{ start_display }}_{{ end_display }}';
 
   try {
-    // A4 = 210mm wide. With 8mm margins each side = 194mm usable.
-    // At 96dpi: 194mm ≈ 733px.
+    // A4 width = 210mm. With 8mm margins each side = 194mm usable.
     const PDF_WIDTH_PX = 780;
+
+    // Measure content to create a single continuous page (no splits)
+    const origElStyle = el.style.cssText;
+    el.style.width = PDF_WIDTH_PX + 'px';
+    el.style.maxWidth = 'none';
+    el.offsetHeight;
+    const measuredH = el.scrollHeight;
+    el.style.cssText = origElStyle || '';
+
+    const pxToMm = 194 / PDF_WIDTH_PX;
+    const pageHeightMm = Math.ceil(measuredH * pxToMm) + 24;
 
     await html2pdf().set({
       margin:      [8, 8, 10, 8],
@@ -881,47 +891,9 @@ async function downloadPDF() {
             ch.style.cssText = 'display:grid!important;grid-template-columns:1fr!important;gap:14px!important;width:100%!important;overflow:visible!important;';
           });
 
-          // ── Manual page-break: insert spacers so blocks never split ──
-          // A4 = 297mm, margins top 8mm + bottom 10mm = 18mm → usable 279mm
-          const mmToPx = PDF_WIDTH_PX / 194;
-          const pageH = 279 * mmToPx;
-
-          // Helper: absolute top offset relative to report root
-          function absTop(el) {
-            let top = 0, cur = el;
-            while (cur && cur !== rpt) {
-              top += cur.offsetTop;
-              cur = cur.offsetParent;
-            }
-            return top;
-          }
-
-          // Force layout recalc
-          rpt.offsetHeight;
-
-          // Process sections AND inner blocks (charts, grids, etc.)
-          const blocks = Array.from(rpt.querySelectorAll(
-            '.R-hd, .R-sec, .R-footer, .R-chart, .R-grid, .R-cmt, .R-scale'
-          ));
-          blocks.sort((a, b) => absTop(a) - absTop(b));
-
-          for (let i = 0; i < blocks.length; i++) {
-            const blk = blocks[i];
-            rpt.offsetHeight;
-            const top = absTop(blk);
-            const h = blk.offsetHeight;
-            if (h >= pageH) continue; // too tall for one page
-            const pageEnd = (Math.floor(top / pageH) + 1) * pageH;
-            if (top + h > pageEnd && top < pageEnd) {
-              const gap = pageEnd - top + 4;
-              const spacer = clonedDoc.createElement('div');
-              spacer.style.cssText = 'height:' + gap + 'px;width:100%;flex-shrink:0;';
-              blk.parentNode.insertBefore(spacer, blk);
-            }
-          }
         },
       },
-      jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      jsPDF:       { unit: 'mm', format: [210, pageHeightMm], orientation: 'portrait' },
       pagebreak:   { mode: [], before: [], after: [], avoid: [] },
     }).from(el).save();
   } catch (err) {
