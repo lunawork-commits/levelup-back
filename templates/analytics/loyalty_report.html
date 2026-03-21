@@ -379,9 +379,7 @@
 .R.pdf .R-footer-brand { font-size: 16px; }
 /* ── Page breaks: keep blocks together across A4 pages ── */
 .R.pdf .R-hd       { page-break-inside: avoid; break-inside: avoid; page-break-after: avoid; break-after: avoid; }
-.R.pdf .R-sec      { page-break-inside: avoid; break-inside: avoid; }
 .R.pdf .R-sec-hd   { page-break-after: avoid; break-after: avoid; page-break-inside: avoid; break-inside: avoid; }
-.R.pdf .R-sec-body { page-break-before: avoid; break-before: avoid; }
 .R.pdf .R-grid     { page-break-inside: avoid; break-inside: avoid; }
 .R.pdf .R-charts   { page-break-inside: avoid; break-inside: avoid; }
 .R.pdf .R-chart    { page-break-inside: avoid; break-inside: avoid; }
@@ -400,8 +398,9 @@
   body, html, #container, #content { background: #fff !important; padding: 0 !important; margin: 0 !important; }
   #content { margin-left: 0 !important; }
   .R { max-width: 100% !important; background: #fff !important; padding: 0 !important; }
-  .R-sec { break-inside: avoid; box-shadow: none !important; }
-  .R-chart { break-inside: avoid; }
+  .R-sec { box-shadow: none !important; }
+  .R-sec-hd { break-after: avoid; }
+  .R-grid, .R-card, .R-chart, .R-bignum { break-inside: avoid; }
   .R-cmt-ta { border: none !important; background: transparent !important; resize: none !important; }
   .R-hd, .R-card, .R-sec-num, .R-scale-item { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
@@ -876,7 +875,7 @@ async function downloadPDF() {
         },
       },
       jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak:   { mode: ['css', 'legacy'], avoid: ['.R-sec', '.R-hd', '.R-chart', '.R-charts', '.R-grid', '.R-cmt', '.R-footer', '.R-scale', '.R-bignum'] },
+      pagebreak:   { mode: ['css', 'legacy'], avoid: ['.R-hd', '.R-sec-hd', '.R-chart', '.R-charts', '.R-grid', '.R-card', '.R-cmt', '.R-footer', '.R-scale', '.R-bignum'] },
     }).from(el).save();
   } catch (err) {
     console.error('PDF generation error:', err);
