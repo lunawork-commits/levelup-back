@@ -866,7 +866,7 @@ async function downloadPDF() {
     const PDF_WIDTH_PX = 760;
 
     await html2pdf().set({
-      margin:      [10, 10, 12, 10],
+      margin:      [10, 10, 30, 10],
       filename:    'Отчёт_лояльности_' + company + '_' + period.replace(/\./g, '_').replace(/ /g, '') + '.pdf',
       image:       { type: 'png', quality: 1.0 },
       html2canvas: {
@@ -928,6 +928,14 @@ async function downloadPDF() {
           rpt.querySelectorAll('.R-sec').forEach(sec => {
             sec.style.maxWidth = '100%';
             sec.style.overflow = 'visible';
+            sec.style.pageBreakBefore = 'always';
+            sec.style.breakBefore = 'page';
+          });
+          // Force no-split on every element that must stay whole
+          const noSplit = '.R-chart, .R-charts, .R-grid, .R-card, .R-cmt, .R-scale, .R-bignum, .R-sec-hd, .R-sec-body, img.pdf-img';
+          rpt.querySelectorAll(noSplit).forEach(el => {
+            el.style.pageBreakInside = 'avoid';
+            el.style.breakInside = 'avoid';
           });
         },
       },
