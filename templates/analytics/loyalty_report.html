@@ -763,6 +763,23 @@ async function downloadPDF() {
 
   const el = document.getElementById('report-content');
 
+  // ── A4 geometry (all in mm) ────────────────────────────────────────────────
+  // A4 portrait: 210 × 297 mm
+  const A4_W = 210, A4_H = 297;
+  // Margins: horizontal (left=right), top, bottom (3 cm minimum)
+  const MX = 10, MT = 10, MB = 30;
+  // Content area per page
+  const CW = A4_W - 2 * MX;   // 190 mm — content width
+  const CH = A4_H - MT - MB;  // 257 mm — content height (bottom 30 mm always empty)
+  // Render width: this is the "virtual browser width" html2canvas uses
+  const WIN_W = 760; // px
+  // DOM px ↔ mm ratio at WIN_W: WIN_W px renders into CW mm of PDF content width
+  // → 1 mm = WIN_W/CW px in the cloned DOM
+  const PX_PER_MM = WIN_W / CW;
+  // Minimum height each section must occupy in the cloned DOM
+  // so it fills exactly one full content page (guarantees the 3 cm bottom clearance)
+  const SEC_MIN_H = Math.round(CH * PX_PER_MM); // 257 * 4 = 1028 px
+
   // 1. PDF mode
   el.classList.add('pdf');
 
@@ -773,7 +790,7 @@ async function downloadPDF() {
   // 3. Re-render each Chart.js chart with LARGE fonts for PDF readability
   const chartCanvases = el.querySelectorAll('canvas');
   const origSizes = [];
-  // At windowWidth=760, 1px ≈ 0.25mm. Font 24px = 6mm ≈ 17pt — readable even for 50+
+  // 1 DOM px = 1/PX_PER_MM mm ≈ 0.25 mm → font 24 px ≈ 6 mm ≈ 17 pt
   const PDF_FONT_SIZE_TICK   = 24;
   const PDF_FONT_SIZE_LEGEND = 24;
 
@@ -863,10 +880,9 @@ async function downloadPDF() {
   const period = '{{ start_display }}_{{ end_display }}';
 
   try {
-    const PDF_WIDTH_PX = 760;
-
     await html2pdf().set({
-      margin:      [10, 10, 30, 10],
+      // [top, right, bottom, left] — MB = 30 mm guarantees ≥ 3 cm bottom clearance
+      margin:      [MT, MX, MB, MX],
       filename:    'Отчёт_лояльности_' + company + '_' + period.replace(/\./g, '_').replace(/ /g, '') + '.pdf',
       image:       { type: 'png', quality: 1.0 },
       html2canvas: {
@@ -875,12 +891,12 @@ async function downloadPDF() {
         allowTaint: true,
         logging: false,
         backgroundColor: '#ffffff',
-        windowWidth: PDF_WIDTH_PX,
+        windowWidth: WIN_W,
         scrollX: 0,
         scrollY: 0,
         x: 0,
         y: 0,
-        width: PDF_WIDTH_PX,
+        width: WIN_W,
         onclone: (clonedDoc) => {
           ['nav-sidebar', 'header', 'nav-global'].forEach(id => {
             const e = clonedDoc.getElementById(id);
@@ -891,17 +907,36 @@ async function downloadPDF() {
           const rpt = clonedDoc.getElementById('report-content');
           if (!rpt) return;
 
-          rpt.style.cssText = 'width:' + PDF_WIDTH_PX + 'px!important;max-width:' + PDF_WIDTH_PX + 'px!important;min-width:0!important;margin:0!important;padding:16px 20px 32px!important;box-sizing:border-box!important;overflow:visible!important;';
+          rpt.style.cssText = 'width:' + WIN_W + 'px!important;max-width:' + WIN_W + 'px!important;min-width:0!important;margin:0!important;padding:16px 20px 32px!important;box-sizing:border-box!important;overflow:visible!important;';
 
           let node = rpt.parentElement;
           while (node && node !== clonedDoc.documentElement) {
-            node.style.cssText = 'margin:0!important;padding:0!important;float:none!important;width:' + PDF_WIDTH_PX + 'px!important;max-width:' + PDF_WIDTH_PX + 'px!important;overflow:visible!important;min-height:0!important;display:block!important;position:static!important;';
+            node.style.cssText = 'margin:0!important;padding:0!important;float:none!important;width:' + WIN_W + 'px!important;max-width:' + WIN_W + 'px!important;overflow:visible!important;min-height:0!important;display:block!important;position:static!important;';
             node = node.parentElement;
           }
-          clonedDoc.body.style.cssText = 'margin:0!important;padding:0!important;width:' + PDF_WIDTH_PX + 'px!important;max-width:' + PDF_WIDTH_PX + 'px!important;overflow:visible!important;';
-          clonedDoc.documentElement.style.cssText = 'margin:0!important;padding:0!important;width:' + PDF_WIDTH_PX + 'px!important;max-width:' + PDF_WIDTH_PX + 'px!important;overflow:visible!important;';
+          clonedDoc.body.style.cssText = 'margin:0!important;padding:0!important;width:' + WIN_W + 'px!important;max-width:' + WIN_W + 'px!important;overflow:visible!important;';
+          clonedDoc.documentElement.style.cssText = 'margin:0!important;padding:0!important;width:' + WIN_W + 'px!important;max-width:' + WIN_W + 'px!important;overflow:visible!important;';
 
-          // Ensure all grids fit within the page width
+          // Each section: new page + min-height = exactly one content page
+          // SEC_MIN_H is derived from A4 dimensions (not a magic number):
+          //   CH mm of content height × PX_PER_MM (WIN_W px / CW mm)
+          rpt.querySelectorAll('.R-sec').forEach(sec => {
+            sec.style.minHeight    = SEC_MIN_H + 'px';
+            sec.style.maxWidth     = '100%';
+            sec.style.overflow     = 'visible';
+            sec.style.boxSizing    = 'border-box';
+            sec.style.pageBreakBefore = 'always';
+            sec.style.breakBefore  = 'page';
+          });
+
+          // Forbid splitting inside any block that must stay whole
+          rpt.querySelectorAll(
+            '.R-chart, .R-charts, .R-grid, .R-card, .R-cmt, .R-scale, .R-bignum, .R-sec-hd, .R-sec-body, img.pdf-img'
+          ).forEach(el => {
+            el.style.pageBreakInside = 'avoid';
+            el.style.breakInside     = 'avoid';
+          });
+
           rpt.querySelectorAll('.R-grid').forEach(g => {
             g.style.cssText = 'display:flex!important;flex-wrap:wrap!important;gap:8px!important;width:100%!important;max-width:100%!important;overflow:visible!important;';
           });
@@ -919,28 +954,16 @@ async function downloadPDF() {
           });
           rpt.querySelectorAll('img.pdf-img').forEach(img => {
             img.style.maxWidth = '100%';
-            img.style.height = 'auto';
+            img.style.height   = 'auto';
           });
           rpt.querySelectorAll('.R-hd').forEach(hd => {
             hd.style.maxWidth = '100%';
             hd.style.overflow = 'hidden';
           });
-          rpt.querySelectorAll('.R-sec').forEach(sec => {
-            sec.style.maxWidth = '100%';
-            sec.style.overflow = 'visible';
-            sec.style.pageBreakBefore = 'always';
-            sec.style.breakBefore = 'page';
-          });
-          // Force no-split on every element that must stay whole
-          const noSplit = '.R-chart, .R-charts, .R-grid, .R-card, .R-cmt, .R-scale, .R-bignum, .R-sec-hd, .R-sec-body, img.pdf-img';
-          rpt.querySelectorAll(noSplit).forEach(el => {
-            el.style.pageBreakInside = 'avoid';
-            el.style.breakInside = 'avoid';
-          });
         },
       },
       jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak:   { mode: ['css', 'legacy'], before: ['.R-sec'], avoid: ['.R-hd', '.R-sec-hd', '.R-sec-body', '.R-chart', '.R-charts', '.R-grid', '.R-card', '.R-cmt', '.R-footer', '.R-scale', '.R-bignum'] },
+      pagebreak:   { mode: ['css', 'legacy'], before: ['.R-sec'], avoid: ['.R-hd', '.R-sec-hd', '.R-sec-body', '.R-chart', '.R-charts', '.R-grid', '.R-card', '.R-cmt', '.R-footer', '.R-scale', '.R-bignum', 'img.pdf-img'] },
     }).from(el).save();
   } catch (err) {
     console.error('PDF generation error:', err);
