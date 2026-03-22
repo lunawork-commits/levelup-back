@@ -8,6 +8,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render
 from django.utils.decorators import method_decorator
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views import View
 from django.utils import timezone
 
@@ -756,9 +757,8 @@ class LoyaltyReportView(View):
             'start_display':     start.strftime('%d.%m.%Y'),
             'end_display':       end.strftime('%d.%m.%Y'),
         }
-        template = (
-            'analytics/loyalty_report_pdf.html'
-            if request.GET.get('format') == 'pdf'
-            else self.template_name
-        )
-        return render(request, template, context)
+        if request.GET.get('format') == 'pdf':
+            response = render(request, 'analytics/loyalty_report_pdf.html', context)
+            response['X-Frame-Options'] = 'SAMEORIGIN'
+            return response
+        return render(request, self.template_name, context)
