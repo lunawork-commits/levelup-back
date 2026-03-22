@@ -452,9 +452,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Async load slow stats (POS guests + scan index)
   (function loadSlowStats() {
     const params = new URLSearchParams(window.location.search);
-    // Keep only period/start/end/branches params for the API call
+    // Keep only period/start/end params for the API call;
+    // rename branches → branch_ids to match StatsQuerySerializer
     const apiParams = new URLSearchParams();
-    ['period','start','end','branches'].forEach(k => { if (params.has(k)) apiParams.set(k, params.get(k)); });
+    ['period','start','end'].forEach(k => { if (params.has(k)) apiParams.set(k, params.get(k)); });
+    if (params.has('branches')) apiParams.set('branch_ids', params.get('branches'));
     fetch('/api/v1/analytics/stats/slow/?' + apiParams.toString())
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(data => {
