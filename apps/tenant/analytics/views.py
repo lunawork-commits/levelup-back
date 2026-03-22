@@ -756,4 +756,9 @@ class LoyaltyReportView(View):
             'start_display':     start.strftime('%d.%m.%Y'),
             'end_display':       end.strftime('%d.%m.%Y'),
         }
-        return render(request, self.template_name, context)
+        template = (
+            'analytics/loyalty_report_pdf.html'
+            if request.GET.get('format') == 'pdf'
+            else self.template_name
+        )
+        return render(request, template, context)

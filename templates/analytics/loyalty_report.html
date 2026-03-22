@@ -16,7 +16,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <style>
 /* ═══════════════════════════════════════════════════════
@@ -445,7 +446,7 @@
   <!-- ─── Actions (hidden in PDF) ────────────────────── -->
   <div class="R-actions">
     <button class="R-btn R-btn--ai" onclick="generateAllComments()">🤖 Сгенерировать все комментарии AI</button>
-    <button class="R-btn R-btn--pdf" onclick="downloadPDF()">📄 Скачать PDF</button>
+    <button class="R-btn R-btn--pdf" onclick="openPDFPage()">📄 Скачать PDF</button>
     <a href="{% url 'analytics-general' %}?{{ period_qs }}{% if active_branch_ids %}&branches={% for bid in active_branch_ids %}{{ bid }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}" class="R-btn R-btn--back">← К аналитике</a>
   </div>
 
@@ -755,115 +756,98 @@ function generateAllComments(){
 }
 
 /* ═══════════════════════════════════════════════════════
-   PDF EXPORT — PREMIUM
+   OPEN PDF PAGE
+   Saves comments to localStorage, opens dedicated PDF
+   template in a new tab — browser prints to PDF from there.
+   ═══════════════════════════════════════════════════════ */
+function openPDFPage() {
+  // Persist all manager comments so the PDF page can read them
+  for (let i = 1; i <= 11; i++) {
+    const ta = document.getElementById('comment-' + i);
+    localStorage.setItem('loyalty_report_comment_' + i, ta ? (ta.value || '') : '');
+  }
+  // Build URL: same page + ?format=pdf, keep all current query params
+  const params = new URLSearchParams(window.location.search);
+  params.set('format', 'pdf');
+  window.open(window.location.pathname + '?' + params.toString(), '_blank');
+}
+
+/* ═══════════════════════════════════════════════════════
+   PDF EXPORT (legacy — kept for fallback)
    ═══════════════════════════════════════════════════════ */
 async function downloadPDF() {
   const overlay = document.getElementById('pdf-overlay');
   overlay.classList.add('on');
 
+  // ── A4 geometry (all in mm) ────────────────────────────────────────────────
+  const A4_W = 210, A4_H = 297;
+  const MX = 10, MT = 10, MB = 30;       // margins: horizontal, top, bottom (3 cm)
+  const CW = A4_W - 2 * MX;              // 190 mm — content width
+  const CH = A4_H - MT - MB;             // 257 mm — content height per page
+  const WIN_W = 760;                      // render viewport width (px)
+  const PX_PER_MM = WIN_W / CW;          // 4 px per mm at WIN_W
+
   const el = document.getElementById('report-content');
 
-  // ── A4 geometry (all in mm) ────────────────────────────────────────────────
-  // A4 portrait: 210 × 297 mm
-  const A4_W = 210, A4_H = 297;
-  // Margins: horizontal (left=right), top, bottom (3 cm minimum)
-  const MX = 10, MT = 10, MB = 30;
-  // Content area per page
-  const CW = A4_W - 2 * MX;   // 190 mm — content width
-  const CH = A4_H - MT - MB;  // 257 mm — content height (bottom 30 mm always empty)
-  // Render width: this is the "virtual browser width" html2canvas uses
-  const WIN_W = 760; // px
-  // DOM px ↔ mm ratio at WIN_W: WIN_W px renders into CW mm of PDF content width
-  // → 1 mm = WIN_W/CW px in the cloned DOM
-  const PX_PER_MM = WIN_W / CW;
-  // Minimum height each section must occupy in the cloned DOM
-  // so it fills exactly one full content page (guarantees the 3 cm bottom clearance)
-  const SEC_MIN_H = Math.round(CH * PX_PER_MM); // 257 * 4 = 1028 px
-
-  // 1. PDF mode
+  // 1. PDF styles
   el.classList.add('pdf');
 
   // 2. Hide interactive elements
   const hideEls = el.querySelectorAll('.R-actions, .R-toolbar, .R-cmt-acts');
   hideEls.forEach(e => e.style.display = 'none');
 
-  // 3. Re-render each Chart.js chart with LARGE fonts for PDF readability
+  // 3. Re-render charts with large fonts for PDF readability
   const chartCanvases = el.querySelectorAll('canvas');
   const origSizes = [];
-  // 1 DOM px = 1/PX_PER_MM mm ≈ 0.25 mm → font 24 px ≈ 6 mm ≈ 17 pt
-  const PDF_FONT_SIZE_TICK   = 24;
-  const PDF_FONT_SIZE_LEGEND = 24;
+  const PDF_FONT_SIZE = 24;
 
   chartCanvases.forEach(c => {
     const chart = Chart.getChart(c);
-    if (chart) {
-      // Deep clone current options for restore
-      const origOpts = {
-        dpr: chart.options.devicePixelRatio,
-        legendFontSize: chart.options.plugins?.legend?.labels?.font?.size,
-        xTickSize: chart.options.scales?.x?.ticks?.font?.size,
-        yTickSize: chart.options.scales?.y?.ticks?.font?.size,
-      };
-      origSizes.push({ chart, origOpts });
-
-      // Increase pixel ratio for crisp rendering
-      chart.options.devicePixelRatio = 3;
-
-      // Ensure nested legend font object exists, then set size
-      if (!chart.options.plugins) chart.options.plugins = {};
-      if (!chart.options.plugins.legend) chart.options.plugins.legend = {};
-      if (!chart.options.plugins.legend.labels) chart.options.plugins.legend.labels = {};
-      if (!chart.options.plugins.legend.labels.font) chart.options.plugins.legend.labels.font = {};
-      chart.options.plugins.legend.labels.font.size = PDF_FONT_SIZE_LEGEND;
-      chart.options.plugins.legend.labels.padding = 24;
-
-      // Increase axis tick fonts (bar charts have scales, doughnuts don't)
-      if (chart.options.scales) {
-        if (chart.options.scales.x) {
-          if (!chart.options.scales.x.ticks) chart.options.scales.x.ticks = {};
-          if (!chart.options.scales.x.ticks.font) chart.options.scales.x.ticks.font = {};
-          chart.options.scales.x.ticks.font.size = PDF_FONT_SIZE_TICK;
-        }
-        if (chart.options.scales.y) {
-          if (!chart.options.scales.y.ticks) chart.options.scales.y.ticks = {};
-          if (!chart.options.scales.y.ticks.font) chart.options.scales.y.ticks.font = {};
-          chart.options.scales.y.ticks.font.size = PDF_FONT_SIZE_TICK;
-        }
-      }
-
-      chart.resize();
-      chart.update('none');
+    if (!chart) return;
+    const origOpts = {
+      dpr: chart.options.devicePixelRatio,
+      legendFontSize: chart.options.plugins?.legend?.labels?.font?.size,
+      legendPadding: chart.options.plugins?.legend?.labels?.padding,
+      xTickSize: chart.options.scales?.x?.ticks?.font?.size,
+      yTickSize: chart.options.scales?.y?.ticks?.font?.size,
+    };
+    origSizes.push({ chart, origOpts });
+    chart.options.devicePixelRatio = 3;
+    if (!chart.options.plugins) chart.options.plugins = {};
+    if (!chart.options.plugins.legend) chart.options.plugins.legend = {};
+    if (!chart.options.plugins.legend.labels) chart.options.plugins.legend.labels = {};
+    if (!chart.options.plugins.legend.labels.font) chart.options.plugins.legend.labels.font = {};
+    chart.options.plugins.legend.labels.font.size = PDF_FONT_SIZE;
+    chart.options.plugins.legend.labels.padding = 24;
+    if (chart.options.scales?.x) {
+      if (!chart.options.scales.x.ticks) chart.options.scales.x.ticks = {};
+      if (!chart.options.scales.x.ticks.font) chart.options.scales.x.ticks.font = {};
+      chart.options.scales.x.ticks.font.size = PDF_FONT_SIZE;
     }
+    if (chart.options.scales?.y) {
+      if (!chart.options.scales.y.ticks) chart.options.scales.y.ticks = {};
+      if (!chart.options.scales.y.ticks.font) chart.options.scales.y.ticks.font = {};
+      chart.options.scales.y.ticks.font.size = PDF_FONT_SIZE;
+    }
+    chart.resize();
+    chart.update('none');
   });
 
   await new Promise(r => setTimeout(r, 600));
 
-  // 4. Convert canvases to images
-  const canvases = el.querySelectorAll('canvas');
+  // 4. Convert canvases to static images (html2canvas can't capture canvas cross-origin)
   const canvasData = [];
-  const imageLoadPromises = [];
-
-  canvases.forEach(c => {
-    const dataURL = c.toDataURL('image/png', 1.0);
+  el.querySelectorAll('canvas').forEach(c => {
     const img = document.createElement('img');
     img.className = 'pdf-img';
     img.style.cssText = 'width:100%;height:auto;display:block;';
-
-    const p = new Promise(resolve => {
-      img.onload = resolve;
-      img.onerror = resolve;
-    });
-    imageLoadPromises.push(p);
-    img.src = dataURL;
-
+    img.src = c.toDataURL('image/png', 1.0);
     c.style.display = 'none';
     c.parentNode.insertBefore(img, c.nextSibling);
     canvasData.push({ canvas: c, img });
   });
 
-  await Promise.all(imageLoadPromises);
-
-  // 5. Replace textareas with static text
+  // 5. Replace textareas with static divs
   const tas = el.querySelectorAll('.R-cmt-ta');
   tas.forEach(ta => {
     const div = document.createElement('div');
@@ -875,17 +859,30 @@ async function downloadPDF() {
 
   await new Promise(r => setTimeout(r, 200));
 
-  // 6. Generate PDF
+  // 6. Force container to WIN_W so every section renders at the same width
+  const origElStyle = el.getAttribute('style') || '';
+  el.style.cssText = [
+    'width:' + WIN_W + 'px',
+    'max-width:' + WIN_W + 'px',
+    'min-width:0',
+    'margin:0',
+    'padding:16px 20px 32px',
+    'box-sizing:border-box',
+    'overflow:visible',
+  ].join('!important;') + '!important;';
+
+  // 7. Build PDF — one section = one page
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const company = '{{ company_name|escapejs }}';
-  const period = '{{ start_display }}_{{ end_display }}';
+  const period  = '{{ start_display }}_{{ end_display }}';
+  const sections = Array.from(el.querySelectorAll('.R-sec'));
 
   try {
-    await html2pdf().set({
-      // [top, right, bottom, left] — MB = 30 mm guarantees ≥ 3 cm bottom clearance
-      margin:      [MT, MX, MB, MX],
-      filename:    'Отчёт_лояльности_' + company + '_' + period.replace(/\./g, '_').replace(/ /g, '') + '.pdf',
-      image:       { type: 'png', quality: 1.0 },
-      html2canvas: {
+    for (let i = 0; i < sections.length; i++) {
+      const sec = sections[i];
+
+      const canvas = await html2canvas(sec, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
@@ -893,84 +890,46 @@ async function downloadPDF() {
         backgroundColor: '#ffffff',
         windowWidth: WIN_W,
         scrollX: 0,
-        scrollY: 0,
-        x: 0,
-        y: 0,
-        width: WIN_W,
-        onclone: (clonedDoc) => {
+        scrollY: -window.scrollY,
+        onclone: (clonedDoc, clonedEl) => {
+          // Remove Django admin chrome from the cloned document
           ['nav-sidebar', 'header', 'nav-global'].forEach(id => {
             const e = clonedDoc.getElementById(id);
-            if (e) e.remove();
+            if (e) e.style.display = 'none';
           });
-          clonedDoc.querySelectorAll('.breadcrumbs, .skip-to-content-link, footer').forEach(e => e.remove());
-
-          const rpt = clonedDoc.getElementById('report-content');
-          if (!rpt) return;
-
-          rpt.style.cssText = 'width:' + WIN_W + 'px!important;max-width:' + WIN_W + 'px!important;min-width:0!important;margin:0!important;padding:16px 20px 32px!important;box-sizing:border-box!important;overflow:visible!important;';
-
-          let node = rpt.parentElement;
-          while (node && node !== clonedDoc.documentElement) {
-            node.style.cssText = 'margin:0!important;padding:0!important;float:none!important;width:' + WIN_W + 'px!important;max-width:' + WIN_W + 'px!important;overflow:visible!important;min-height:0!important;display:block!important;position:static!important;';
-            node = node.parentElement;
-          }
-          clonedDoc.body.style.cssText = 'margin:0!important;padding:0!important;width:' + WIN_W + 'px!important;max-width:' + WIN_W + 'px!important;overflow:visible!important;';
-          clonedDoc.documentElement.style.cssText = 'margin:0!important;padding:0!important;width:' + WIN_W + 'px!important;max-width:' + WIN_W + 'px!important;overflow:visible!important;';
-
-          // Each section: new page + min-height = exactly one content page
-          // SEC_MIN_H is derived from A4 dimensions (not a magic number):
-          //   CH mm of content height × PX_PER_MM (WIN_W px / CW mm)
-          rpt.querySelectorAll('.R-sec').forEach(sec => {
-            sec.style.minHeight    = SEC_MIN_H + 'px';
-            sec.style.maxWidth     = '100%';
-            sec.style.overflow     = 'visible';
-            sec.style.boxSizing    = 'border-box';
-            sec.style.pageBreakBefore = 'always';
-            sec.style.breakBefore  = 'page';
-          });
-
-          // Forbid splitting inside any block that must stay whole
-          rpt.querySelectorAll(
-            '.R-chart, .R-charts, .R-grid, .R-card, .R-cmt, .R-scale, .R-bignum, .R-sec-hd, .R-sec-body, img.pdf-img'
-          ).forEach(el => {
-            el.style.pageBreakInside = 'avoid';
-            el.style.breakInside     = 'avoid';
-          });
-
-          rpt.querySelectorAll('.R-grid').forEach(g => {
-            g.style.cssText = 'display:flex!important;flex-wrap:wrap!important;gap:8px!important;width:100%!important;max-width:100%!important;overflow:visible!important;';
-          });
-          rpt.querySelectorAll('.R-card').forEach(c => {
-            c.style.overflow = 'visible';
-            c.style.wordWrap = 'break-word';
-            c.style.maxWidth = '100%';
-          });
-          rpt.querySelectorAll('.R-charts').forEach(ch => {
-            ch.style.cssText = 'display:grid!important;grid-template-columns:1fr!important;gap:14px!important;width:100%!important;max-width:100%!important;overflow:visible!important;';
-          });
-          rpt.querySelectorAll('.R-chart').forEach(ch => {
-            ch.style.maxWidth = '100%';
-            ch.style.overflow = 'visible';
-          });
-          rpt.querySelectorAll('img.pdf-img').forEach(img => {
-            img.style.maxWidth = '100%';
-            img.style.height   = 'auto';
-          });
-          rpt.querySelectorAll('.R-hd').forEach(hd => {
-            hd.style.maxWidth = '100%';
-            hd.style.overflow = 'hidden';
-          });
+          clonedDoc.querySelectorAll('.breadcrumbs, .skip-to-content-link, footer').forEach(e => e.style.display = 'none');
+          // Ensure the section itself fills the full width
+          clonedEl.style.cssText = 'width:' + WIN_W + 'px!important;max-width:' + WIN_W + 'px!important;box-sizing:border-box!important;overflow:visible!important;';
         },
-      },
-      jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak:   { mode: ['css', 'legacy'], before: ['.R-sec'], avoid: ['.R-hd', '.R-sec-hd', '.R-sec-body', '.R-chart', '.R-charts', '.R-grid', '.R-card', '.R-cmt', '.R-footer', '.R-scale', '.R-bignum', 'img.pdf-img'] },
-    }).from(el).save();
+      });
+
+      // canvas.width  = section logical px width  × scale (≈ WIN_W × 2 = 1520)
+      // canvas.height = section logical px height × scale
+      // Logical height in mm:
+      const imgH_mm = (canvas.height / 2) / PX_PER_MM;
+
+      // Fit into content area; if taller than CH, scale down proportionally
+      let pdfW = CW, pdfH = imgH_mm;
+      if (imgH_mm > CH) {
+        pdfH = CH;
+        pdfW = CW * (CH / imgH_mm);
+      }
+
+      // Center horizontally if scaled down
+      const xOffset = MX + (CW - pdfW) / 2;
+
+      if (i > 0) pdf.addPage();
+      pdf.addImage(canvas.toDataURL('image/png', 1.0), 'PNG', xOffset, MT, pdfW, pdfH);
+    }
+
+    pdf.save('Отчёт_лояльности_' + company + '_' + period.replace(/\./g, '_').replace(/ /g, '') + '.pdf');
   } catch (err) {
     console.error('PDF generation error:', err);
     alert('Ошибка при генерации PDF.');
   }
 
-  // 7. Restore
+  // 8. Restore DOM
+  el.setAttribute('style', origElStyle);
   el.classList.remove('pdf');
   hideEls.forEach(e => e.style.display = '');
   canvasData.forEach(({ canvas, img }) => { canvas.style.display = ''; img.remove(); });
@@ -979,16 +938,14 @@ async function downloadPDF() {
 
   origSizes.forEach(({ chart, origOpts }) => {
     chart.options.devicePixelRatio = origOpts.dpr || undefined;
-    if (chart.options.plugins?.legend?.labels?.font) {
+    if (chart.options.plugins?.legend?.labels?.font)
       chart.options.plugins.legend.labels.font.size = origOpts.legendFontSize || 15;
-      chart.options.plugins.legend.labels.padding = 18;
-    }
-    if (chart.options.scales?.x?.ticks?.font) {
+    if (chart.options.plugins?.legend?.labels)
+      chart.options.plugins.legend.labels.padding = origOpts.legendPadding || 18;
+    if (chart.options.scales?.x?.ticks?.font)
       chart.options.scales.x.ticks.font.size = origOpts.xTickSize || 14;
-    }
-    if (chart.options.scales?.y?.ticks?.font) {
+    if (chart.options.scales?.y?.ticks?.font)
       chart.options.scales.y.ticks.font.size = origOpts.yTickSize || 14;
-    }
     chart.resize();
     chart.update('none');
   });
