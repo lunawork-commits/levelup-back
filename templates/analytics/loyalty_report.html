@@ -446,7 +446,7 @@
   <!-- ─── Actions (hidden in PDF) ────────────────────── -->
   <div class="R-actions">
     <button class="R-btn R-btn--ai" onclick="generateAllComments()">🤖 Сгенерировать все комментарии AI</button>
-    <button class="R-btn R-btn--pdf" onclick="openPDFPage()">📄 Скачать PDF</button>
+    <button class="R-btn R-btn--pdf" onclick="downloadPDF()">📄 Скачать PDF</button>
     <a href="{% url 'analytics-general' %}?{{ period_qs }}{% if active_branch_ids %}&branches={% for bid in active_branch_ids %}{{ bid }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}" class="R-btn R-btn--back">← К аналитике</a>
   </div>
 
@@ -756,25 +756,6 @@ function generateAllComments(){
 }
 
 /* ═══════════════════════════════════════════════════════
-   OPEN PDF PAGE
-   Saves comments to localStorage, opens dedicated PDF
-   template in a new tab — browser prints to PDF from there.
-   ═══════════════════════════════════════════════════════ */
-function openPDFPage() {
-  // Persist all manager comments so the PDF page can read them
-  for (let i = 1; i <= 11; i++) {
-    const ta = document.getElementById('comment-' + i);
-    localStorage.setItem('loyalty_report_comment_' + i, ta ? (ta.value || '') : '');
-  }
-  // Build URL: same page + ?format=pdf, keep all current query params
-  const params = new URLSearchParams(window.location.search);
-  params.set('format', 'pdf');
-  window.open(window.location.pathname + '?' + params.toString(), '_blank');
-}
-
-/* ═══════════════════════════════════════════════════════
-   PDF EXPORT (legacy — kept for fallback)
-   ═══════════════════════════════════════════════════════ */
 async function downloadPDF() {
   const overlay = document.getElementById('pdf-overlay');
   overlay.classList.add('on');
@@ -889,17 +870,26 @@ async function downloadPDF() {
         logging: false,
         backgroundColor: '#ffffff',
         windowWidth: WIN_W,
-        scrollX: 0,
+        scrollX: -window.scrollX,
         scrollY: -window.scrollY,
         onclone: (clonedDoc, clonedEl) => {
-          // Remove Django admin chrome from the cloned document
+          // Hide Django admin chrome
           ['nav-sidebar', 'header', 'nav-global'].forEach(id => {
             const e = clonedDoc.getElementById(id);
             if (e) e.style.display = 'none';
           });
           clonedDoc.querySelectorAll('.breadcrumbs, .skip-to-content-link, footer').forEach(e => e.style.display = 'none');
-          // Ensure the section itself fills the full width
-          clonedEl.style.cssText = 'width:' + WIN_W + 'px!important;max-width:' + WIN_W + 'px!important;box-sizing:border-box!important;overflow:visible!important;';
+
+          // Fix all ancestor widths so the section isn't constrained
+          clonedDoc.documentElement.style.cssText = 'width:' + WIN_W + 'px!important;overflow:visible!important;margin:0!important;padding:0!important;';
+          clonedDoc.body.style.cssText = 'width:' + WIN_W + 'px!important;overflow:visible!important;margin:0!important;padding:0!important;';
+          let node = clonedEl.parentElement;
+          while (node && node !== clonedDoc.documentElement) {
+            node.style.cssText = 'width:' + WIN_W + 'px!important;max-width:' + WIN_W + 'px!important;overflow:visible!important;margin:0!important;padding:0!important;float:none!important;position:static!important;display:block!important;';
+            node = node.parentElement;
+          }
+          // Section itself
+          clonedEl.style.cssText = 'width:' + WIN_W + 'px!important;max-width:' + WIN_W + 'px!important;box-sizing:border-box!important;overflow:visible!important;margin:0!important;';
         },
       });
 
