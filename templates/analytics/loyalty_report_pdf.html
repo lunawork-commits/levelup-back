@@ -8,6 +8,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 /* ── Page & print setup ──────────────────────────────────────────────────── */
 @page {
@@ -1024,9 +1026,87 @@ function preparePrint() {
   }, 500);
 }
 
+// ── Auto-generate PDF (runs when page is inside a hidden iframe) ──────────────
+async function autoPDF() {
+  // A4 geometry — identical to the iframe width we set in the parent
+  const A4_W = 210, A4_H = 297;
+  const MX = 10, MT = 10, MB = 30;
+  const CW = A4_W - 2 * MX;   // 190 mm content width
+  const CH = A4_H - MT - MB;  // 257 mm content height
+  const WIN_W = 900;           // must match iframe.style.width in parent
+  const PX_PER_MM = WIN_W / CW;
+
+  // Give fonts and charts time to finish rendering
+  await new Promise(r => setTimeout(r, 800));
+
+  // Freeze all canvases as static images
+  document.querySelectorAll('canvas').forEach(canvas => {
+    const snap = document.getElementById('snap-' + canvas.id.replace('chart-', ''));
+    if (!snap) return;
+    snap.src = canvas.toDataURL('image/png', 1.0);
+    snap.style.display = 'block';
+    canvas.style.display = 'none';
+  });
+
+  await new Promise(r => setTimeout(r, 100));
+
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const company = '{{ company_name|escapejs }}';
+  const period  = '{{ start_display }}_{{ end_display }}';
+
+  // Cover + all sections
+  const pages = [
+    document.querySelector('.cover'),
+    ...Array.from(document.querySelectorAll('.section')),
+  ].filter(Boolean);
+
+  try {
+    for (let i = 0; i < pages.length; i++) {
+      const el = pages[i];
+
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        windowWidth: WIN_W,
+        scrollX: -window.scrollX,
+        scrollY: -window.scrollY,
+      });
+
+      // Height in mm derived from canvas dimensions
+      const imgH_mm = (canvas.height / 2) / PX_PER_MM;
+      let pdfW = CW, pdfH = imgH_mm;
+      if (imgH_mm > CH) {       // scale down if section is taller than one page
+        pdfH = CH;
+        pdfW = CW * (CH / imgH_mm);
+      }
+
+      if (i > 0) pdf.addPage();
+      pdf.addImage(canvas.toDataURL('image/png', 1.0), 'PNG', MX + (CW - pdfW) / 2, MT, pdfW, pdfH);
+    }
+
+    pdf.save('Отчёт_лояльности_' + company + '_' + period.replace(/\./g, '_').replace(/ /g, '') + '.pdf');
+  } catch (err) {
+    console.error('PDF error:', err);
+  } finally {
+    // Tell the parent page we are done so it can remove the iframe
+    if (window.parent !== window) {
+      window.parent.postMessage('pdf-done', '*');
+    }
+  }
+}
+
 // ── Run ───────────────────────────────────────────────────────────────────────
 initCharts();
 loadComments();
+
+// If inside a hidden iframe — skip the UI and generate PDF automatically
+if (window !== window.top) {
+  window.addEventListener('load', autoPDF);
+}
 </script>
 </body>
 </html>

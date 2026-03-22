@@ -16,8 +16,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&family=DM+Serif+Display&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <style>
 /* ═══════════════════════════════════════════════════════
@@ -756,193 +754,40 @@ function generateAllComments(){
 }
 
 /* ═══════════════════════════════════════════════════════
-   PDF EXPORT — jsPDF + html2canvas per section
+   PDF EXPORT
+   Opens loyalty_report_pdf.html in a hidden iframe.
+   That page generates the PDF via jsPDF + html2canvas and
+   posts 'pdf-done' when the file download starts.
    ═══════════════════════════════════════════════════════ */
-async function downloadPDF() {
+function downloadPDF() {
   const overlay = document.getElementById('pdf-overlay');
   overlay.classList.add('on');
 
-  // ── A4 geometry (all in mm) ────────────────────────────────────────────────
-  const A4_W = 210, A4_H = 297;
-  const MX = 10, MT = 10, MB = 30;       // margins: horizontal, top, bottom (3 cm)
-  const CW = A4_W - 2 * MX;              // 190 mm — content width
-  const CH = A4_H - MT - MB;             // 257 mm — content height per page
-  const WIN_W = 760;                      // render viewport width (px)
-  const PX_PER_MM = WIN_W / CW;          // 4 px per mm at WIN_W
-
-  const el = document.getElementById('report-content');
-
-  // 1. PDF styles
-  el.classList.add('pdf');
-
-  // 2. Hide interactive elements
-  const hideEls = el.querySelectorAll('.R-actions, .R-toolbar, .R-cmt-acts');
-  hideEls.forEach(e => e.style.display = 'none');
-
-  // 3. Re-render charts with large fonts for PDF readability
-  const chartCanvases = el.querySelectorAll('canvas');
-  const origSizes = [];
-  const PDF_FONT_SIZE = 24;
-
-  chartCanvases.forEach(c => {
-    const chart = Chart.getChart(c);
-    if (!chart) return;
-    const origOpts = {
-      dpr: chart.options.devicePixelRatio,
-      legendFontSize: chart.options.plugins?.legend?.labels?.font?.size,
-      legendPadding: chart.options.plugins?.legend?.labels?.padding,
-      xTickSize: chart.options.scales?.x?.ticks?.font?.size,
-      yTickSize: chart.options.scales?.y?.ticks?.font?.size,
-    };
-    origSizes.push({ chart, origOpts });
-    chart.options.devicePixelRatio = 3;
-    if (!chart.options.plugins) chart.options.plugins = {};
-    if (!chart.options.plugins.legend) chart.options.plugins.legend = {};
-    if (!chart.options.plugins.legend.labels) chart.options.plugins.legend.labels = {};
-    if (!chart.options.plugins.legend.labels.font) chart.options.plugins.legend.labels.font = {};
-    chart.options.plugins.legend.labels.font.size = PDF_FONT_SIZE;
-    chart.options.plugins.legend.labels.padding = 24;
-    if (chart.options.scales?.x) {
-      if (!chart.options.scales.x.ticks) chart.options.scales.x.ticks = {};
-      if (!chart.options.scales.x.ticks.font) chart.options.scales.x.ticks.font = {};
-      chart.options.scales.x.ticks.font.size = PDF_FONT_SIZE;
-    }
-    if (chart.options.scales?.y) {
-      if (!chart.options.scales.y.ticks) chart.options.scales.y.ticks = {};
-      if (!chart.options.scales.y.ticks.font) chart.options.scales.y.ticks.font = {};
-      chart.options.scales.y.ticks.font.size = PDF_FONT_SIZE;
-    }
-    chart.resize();
-    chart.update('none');
-  });
-
-  await new Promise(r => setTimeout(r, 600));
-
-  // 4. Convert canvases to static images (html2canvas can't capture canvas cross-origin)
-  const canvasData = [];
-  el.querySelectorAll('canvas').forEach(c => {
-    const img = document.createElement('img');
-    img.className = 'pdf-img';
-    img.style.cssText = 'width:100%;height:auto;display:block;';
-    img.src = c.toDataURL('image/png', 1.0);
-    c.style.display = 'none';
-    c.parentNode.insertBefore(img, c.nextSibling);
-    canvasData.push({ canvas: c, img });
-  });
-
-  // 5. Replace textareas with static divs
-  const tas = el.querySelectorAll('.R-cmt-ta');
-  tas.forEach(ta => {
-    const div = document.createElement('div');
-    div.className = 'R-pdf-text _pdf-replacement';
-    div.textContent = ta.value || '—';
-    ta.style.display = 'none';
-    ta.parentNode.insertBefore(div, ta.nextSibling);
-  });
-
-  await new Promise(r => setTimeout(r, 200));
-
-  // 6. Force container to WIN_W so every section renders at the same width
-  const origElStyle = el.getAttribute('style') || '';
-  el.style.cssText = [
-    'width:' + WIN_W + 'px',
-    'max-width:' + WIN_W + 'px',
-    'min-width:0',
-    'margin:0',
-    'padding:16px 20px 32px',
-    'box-sizing:border-box',
-    'overflow:visible',
-  ].join('!important;') + '!important;';
-
-  // 7. Build PDF — one section = one page
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const company = '{{ company_name|escapejs }}';
-  const period  = '{{ start_display }}_{{ end_display }}';
-  const sections = Array.from(el.querySelectorAll('.R-sec'));
-
-  try {
-    for (let i = 0; i < sections.length; i++) {
-      const sec = sections[i];
-
-      const canvas = await html2canvas(sec, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        windowWidth: WIN_W,
-        scrollX: -window.scrollX,
-        scrollY: -window.scrollY,
-        onclone: (clonedDoc, clonedEl) => {
-          // Hide Django admin chrome
-          ['nav-sidebar', 'header', 'nav-global'].forEach(id => {
-            const e = clonedDoc.getElementById(id);
-            if (e) e.style.display = 'none';
-          });
-          clonedDoc.querySelectorAll('.breadcrumbs, .skip-to-content-link, footer').forEach(e => e.style.display = 'none');
-
-          // Fix all ancestor widths so the section isn't constrained
-          clonedDoc.documentElement.style.cssText = 'width:' + WIN_W + 'px!important;overflow:visible!important;margin:0!important;padding:0!important;';
-          clonedDoc.body.style.cssText = 'width:' + WIN_W + 'px!important;overflow:visible!important;margin:0!important;padding:0!important;';
-          let node = clonedEl.parentElement;
-          while (node && node !== clonedDoc.documentElement) {
-            node.style.cssText = 'width:' + WIN_W + 'px!important;max-width:' + WIN_W + 'px!important;overflow:visible!important;margin:0!important;padding:0!important;float:none!important;position:static!important;display:block!important;';
-            node = node.parentElement;
-          }
-          // Section itself
-          clonedEl.style.cssText = 'width:' + WIN_W + 'px!important;max-width:' + WIN_W + 'px!important;box-sizing:border-box!important;overflow:visible!important;margin:0!important;';
-        },
-      });
-
-      // canvas.width  = section logical px width  × scale (≈ WIN_W × 2 = 1520)
-      // canvas.height = section logical px height × scale
-      // Logical height in mm:
-      const imgH_mm = (canvas.height / 2) / PX_PER_MM;
-
-      // Fit into content area; if taller than CH, scale down proportionally
-      let pdfW = CW, pdfH = imgH_mm;
-      if (imgH_mm > CH) {
-        pdfH = CH;
-        pdfW = CW * (CH / imgH_mm);
-      }
-
-      // Center horizontally if scaled down
-      const xOffset = MX + (CW - pdfW) / 2;
-
-      if (i > 0) pdf.addPage();
-      pdf.addImage(canvas.toDataURL('image/png', 1.0), 'PNG', xOffset, MT, pdfW, pdfH);
-    }
-
-    pdf.save('Отчёт_лояльности_' + company + '_' + period.replace(/\./g, '_').replace(/ /g, '') + '.pdf');
-  } catch (err) {
-    console.error('PDF generation error:', err);
-    alert('Ошибка при генерации PDF.');
+  // Save all manager comments so the PDF page can read them from localStorage
+  for (let i = 1; i <= 11; i++) {
+    const ta = document.getElementById('comment-' + i);
+    localStorage.setItem('loyalty_report_comment_' + i, ta ? (ta.value || '') : '');
   }
 
-  // 8. Restore DOM
-  el.setAttribute('style', origElStyle);
-  el.classList.remove('pdf');
-  hideEls.forEach(e => e.style.display = '');
-  canvasData.forEach(({ canvas, img }) => { canvas.style.display = ''; img.remove(); });
-  el.querySelectorAll('._pdf-replacement').forEach(e => e.remove());
-  tas.forEach(ta => ta.style.display = '');
+  // Create a hidden iframe that loads the clean PDF template.
+  // That template has no Django admin chrome, so html2canvas renders it perfectly.
+  // Width must match WIN_W constant in loyalty_report_pdf.html (900px).
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:900px;height:900px;opacity:0;pointer-events:none;border:none;';
 
-  origSizes.forEach(({ chart, origOpts }) => {
-    chart.options.devicePixelRatio = origOpts.dpr || undefined;
-    if (chart.options.plugins?.legend?.labels?.font)
-      chart.options.plugins.legend.labels.font.size = origOpts.legendFontSize || 15;
-    if (chart.options.plugins?.legend?.labels)
-      chart.options.plugins.legend.labels.padding = origOpts.legendPadding || 18;
-    if (chart.options.scales?.x?.ticks?.font)
-      chart.options.scales.x.ticks.font.size = origOpts.xTickSize || 14;
-    if (chart.options.scales?.y?.ticks?.font)
-      chart.options.scales.y.ticks.font.size = origOpts.yTickSize || 14;
-    chart.resize();
-    chart.update('none');
-  });
+  const params = new URLSearchParams(window.location.search);
+  params.set('format', 'pdf');
+  iframe.src = window.location.pathname + '?' + params.toString();
+  document.body.appendChild(iframe);
 
-  overlay.classList.remove('on');
+  // Wait for the PDF page to finish and send us 'pdf-done'
+  function onPdfDone(e) {
+    if (e.data !== 'pdf-done') return;
+    window.removeEventListener('message', onPdfDone);
+    overlay.classList.remove('on');
+    setTimeout(() => iframe.remove(), 500);
+  }
+  window.addEventListener('message', onPdfDone);
 }
 
 /* ═══════════════════════════════════════════════════════
