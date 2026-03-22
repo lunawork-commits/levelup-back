@@ -379,7 +379,8 @@
 .R.pdf .R-footer-brand { font-size: 20px; }
 /* ── Page breaks: keep blocks together across A4 pages ── */
 .R.pdf .R-hd       { page-break-inside: avoid; break-inside: avoid; page-break-after: avoid; break-after: avoid; }
-.R.pdf .R-sec       { page-break-inside: avoid; break-inside: avoid; }
+/* Each section starts on a new PDF page */
+.R.pdf .R-sec      { page-break-before: always; break-before: page; }
 .R.pdf .R-sec-hd   { page-break-after: avoid; break-after: avoid; page-break-inside: avoid; break-inside: avoid; }
 .R.pdf .R-sec-body { page-break-inside: avoid; break-inside: avoid; }
 .R.pdf .R-grid     { page-break-inside: avoid; break-inside: avoid; }
@@ -931,7 +932,7 @@ async function downloadPDF() {
         },
       },
       jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak:   { mode: ['css', 'legacy'], avoid: ['.R-hd', '.R-sec', '.R-sec-hd', '.R-sec-body', '.R-chart', '.R-charts', '.R-grid', '.R-card', '.R-cmt', '.R-footer', '.R-scale', '.R-bignum'] },
+      pagebreak:   { mode: ['css', 'legacy'], before: ['.R-sec'], avoid: ['.R-hd', '.R-sec-hd', '.R-sec-body', '.R-chart', '.R-charts', '.R-grid', '.R-card', '.R-cmt', '.R-footer', '.R-scale', '.R-bignum'] },
     }).from(el).save();
   } catch (err) {
     console.error('PDF generation error:', err);
