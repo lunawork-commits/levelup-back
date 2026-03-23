@@ -58,6 +58,10 @@
                 "
                 oninput="vkUpdateLink()"
               >
+              <label style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600; cursor:pointer;">
+                <input type="checkbox" id="vk-delivery-checkbox" onchange="vkUpdateLink()" style="width:16px; height:16px; cursor:pointer;">
+                Доставка
+              </label>
             </div>
 
             <div
@@ -128,7 +132,10 @@
   var currentLink = '';
 
   function buildLink(table) {
-    return BASE_LINK + '&table=' + table;
+    var delivery = document.getElementById('vk-delivery-checkbox').checked;
+    var link = BASE_LINK + '&table=' + table;
+    if (delivery) link += '&delivery=true';
+    return link;
   }
 
   window.vkUpdateLink = function () {
@@ -237,6 +244,10 @@
                 "
                 oninput="luUpdateLink()"
               >
+              <label style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600; cursor:pointer;">
+                <input type="checkbox" id="lu-delivery-checkbox" onchange="luUpdateLink()" style="width:16px; height:16px; cursor:pointer;">
+                Доставка
+              </label>
             </div>
 
             <div
@@ -307,7 +318,10 @@
   var currentLink = '';
 
   function buildLink(table) {
-    return BASE_LINK + '&table=' + table;
+    var delivery = document.getElementById('lu-delivery-checkbox').checked;
+    var link = BASE_LINK + '&table=' + table;
+    if (delivery) link += '&delivery=true';
+    return link;
   }
 
   window.luUpdateLink = function () {
