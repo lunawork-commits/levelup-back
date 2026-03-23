@@ -60,7 +60,7 @@ class BranchConfigInline(admin.StackedInline):
 @admin.register(Branch, site=tenant_admin)
 class BranchAdmin(admin.ModelAdmin):
     inlines = [BranchConfigInline]
-    list_display = ('name', 'branch_id', 'is_active', 'pos_status', 'guests_link', 'updated_at')
+    list_display = ('name', 'branch_id', 'dooglys_branch_id', 'is_active', 'pos_status', 'guests_link', 'updated_at')
     list_filter = ('is_active',)
     search_fields = ('name',)
     change_form_template = 'admin/branch/branch/change_form.html'
@@ -71,14 +71,28 @@ class BranchAdmin(admin.ModelAdmin):
             obj = self.get_object(request, object_id)
             if obj:
                 tenant = getattr(request, 'tenant', None)
-                extra_context['vk_widget'] = {
-                    'vk_app_id': getattr(settings, 'VK_MINI_APP_ID', ''),
-                    'company_id': tenant.client_id if tenant else '',
-                    'branch_id': obj.branch_id,
-                }
-                extra_context['loyalupp_widget'] = {
-                    'company_id': tenant.client_id if tenant else '',
-                    'branch_id': obj.branch_id,
+                vk_app_id = getattr(settings, 'VK_MINI_APP_ID', '')
+                company_id = tenant.client_id if tenant else ''
+
+                extra_context['vk_link'] = (
+                    f'https://vk.com/app{vk_app_id}/#/?company={company_id}&branch={obj.branch_id}'
+                )
+                extra_context['loyalupp_link'] = (
+                    f'https://loyalupp.ru/#/?company={company_id}&branch={obj.branch_id}'
+                )
+
+                try:
+                    from apps.shared.clients.models import Company, Domain
+                    from django_tenants.utils import get_public_schema_name
+                    pub = Company.objects.get(schema_name=get_public_schema_name())
+                    pub_domain = Domain.objects.filter(tenant=pub, is_primary=True).first()
+                    webhook_base = f'{request.scheme}://{pub_domain.domain}' if pub_domain else ''
+                except Exception:
+                    webhook_base = ''
+
+                extra_context['delivery_info'] = {
+                    'webhook_url': f'{webhook_base}/api/v1/delivery/webhook/',
+                    'dooglys_branch_id': obj.dooglys_branch_id,
                 }
         return super().change_view(request, object_id, form_url, extra_context)
 
