@@ -28,7 +28,8 @@ class PublicDeliveryWebhook(APIView):
         s = WebhookRequestSerializer(data=request.data)
         s.is_valid(raise_exception=True)
 
-        for company in Company.objects.filter(is_active=True):
+        from django_tenants.utils import get_public_schema_name
+        for company in Company.objects.filter(is_active=True).exclude(schema_name=get_public_schema_name()):
             with schema_context(company.schema_name):
                 try:
                     delivery, created = register_delivery(**s.validated_data)
