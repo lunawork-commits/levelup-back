@@ -2,7 +2,17 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import include, path
 
-from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
+from drf_spectacular.views import SpectacularAPIView
+from drf_spectacular.views import SpectacularSwaggerView as _SwaggerView
+from drf_spectacular.views import SpectacularRedocView as _RedocView
+
+
+class SpectacularSwaggerView(_SwaggerView):
+    schema = None
+
+
+class SpectacularRedocView(_RedocView):
+    schema = None
 
 from apps.shared.config.admin_sites import public_admin
 from apps.tenant.delivery.api.public_views import PublicDeliveryWebhook
