@@ -80,7 +80,7 @@ class ClientProfileResponseSerializer(serializers.Serializer):
         vk = self._vk(obj)
         return vk.is_story_uploaded if vk else False
 
-    def get_story_uploaded_at(self, obj):
+    def get_story_uploaded_at(self, obj) -> str | None:
         vk = self._vk(obj)
         return vk.story_uploaded_at if vk else None
 

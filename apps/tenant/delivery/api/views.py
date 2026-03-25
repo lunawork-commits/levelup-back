@@ -3,6 +3,9 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from drf_spectacular.utils import extend_schema
+from drf_spectacular.types import OpenApiTypes
+
 from .serializers import (
     CodeActivationRequestSerializer,
     DeliverySerializer,
@@ -23,6 +26,7 @@ class DeliveryWebhook(APIView):
     Returns 201 when created, 200 when the code already exists (idempotent).
     """
 
+    @extend_schema(request=WebhookRequestSerializer, responses={200: DeliverySerializer, 201: DeliverySerializer, 403: OpenApiTypes.OBJECT, 404: OpenApiTypes.OBJECT})
     def post(self, request: Request) -> Response:
         if not verify_webhook_signature(request):
             return Response(
@@ -53,6 +57,7 @@ class DeliveryCodeView(APIView):
     Idempotent: re-submitting the same code by the same client returns 200.
     """
 
+    @extend_schema(request=CodeActivationRequestSerializer, responses={200: DeliverySerializer, 404: OpenApiTypes.OBJECT})
     def post(self, request: Request) -> Response:
         s = CodeActivationRequestSerializer(data=request.data)
         s.is_valid(raise_exception=True)

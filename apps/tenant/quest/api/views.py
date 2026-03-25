@@ -3,6 +3,9 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from drf_spectacular.utils import extend_schema
+from drf_spectacular.types import OpenApiTypes
+
 from .serializers import (
     QuestActivateSerializer,
     QuestCooldownSerializer,
@@ -28,6 +31,7 @@ class QuestListView(APIView):
     Returns all active quests with a per-guest completion flag.
     """
 
+    @extend_schema(parameters=[QuestRequestSerializer], responses={200: QuestListItemSerializer(many=True), 404: OpenApiTypes.OBJECT})
     def get(self, request: Request) -> Response:
         s = QuestRequestSerializer(data=request.query_params)
         s.is_valid(raise_exception=True)
@@ -47,6 +51,7 @@ class QuestActiveView(APIView):
     Returns the guest's current pending quest submit, or {} if none is active.
     """
 
+    @extend_schema(parameters=[QuestRequestSerializer], responses={200: QuestSubmitSerializer, 404: OpenApiTypes.OBJECT})
     def get(self, request: Request) -> Response:
         s = QuestRequestSerializer(data=request.query_params)
         s.is_valid(raise_exception=True)
@@ -68,6 +73,7 @@ class QuestActivateView(APIView):
     Starts a quest for the guest.  Idempotent for already-pending submits.
     """
 
+    @extend_schema(request=QuestActivateSerializer, responses={200: QuestSubmitSerializer, 201: QuestSubmitSerializer, 404: OpenApiTypes.OBJECT, 409: OpenApiTypes.OBJECT})
     def post(self, request: Request) -> Response:
         s = QuestActivateSerializer(data=request.data)
         s.is_valid(raise_exception=True)
@@ -114,6 +120,7 @@ class QuestSubmitView(APIView):
     Completes a pending quest with today's daily QUEST code.
     """
 
+    @extend_schema(request=QuestSubmitInputSerializer, responses={200: QuestSubmitSerializer, 400: OpenApiTypes.OBJECT, 404: OpenApiTypes.OBJECT, 409: OpenApiTypes.OBJECT})
     def post(self, request: Request) -> Response:
         s = QuestSubmitInputSerializer(data=request.data)
         s.is_valid(raise_exception=True)
@@ -148,6 +155,7 @@ class QuestCooldownView(APIView):
     POST /api/v1/quest/cooldown/ — manually activate cooldown (admin / debug)
     """
 
+    @extend_schema(parameters=[QuestRequestSerializer], responses={200: QuestCooldownSerializer, 404: OpenApiTypes.OBJECT})
     def get(self, request: Request) -> Response:
         s = QuestRequestSerializer(data=request.query_params)
         s.is_valid(raise_exception=True)
@@ -162,6 +170,7 @@ class QuestCooldownView(APIView):
             return Response({'is_active': False, 'expires_at': None, 'seconds_remaining': 0})
         return Response(QuestCooldownSerializer(cooldown).data)
 
+    @extend_schema(request=QuestRequestSerializer, responses={200: QuestCooldownSerializer, 404: OpenApiTypes.OBJECT})
     def post(self, request: Request) -> Response:
         s = QuestRequestSerializer(data=request.data)
         s.is_valid(raise_exception=True)

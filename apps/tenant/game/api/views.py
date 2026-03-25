@@ -3,6 +3,9 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from drf_spectacular.utils import extend_schema
+from drf_spectacular.types import OpenApiTypes
+
 from .serializers import (
     GameClaimSerializer,
     GameCooldownRequestSerializer,
@@ -32,6 +35,7 @@ class GameStartView(APIView):
     guest with the result — rather than showing the outcome upfront.
     """
 
+    @extend_schema(request=GameStartSerializer, responses={200: GameSessionSerializer, 404: OpenApiTypes.OBJECT, 409: OpenApiTypes.OBJECT, 400: OpenApiTypes.OBJECT})
     def post(self, request: Request) -> Response:
         s = GameStartSerializer(data=request.data)
         s.is_valid(raise_exception=True)
@@ -75,6 +79,7 @@ class GameClaimView(APIView):
     the same token twice returns 400 on the second request.
     """
 
+    @extend_schema(request=GameClaimSerializer, responses={200: OpenApiTypes.OBJECT, 400: OpenApiTypes.OBJECT})
     def post(self, request: Request) -> Response:
         s = GameClaimSerializer(data=request.data)
         s.is_valid(raise_exception=True)
@@ -102,6 +107,7 @@ class GameCooldownView(APIView):
     DELETE /api/v1/game/cooldown/ — reset cooldown (admin / debug)
     """
 
+    @extend_schema(parameters=[GameCooldownRequestSerializer], responses={200: GameCooldownSerializer, 404: OpenApiTypes.OBJECT})
     def get(self, request: Request) -> Response:
         s = GameCooldownRequestSerializer(data=request.query_params)
         s.is_valid(raise_exception=True)
@@ -119,6 +125,7 @@ class GameCooldownView(APIView):
 
         return Response(GameCooldownSerializer(cooldown).data)
 
+    @extend_schema(parameters=[GameCooldownRequestSerializer], responses={204: None, 404: OpenApiTypes.OBJECT})
     def delete(self, request: Request) -> Response:
         s = GameCooldownRequestSerializer(data=request.query_params)
         s.is_valid(raise_exception=True)

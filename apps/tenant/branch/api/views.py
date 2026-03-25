@@ -3,6 +3,9 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from drf_spectacular.utils import extend_schema
+from drf_spectacular.types import OpenApiTypes
+
 from .serializers import (
     BranchIdRequestSerializer,
     BranchInfoSerializer,
@@ -36,6 +39,7 @@ class BranchInfoView(APIView):
     Called immediately after domain resolution, before guest identification.
     """
 
+    @extend_schema(responses={200: BranchInfoSerializer, 404: OpenApiTypes.OBJECT, 403: OpenApiTypes.OBJECT})
     def get(self, request: Request, branch_id: int) -> Response:
         try:
             data = get_branch_info(branch_id, tenant=getattr(request, 'tenant', None))
@@ -64,6 +68,7 @@ class ClientView(APIView):
     PATCH                     — обновить данные профиля
     """
 
+    @extend_schema(parameters=[ClientGetRequestSerializer], responses={200: ClientProfileResponseSerializer, 404: OpenApiTypes.OBJECT})
     def get(self, request: Request) -> Response:
         s = ClientGetRequestSerializer(data=request.query_params)
         s.is_valid(raise_exception=True)
@@ -76,6 +81,7 @@ class ClientView(APIView):
             )
         return Response(ClientProfileResponseSerializer(profile).data)
 
+    @extend_schema(request=ClientRegistrationRequestSerializer, responses={200: ClientProfileResponseSerializer, 201: ClientProfileResponseSerializer, 403: OpenApiTypes.OBJECT, 404: OpenApiTypes.OBJECT})
     def post(self, request: Request) -> Response:
         s = ClientRegistrationRequestSerializer(data=request.data)
         s.is_valid(raise_exception=True)
@@ -99,6 +105,7 @@ class ClientView(APIView):
         resp_status = status.HTTP_201_CREATED if created else status.HTTP_200_OK
         return Response(ClientProfileResponseSerializer(profile).data, status=resp_status)
 
+    @extend_schema(request=ClientUpdateRequestSerializer, responses={200: ClientProfileResponseSerializer, 404: OpenApiTypes.OBJECT})
     def patch(self, request: Request) -> Response:
         s = ClientUpdateRequestSerializer(data=request.data)
         s.is_valid(raise_exception=True)
@@ -118,6 +125,7 @@ class EmployeeView(APIView):
     Returns all ClientBranch records with is_employee=True for the branch.
     """
 
+    @extend_schema(parameters=[BranchIdRequestSerializer], responses={200: EmployeeSerializer(many=True), 404: OpenApiTypes.OBJECT, 403: OpenApiTypes.OBJECT})
     def get(self, request: Request) -> Response:
         s = BranchIdRequestSerializer(data=request.query_params)
         s.is_valid(raise_exception=True)
@@ -142,6 +150,7 @@ class PromotionView(APIView):
     Returns all promotions for the branch.
     """
 
+    @extend_schema(parameters=[BranchIdRequestSerializer], responses={200: PromotionSerializer(many=True), 404: OpenApiTypes.OBJECT, 403: OpenApiTypes.OBJECT})
     def get(self, request: Request) -> Response:
         s = BranchIdRequestSerializer(data=request.query_params)
         s.is_valid(raise_exception=True)
@@ -166,6 +175,7 @@ class TransactionsView(APIView):
     Returns all coin transactions for the ClientBranch.
     """
 
+    @extend_schema(parameters=[ClientGetRequestSerializer], responses={200: CoinTransactionSerializer(many=True), 404: OpenApiTypes.OBJECT})
     def get(self, request: Request) -> Response:
         s = ClientGetRequestSerializer(data=request.query_params)
         s.is_valid(raise_exception=True)
@@ -192,6 +202,7 @@ class VKStoryView(APIView):
       404 — guest not found
     """
 
+    @extend_schema(request=VKStoryRequestSerializer, responses={200: VKStoryResponseSerializer, 201: VKStoryResponseSerializer, 404: OpenApiTypes.OBJECT})
     def post(self, request: Request) -> Response:
         s = VKStoryRequestSerializer(data=request.data)
         s.is_valid(raise_exception=True)
@@ -223,6 +234,7 @@ class TestimonialCreateView(APIView):
     Response 201 — сообщение сохранено.
     """
 
+    @extend_schema(request=TestimonialCreateSerializer, responses={201: OpenApiTypes.OBJECT, 404: OpenApiTypes.OBJECT})
     def post(self, request: Request) -> Response:
         s = TestimonialCreateSerializer(data=request.data)
         s.is_valid(raise_exception=True)
@@ -250,6 +262,7 @@ class VKCallbackView(APIView):
     authentication_classes = []
     permission_classes      = []
 
+    @extend_schema(request=OpenApiTypes.OBJECT, responses={200: OpenApiTypes.STR, 403: None})
     def post(self, request: Request) -> Response:
         from django.http import HttpResponse
         try:
@@ -287,6 +300,7 @@ class VKAuthView(APIView):
     authentication_classes = []
     permission_classes = []
 
+    @extend_schema(request=VKAuthRequestSerializer, responses={200: ClientProfileResponseSerializer, 201: ClientProfileResponseSerializer, 400: OpenApiTypes.OBJECT, 403: OpenApiTypes.OBJECT, 404: OpenApiTypes.OBJECT})
     def post(self, request: Request) -> Response:
         s = VKAuthRequestSerializer(data=request.data)
         s.is_valid(raise_exception=True)

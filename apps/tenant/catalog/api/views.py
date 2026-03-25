@@ -3,6 +3,9 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from drf_spectacular.utils import extend_schema
+from drf_spectacular.types import OpenApiTypes
+
 from .serializers import (
     BuyRequestSerializer,
     BuyResponseSerializer,
@@ -25,6 +28,7 @@ class CatalogView(APIView):
     Returns all active products for the branch, ordered by category/product ordering.
     """
 
+    @extend_schema(parameters=[CatalogRequestSerializer], responses={200: ProductSerializer(many=True), 404: OpenApiTypes.OBJECT, 403: OpenApiTypes.OBJECT})
     def get(self, request: Request) -> Response:
         s = CatalogRequestSerializer(data=request.query_params)
         s.is_valid(raise_exception=True)
@@ -49,6 +53,7 @@ class CooldownView(APIView):
     POST /api/v1/catalog/cooldown/                   — activate SHOP cooldown
     """
 
+    @extend_schema(parameters=[CooldownRequestSerializer], responses={200: CooldownResponseSerializer, 404: OpenApiTypes.OBJECT})
     def get(self, request: Request) -> Response:
         s = CooldownRequestSerializer(data=request.query_params)
         s.is_valid(raise_exception=True)
@@ -63,6 +68,7 @@ class CooldownView(APIView):
             return Response({'is_active': False, 'expires_at': None, 'seconds_remaining': 0})
         return Response(CooldownResponseSerializer(cooldown).data)
 
+    @extend_schema(request=CooldownRequestSerializer, responses={200: CooldownResponseSerializer, 404: OpenApiTypes.OBJECT})
     def post(self, request: Request) -> Response:
         s = CooldownRequestSerializer(data=request.data)
         s.is_valid(raise_exception=True)
@@ -82,6 +88,7 @@ class BuyView(APIView):
     Purchases a product: deducts coins, creates InventoryItem, activates SHOP cooldown.
     """
 
+    @extend_schema(request=BuyRequestSerializer, responses={201: BuyResponseSerializer, 400: OpenApiTypes.OBJECT, 403: OpenApiTypes.OBJECT, 404: OpenApiTypes.OBJECT})
     def post(self, request: Request) -> Response:
         s = BuyRequestSerializer(data=request.data)
         s.is_valid(raise_exception=True)

@@ -6,6 +6,9 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 
+from drf_spectacular.utils import extend_schema
+from drf_spectacular.types import OpenApiTypes
+
 from .serializers import StatsQuerySerializer, RFQuerySerializer
 from . import services
 
@@ -21,6 +24,7 @@ class GeneralStatsAPIView(APIView):
       end        — YYYY-MM-DD  (overrides period)
     """
 
+    @extend_schema(parameters=[StatsQuerySerializer], responses={200: OpenApiTypes.OBJECT})
     def get(self, request):
         ser = StatsQuerySerializer(data=request.query_params)
         if not ser.is_valid():
@@ -56,6 +60,7 @@ class RFStatsAPIView(APIView):
       f_score    — see r_score
     """
 
+    @extend_schema(parameters=[RFQuerySerializer], responses={200: OpenApiTypes.OBJECT})
     def get(self, request):
         ser = RFQuerySerializer(data=request.query_params)
         if not ser.is_valid():
@@ -97,6 +102,7 @@ class RecalculateRFView(APIView):
       branch_ids — comma-separated Branch PKs (omit = all active branches)
     """
 
+    @extend_schema(request=RFQuerySerializer, responses={200: OpenApiTypes.OBJECT})
     def post(self, request):
         ser = RFQuerySerializer(data=request.data)
         if not ser.is_valid():
@@ -119,6 +125,7 @@ class SlowStatsAPIView(APIView):
     Query params: same as GeneralStatsAPIView (branch_ids, period, start, end)
     """
 
+    @extend_schema(parameters=[StatsQuerySerializer], responses={200: OpenApiTypes.OBJECT})
     def get(self, request):
         ser = StatsQuerySerializer(data=request.query_params)
         if not ser.is_valid():
@@ -143,6 +150,7 @@ class BranchListAPIView(APIView):
     Returns all active branches for the branch-filter UI.
     """
 
+    @extend_schema(responses={200: OpenApiTypes.OBJECT})
     def get(self, request):
         return Response(services.get_branches_list())
 
@@ -165,6 +173,7 @@ class SendSegmentBroadcastAPIView(APIView):
     """
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
+    @extend_schema(request=OpenApiTypes.OBJECT, responses={200: OpenApiTypes.OBJECT, 400: OpenApiTypes.OBJECT, 404: OpenApiTypes.OBJECT})
     def post(self, request):
         from apps.tenant.analytics.models import RFSegment
         from apps.tenant.branch.models import Branch
@@ -258,6 +267,7 @@ class GenerateBroadcastTextAPIView(APIView):
       segment_id — RFSegment PK (required)
     """
 
+    @extend_schema(request=OpenApiTypes.OBJECT, responses={200: OpenApiTypes.OBJECT, 400: OpenApiTypes.OBJECT, 404: OpenApiTypes.OBJECT, 500: OpenApiTypes.OBJECT})
     def post(self, request):
         import json as _json
         from django.conf import settings as _settings
@@ -349,6 +359,7 @@ class GenerateReportCommentAPIView(APIView):
       metrics_json  — JSON string of section metrics data
     """
 
+    @extend_schema(request=OpenApiTypes.OBJECT, responses={200: OpenApiTypes.OBJECT, 400: OpenApiTypes.OBJECT, 500: OpenApiTypes.OBJECT})
     def post(self, request):
         import json as _json
         from django.conf import settings as _settings

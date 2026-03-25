@@ -3,6 +3,9 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from drf_spectacular.utils import extend_schema
+from drf_spectacular.types import OpenApiTypes
+
 from .serializers import (
     BirthdayProductSerializer,
     BirthdayPrizeClaimSerializer,
@@ -31,6 +34,7 @@ class InventoryView(APIView):
     Returns all InventoryItems for the guest, newest first.
     """
 
+    @extend_schema(parameters=[InventoryRequestSerializer], responses={200: InventoryItemSerializer(many=True), 404: OpenApiTypes.OBJECT})
     def get(self, request: Request) -> Response:
         s = InventoryRequestSerializer(data=request.query_params)
         s.is_valid(raise_exception=True)
@@ -50,6 +54,7 @@ class SuperPrizeView(APIView):
     POST /api/v1/super-prize/ — guest selects a product from a pending entry
     """
 
+    @extend_schema(parameters=[InventoryRequestSerializer], responses={200: SuperPrizeEntrySerializer(many=True), 404: OpenApiTypes.OBJECT})
     def get(self, request: Request) -> Response:
         s = InventoryRequestSerializer(data=request.query_params)
         s.is_valid(raise_exception=True)
@@ -62,6 +67,7 @@ class SuperPrizeView(APIView):
             )
         return Response(SuperPrizeEntrySerializer(entries, many=True, context={'request': request}).data)
 
+    @extend_schema(request=SuperPrizeClaimSerializer, responses={200: SuperPrizeEntrySerializer, 404: OpenApiTypes.OBJECT})
     def post(self, request: Request) -> Response:
         s = SuperPrizeClaimSerializer(data=request.data)
         s.is_valid(raise_exception=True)
@@ -91,6 +97,7 @@ class InventoryCooldownView(APIView):
     POST /api/v1/inventory/cooldown/ — manually activate cooldown (admin / debug)
     """
 
+    @extend_schema(parameters=[InventoryRequestSerializer], responses={200: InventoryCooldownSerializer, 404: OpenApiTypes.OBJECT})
     def get(self, request: Request) -> Response:
         s = InventoryRequestSerializer(data=request.query_params)
         s.is_valid(raise_exception=True)
@@ -105,6 +112,7 @@ class InventoryCooldownView(APIView):
             return Response({'is_active': False, 'expires_at': None, 'seconds_remaining': 0})
         return Response(InventoryCooldownSerializer(cooldown).data)
 
+    @extend_schema(request=InventoryRequestSerializer, responses={200: InventoryCooldownSerializer, 404: OpenApiTypes.OBJECT})
     def post(self, request: Request) -> Response:
         s = InventoryRequestSerializer(data=request.data)
         s.is_valid(raise_exception=True)
@@ -128,6 +136,7 @@ class InventoryActivateView(APIView):
     All other items → check and set the 18-hour INVENTORY cooldown.
     """
 
+    @extend_schema(request=InventoryActivateSerializer, responses={200: InventoryItemSerializer, 400: OpenApiTypes.OBJECT, 404: OpenApiTypes.OBJECT, 409: OpenApiTypes.OBJECT})
     def post(self, request: Request) -> Response:
         s = InventoryActivateSerializer(data=request.data)
         s.is_valid(raise_exception=True)
@@ -176,6 +185,7 @@ class BirthdayStatusView(APIView):
       already_claimed    → show "prize already claimed" message
     """
 
+    @extend_schema(parameters=[InventoryRequestSerializer], responses={200: BirthdayStatusSerializer, 404: OpenApiTypes.OBJECT})
     def get(self, request: Request) -> Response:
         s = InventoryRequestSerializer(data=request.query_params)
         s.is_valid(raise_exception=True)
@@ -202,6 +212,7 @@ class BirthdayPrizeView(APIView):
          the birthday daily code.
     """
 
+    @extend_schema(parameters=[InventoryRequestSerializer], responses={200: BirthdayProductSerializer(many=True), 403: OpenApiTypes.OBJECT, 404: OpenApiTypes.OBJECT, 409: OpenApiTypes.OBJECT})
     def get(self, request: Request) -> Response:
         s = InventoryRequestSerializer(data=request.query_params)
         s.is_valid(raise_exception=True)
@@ -224,6 +235,7 @@ class BirthdayPrizeView(APIView):
             )
         return Response(BirthdayProductSerializer(products, many=True, context={'request': request}).data)
 
+    @extend_schema(request=BirthdayPrizeClaimSerializer, responses={201: InventoryItemSerializer, 403: OpenApiTypes.OBJECT, 404: OpenApiTypes.OBJECT, 409: OpenApiTypes.OBJECT})
     def post(self, request: Request) -> Response:
         s = BirthdayPrizeClaimSerializer(data=request.data)
         s.is_valid(raise_exception=True)
