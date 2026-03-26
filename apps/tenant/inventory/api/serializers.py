@@ -31,8 +31,8 @@ class InventoryActivateSerializer(serializers.Serializer):
 class InventoryItemSerializer(serializers.Serializer):
     """Single item in a guest's inventory."""
     id                = serializers.IntegerField()
-    product_id        = serializers.IntegerField(source='product.pk')
-    product_name      = serializers.CharField(source='product.name')
+    product_id        = serializers.IntegerField(source='product.pk', allow_null=True, default=None)
+    product_name      = serializers.CharField(source='product.name', allow_null=True, default=None)
     product_image_url = serializers.SerializerMethodField()
     acquired_from     = serializers.CharField()
     status            = serializers.CharField()   # computed @property
@@ -42,6 +42,8 @@ class InventoryItemSerializer(serializers.Serializer):
     created_at        = serializers.DateTimeField()
 
     def get_product_image_url(self, obj) -> str | None:
+        if not obj.product:
+            return None
         img = obj.product.image
         if not (img and img.name):
             return None
