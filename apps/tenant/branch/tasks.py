@@ -442,60 +442,71 @@ def vk_bulk_membership_sync_task(self, branch_id: int) -> dict:
     if not token:
         return {'synced': 0, 'errors': ['vk_community_token not set']}
 
-    vk_ids = list(
+    # Все пары (vk_id, cb_id) по всем Branch с тем же vk_group_id
+    all_pairs = list(
         ClientBranch.objects
-        .filter(branch=config.branch)
+        .filter(branch__senler_config__vk_group_id=group_id)
         .exclude(client__vk_id__isnull=True)
         .values_list('client__vk_id', 'id')
     )
 
-    if not vk_ids:
+    if not all_pairs:
         return {'synced': 0, 'errors': []}
 
     errors: list[str] = []
-    synced = 0
     now    = timezone.now()
     BATCH  = 500
 
-    for i in range(0, len(vk_ids), BATCH):
-        batch = vk_ids[i:i + BATCH]
-        user_ids_str = ','.join(str(uid) for uid, _ in batch)
+    # Шаг 1: запрашиваем VK API с дедуплицированными vk_id
+    unique_vk_ids = list(dict.fromkeys(uid for uid, _ in all_pairs))
+    member_set:  set[int] = set()
+    checked_ids: set[int] = set()  # только те vk_id, по которым API ответил успешно
+
+    for i in range(0, len(unique_vk_ids), BATCH):
+        batch_ids    = unique_vk_ids[i:i + BATCH]
+        user_ids_str = ','.join(str(uid) for uid in batch_ids)
         try:
             resp = _vk_call('groups.isMember', token, group_id=group_id, user_ids=user_ids_str, extended=0)
+            for item in (resp if isinstance(resp, list) else []):
+                uid = item['user_id']
+                checked_ids.add(uid)
+                if item.get('member'):
+                    member_set.add(uid)
         except RuntimeError as e:
             errors.append(f'batch {i}: {e}')
-            continue
+            # vk_id этого батча не попадут в checked_ids → DB не тронем
 
-        # resp is a list: [{"user_id": ..., "member": 0|1}, ...]
-        member_set = {item['user_id'] for item in (resp if isinstance(resp, list) else []) if item.get('member')}
-
-        for vk_id, cb_id in batch:
-            is_member = vk_id in member_set
-            try:
-                vk_status, _ = ClientVKStatus.objects.get_or_create(
-                    client_id=cb_id,
-                    defaults={
-                        'is_community_member':  is_member,
-                        'community_joined_at':  now if is_member else None,
-                        'community_via_app':    False if is_member else None,
-                    },
-                )
-                if not _:
-                    update_fields: list[str] = []
-                    if is_member and not vk_status.is_community_member:
-                        vk_status.is_community_member = True
-                        vk_status.community_joined_at = now
-                        update_fields += ['is_community_member', 'community_joined_at']
-                    elif not is_member and vk_status.is_community_member:
-                        vk_status.is_community_member = False
-                        vk_status.community_joined_at = None
-                        vk_status.community_via_app   = None
-                        update_fields += ['is_community_member', 'community_joined_at', 'community_via_app']
-                    if update_fields:
-                        vk_status.save(update_fields=update_fields)
-                        synced += 1
-            except Exception as e:
-                errors.append(f'vk_id={vk_id}: {e}')
+    # Шаг 2: обновляем ClientVKStatus только для тех, по кому пришёл ответ VK
+    synced = 0
+    for vk_id, cb_id in all_pairs:
+        if vk_id not in checked_ids:
+            continue  # API упал для этого батча — не трогаем, чтобы не затереть данные
+        is_member = vk_id in member_set
+        try:
+            vk_status, created = ClientVKStatus.objects.get_or_create(
+                client_id=cb_id,
+                defaults={
+                    'is_community_member':  is_member,
+                    'community_joined_at':  now if is_member else None,
+                    'community_via_app':    False if is_member else None,
+                },
+            )
+            if not created:
+                update_fields: list[str] = []
+                if is_member and not vk_status.is_community_member:
+                    vk_status.is_community_member = True
+                    vk_status.community_joined_at = now
+                    update_fields += ['is_community_member', 'community_joined_at']
+                elif not is_member and vk_status.is_community_member:
+                    vk_status.is_community_member = False
+                    vk_status.community_joined_at = None
+                    vk_status.community_via_app   = None
+                    update_fields += ['is_community_member', 'community_joined_at', 'community_via_app']
+                if update_fields:
+                    vk_status.save(update_fields=update_fields)
+                    synced += 1
+        except Exception as e:
+            errors.append(f'vk_id={vk_id}: {e}')
 
     logger.info('VK bulk membership sync branch=%s: synced=%d', branch_id, synced)
     return {'synced': synced, 'errors': errors}
