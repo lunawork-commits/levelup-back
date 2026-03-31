@@ -658,6 +658,20 @@ def _sync_vk_status_on_register(profile: ClientBranch) -> None:
     ClientVKStatus.sync(profile, is_member=is_member, is_subscriber=is_subscriber)
 
 
+def sync_vk_status_now(vk_id: int, branch_id: int) -> ClientBranch:
+    """
+    Немедленно синхронизирует VK-статус гостя через прямой вызов VK API.
+
+    Используется в веб-версии после того как пользователь прошёл flow подписки —
+    не ждёт Callback от ВК, а сразу идёт в API и записывает актуальный статус.
+
+    Raises: ClientNotFound — профиль не найден для данной пары (vk_id, branch_id).
+    """
+    profile = get_client_profile(vk_id=vk_id, branch_id=branch_id)
+    _sync_vk_status_on_register(profile)
+    return _profile_qs().get(pk=profile.pk)
+
+
 @transaction.atomic
 def update_client_profile(
     vk_id: int,

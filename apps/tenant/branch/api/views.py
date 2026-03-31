@@ -27,7 +27,7 @@ from .services import (
     get_branch_info, get_client_profile,
     get_employees, get_promotions, get_transactions,
     handle_vk_callback, register_or_get_client,
-    submit_app_review, update_client_profile, upload_story, vk_web_auth,
+    submit_app_review, sync_vk_status_now, update_client_profile, upload_story, vk_web_auth,
 )
 
 
@@ -111,6 +111,39 @@ class ClientView(APIView):
         s.is_valid(raise_exception=True)
         try:
             profile = update_client_profile(**s.validated_data)
+        except ClientNotFound:
+            return Response(
+                {'detail': 'Профиль гостя не найден.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(ClientProfileResponseSerializer(profile).data)
+
+
+class VKSyncView(APIView):
+    """
+    POST /api/v1/client/vk-sync/
+
+    Немедленная синхронизация VK-статуса через прямой запрос к VK API.
+
+    Используется в веб-версии: фронт вызывает этот эндпоинт сразу после того
+    как пользователь прошёл flow подписки на VK (редирект вернулся на сайт).
+    Бэкенд сам идёт в VK API, получает актуальный статус и записывает в DB.
+
+    Не нужно ждать Callback от ВК — данные обновляются немедленно.
+    """
+
+    authentication_classes = []
+    permission_classes      = []
+
+    @extend_schema(
+        request=ClientGetRequestSerializer,
+        responses={200: ClientProfileResponseSerializer, 404: OpenApiTypes.OBJECT},
+    )
+    def post(self, request: Request) -> Response:
+        s = ClientGetRequestSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        try:
+            profile = sync_vk_status_now(**s.validated_data)
         except ClientNotFound:
             return Response(
                 {'detail': 'Профиль гостя не найден.'},
