@@ -35,6 +35,7 @@ class SuperPrizeProductSerializer(serializers.Serializer):
     """Single product from the super prize pool."""
     id        = serializers.IntegerField()
     name      = serializers.CharField()
+    description = serializers.CharField()
     image_url = serializers.SerializerMethodField()
 
     def get_image_url(self, obj) -> str | None:
