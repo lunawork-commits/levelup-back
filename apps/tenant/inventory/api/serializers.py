@@ -33,6 +33,7 @@ class InventoryItemSerializer(serializers.Serializer):
     id                = serializers.IntegerField()
     product_id        = serializers.IntegerField(source='product.pk', allow_null=True, default=None)
     product_name      = serializers.CharField(source='product.name', allow_null=True, default=None)
+    product_description = serializers.CharField(source='product.description', allow_null=True, default=None)
     product_image_url = serializers.SerializerMethodField()
     acquired_from     = serializers.CharField()
     status            = serializers.CharField()   # computed @property
