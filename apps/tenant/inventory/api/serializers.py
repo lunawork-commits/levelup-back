@@ -53,9 +53,10 @@ class InventoryItemSerializer(serializers.Serializer):
 
 class _SuperPrizeProductSerializer(serializers.Serializer):
     """Minimal product representation inside a super prize entry."""
-    id        = serializers.IntegerField()
-    name      = serializers.CharField()
-    image_url = serializers.SerializerMethodField()
+    id          = serializers.IntegerField()
+    name        = serializers.CharField()
+    description = serializers.CharField()
+    image_url   = serializers.SerializerMethodField()
 
     def get_image_url(self, obj) -> str | None:
         if not (obj.image and obj.image.name):
@@ -92,6 +93,7 @@ class SuperPrizeEntrySerializer(serializers.Serializer):
         return {
             'id':        obj.product.pk,
             'name':      obj.product.name,
+            'description': obj.product.description,
             'image_url': img_url,
         }
 
