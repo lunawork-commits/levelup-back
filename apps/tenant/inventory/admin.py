@@ -15,8 +15,6 @@ _BADGE = (
 )
 
 _PENDING_STYLE = _BADGE + 'background:#f5f5f5;color:#616161;border:1px solid #e0e0e0;'
-_ACTIVE_STYLE  = _BADGE + 'background:#e8f5e9;color:#1b5e20;border:1px solid #c8e6c9;'
-_EXPIRED_STYLE = _BADGE + 'background:#fff3e0;color:#e65100;border:1px solid #ffe0b2;'
 _USED_STYLE    = _BADGE + 'background:#e3f2fd;color:#0d47a1;border:1px solid #bbdefb;'
 
 _SRC_PURCHASE = _BADGE + 'background:#f3e5f5;color:#4a148c;border:1px solid #e1bee7;'
@@ -53,18 +51,7 @@ _TRIGGER_ICONS = {
     SuperPrizeTrigger.BIRTHDAY: '🎂',
 }
 
-_STATUS_STYLES = {
-    ItemStatus.PENDING: _PENDING_STYLE,
-    ItemStatus.ACTIVE:  _ACTIVE_STYLE,
-    ItemStatus.EXPIRED: _EXPIRED_STYLE,
-    ItemStatus.USED:    _USED_STYLE,
-}
-_STATUS_LABELS = {
-    ItemStatus.PENDING: '⏳ Ожидает активации',
-    ItemStatus.ACTIVE:  '⏱ Активирован',
-    ItemStatus.EXPIRED: '❌ Не получил (истёк)',
-    ItemStatus.USED:    '🎁 Получил приз',
-}
+
 _SOURCE_STYLES = {
     AcquisitionSource.PURCHASE:    _SRC_PURCHASE,
     AcquisitionSource.SUPER_PRIZE: _SRC_SUPER,
@@ -87,31 +74,15 @@ class StatusFilter(admin.SimpleListFilter):
 
     def lookups(self, request, model_admin):
         return [
-            (ItemStatus.PENDING, '⏳ Ожидает активации'),
-            (ItemStatus.ACTIVE,  '⏱ Активирован'),
-            (ItemStatus.EXPIRED, '❌ Не получил (истёк)'),
-            (ItemStatus.USED,    '🎁 Получил приз'),
+            ('used',     '✅ Использован'),
+            ('not_used', '⏳ Не использован'),
         ]
 
     def queryset(self, request, queryset):
-        now = timezone.now()
-        if self.value() == ItemStatus.PENDING:
-            return queryset.filter(activated_at__isnull=True, used_at__isnull=True)
-        if self.value() == ItemStatus.ACTIVE:
-            return queryset.filter(
-                activated_at__isnull=False,
-                used_at__isnull=True,
-            ).filter(
-                models.Q(expires_at__isnull=True) | models.Q(expires_at__gt=now)
-            )
-        if self.value() == ItemStatus.EXPIRED:
-            return queryset.filter(
-                activated_at__isnull=False,
-                used_at__isnull=True,
-                expires_at__lte=now,
-            )
-        if self.value() == ItemStatus.USED:
+        if self.value() == 'used':
             return queryset.filter(used_at__isnull=False)
+        if self.value() == 'not_used':
+            return queryset.filter(used_at__isnull=True)
         return queryset
 
 
@@ -222,10 +193,9 @@ class InventoryItemAdmin(admin.ModelAdmin):
 
     @admin.display(description='Статус')
     def status_badge(self, obj):
-        status = obj.status
-        style  = _STATUS_STYLES.get(status, _PENDING_STYLE)
-        label  = _STATUS_LABELS.get(status, status)
-        return format_html('<span style="{}">{}</span>', style, label)
+        if obj.used_at:
+            return format_html('<span style="{}">✅ Использован</span>', _USED_STYLE)
+        return format_html('<span style="{}">⏳ Не использован</span>', _PENDING_STYLE)
 
     @admin.display(description='Время')
     def time_col(self, obj):
@@ -248,10 +218,9 @@ class InventoryItemAdmin(admin.ModelAdmin):
     def status_display(self, obj):
         if not obj.pk:
             return '—'
-        status = obj.status
-        style  = _STATUS_STYLES.get(status, _PENDING_STYLE)
-        label  = _STATUS_LABELS.get(status, status)
-        return format_html('<span style="{}">{}</span>', style, label)
+        if obj.used_at:
+            return format_html('<span style="{}">✅ Использован</span>', _USED_STYLE)
+        return format_html('<span style="{}">⏳ Не использован</span>', _PENDING_STYLE)
 
     # ── Actions ───────────────────────────────────────────────────────────
 
