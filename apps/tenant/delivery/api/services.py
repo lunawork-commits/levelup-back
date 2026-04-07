@@ -1,5 +1,6 @@
 import hmac
 import os
+from datetime import timedelta
 
 from django.db import transaction
 from django.utils import timezone
@@ -69,10 +70,21 @@ def register_delivery(*, source: str, branch_id: str, code: str) -> tuple[Delive
     except (Branch.DoesNotExist, ValueError, TypeError):
         raise BranchNotFound
 
-    return Delivery.objects.get_or_create(
+    delivery, created = Delivery.objects.get_or_create(
         code=code,
         defaults={'branch': branch, 'order_source': source},
     )
+
+    # Dooglys reuses the same code after expiry or activation.
+    # Reset the delivery to pending so the new order is treated as fresh.
+    if not created and delivery.status in ('expired', 'activated'):
+        delivery.activated_at = None
+        delivery.activated_by = None
+        delivery.expires_at = timezone.now() + timedelta(hours=delivery.duration)
+        delivery.save(update_fields=['activated_at', 'activated_by', 'expires_at'])
+        return delivery, True
+
+    return delivery, created
 
 
 @transaction.atomic

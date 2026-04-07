@@ -36,10 +36,10 @@ _SP_STATUS_STYLES = {
     'expired': _SP_EXPIRED_STYLE,
 }
 _SP_STATUS_LABELS = {
-    'pending': '🎁 Ожидает выбора',
-    'claimed': '✅ Приз выбран',
-    'issued':  '☑️ Выдан',
-    'expired': '⌛ Истёк',
+    'pending': '⏳ Ожидает выбора',
+    'claimed': '⏱ Выбрал, ждёт выдачи',
+    'issued':  '🏆 Получил суперприз',
+    'expired': '❌ Не получил (истёк)',
 }
 
 _TRIGGER_STYLES = {
@@ -60,10 +60,10 @@ _STATUS_STYLES = {
     ItemStatus.USED:    _USED_STYLE,
 }
 _STATUS_LABELS = {
-    ItemStatus.PENDING: '⏳ Ожидает',
-    ItemStatus.ACTIVE:  '✅ Активен',
-    ItemStatus.EXPIRED: '⌛ Истёк',
-    ItemStatus.USED:    '☑️ Использован',
+    ItemStatus.PENDING: '⏳ Ожидает активации',
+    ItemStatus.ACTIVE:  '⏱ Активирован',
+    ItemStatus.EXPIRED: '❌ Не получил (истёк)',
+    ItemStatus.USED:    '🎁 Получил приз',
 }
 _SOURCE_STYLES = {
     AcquisitionSource.PURCHASE:    _SRC_PURCHASE,
@@ -87,10 +87,10 @@ class StatusFilter(admin.SimpleListFilter):
 
     def lookups(self, request, model_admin):
         return [
-            (ItemStatus.PENDING, '⏳ Ожидает'),
-            (ItemStatus.ACTIVE,  '✅ Активен'),
-            (ItemStatus.EXPIRED, '⌛ Истёк'),
-            (ItemStatus.USED,    '☑️ Использован'),
+            (ItemStatus.PENDING, '⏳ Ожидает активации'),
+            (ItemStatus.ACTIVE,  '⏱ Активирован'),
+            (ItemStatus.EXPIRED, '❌ Не получил (истёк)'),
+            (ItemStatus.USED,    '🎁 Получил приз'),
         ]
 
     def queryset(self, request, queryset):
@@ -133,6 +133,7 @@ class InventoryItemAdmin(admin.ModelAdmin):
     search_fields = (
         'client_branch__client__first_name',
         'client_branch__client__last_name',
+        'client_branch__client__vk_id',
         'product__name',
     )
     list_select_related = (
@@ -196,10 +197,17 @@ class InventoryItemAdmin(admin.ModelAdmin):
     def product_col(self, obj):
         return obj.product.name if obj.product else 'Удалено'
 
-    @admin.display(description='Гость', ordering='client_branch__client__name')
+    @admin.display(description='Гость', ordering='client_branch__client__first_name')
     def client_col(self, obj):
         c = obj.client_branch.client
-        return c.first_name or c.phone
+        name = f'{c.first_name} {c.last_name}'.strip() or f'vk{c.vk_id}'
+        return format_html(
+            '<a href="https://vk.com/id{}" target="_blank" rel="noopener">'
+            '{}</a>'
+            '<br><span style="font-size:11px;color:var(--body-quiet-color,#aaa);">'
+            'vk{}</span>',
+            c.vk_id, name, c.vk_id,
+        )
 
     @admin.display(description='Точка', ordering='client_branch__branch__name')
     def branch_col(self, obj):
@@ -276,10 +284,10 @@ class SuperPrizeStatusFilter(admin.SimpleListFilter):
 
     def lookups(self, request, model_admin):
         return [
-            ('pending', '🎁 Ожидает выбора'),
-            ('claimed', '✅ Приз выбран'),
-            ('issued',  '☑️ Выдан'),
-            ('expired', '⌛ Истёк'),
+            ('pending', '⏳ Ожидает выбора'),
+            ('claimed', '⏱ Выбрал, ждёт выдачи'),
+            ('issued',  '🏆 Получил суперприз'),
+            ('expired', '❌ Не получил (истёк)'),
         ]
 
     def queryset(self, request, queryset):
@@ -316,6 +324,7 @@ class SuperPrizeEntryAdmin(admin.ModelAdmin):
     search_fields = (
         'client_branch__client__first_name',
         'client_branch__client__last_name',
+        'client_branch__client__vk_id',
         'product__name',
     )
     list_select_related = (
@@ -358,10 +367,17 @@ class SuperPrizeEntryAdmin(admin.ModelAdmin):
 
     # ── List columns ──────────────────────────────────────────────────────
 
-    @admin.display(description='Гость', ordering='client_branch__client__name')
+    @admin.display(description='Гость', ordering='client_branch__client__first_name')
     def client_col(self, obj):
         c = obj.client_branch.client
-        return c.first_name or c.phone
+        name = f'{c.first_name} {c.last_name}'.strip() or f'vk{c.vk_id}'
+        return format_html(
+            '<a href="https://vk.com/id{}" target="_blank" rel="noopener">'
+            '{}</a>'
+            '<br><span style="font-size:11px;color:var(--body-quiet-color,#aaa);">'
+            'vk{}</span>',
+            c.vk_id, name, c.vk_id,
+        )
 
     @admin.display(description='Точка', ordering='client_branch__branch__name')
     def branch_col(self, obj):
