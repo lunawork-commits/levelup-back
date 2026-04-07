@@ -14,8 +14,9 @@ _BADGE = (
     'font-size:11px;font-weight:600;white-space:nowrap;'
 )
 
-_PENDING_STYLE = _BADGE + 'background:#f5f5f5;color:#616161;border:1px solid #e0e0e0;'
-_USED_STYLE    = _BADGE + 'background:#e3f2fd;color:#0d47a1;border:1px solid #bbdefb;'
+_PENDING_STYLE  = _BADGE + 'background:#f5f5f5;color:#616161;border:1px solid #e0e0e0;'
+_ACTIVE_STYLE   = _BADGE + 'background:#fff8e1;color:#f57f17;border:1px solid #ffe082;'
+_USED_STYLE     = _BADGE + 'background:#e3f2fd;color:#0d47a1;border:1px solid #bbdefb;'
 
 _SRC_PURCHASE = _BADGE + 'background:#f3e5f5;color:#4a148c;border:1px solid #e1bee7;'
 _SRC_SUPER    = _BADGE + 'background:#fff3cd;color:#856404;border:1px solid #ffe08a;'
@@ -74,15 +75,25 @@ class StatusFilter(admin.SimpleListFilter):
 
     def lookups(self, request, model_admin):
         return [
-            ('used',     '✅ Использован'),
             ('not_used', '⏳ Не использован'),
+            ('active',   '⏱ Активирован'),
+            ('used',     '✅ Использован'),
         ]
 
     def queryset(self, request, queryset):
-        if self.value() == 'used':
-            return queryset.filter(used_at__isnull=False)
+        now = timezone.now()
         if self.value() == 'not_used':
-            return queryset.filter(used_at__isnull=True)
+            return queryset.filter(activated_at__isnull=True)
+        if self.value() == 'active':
+            return queryset.filter(
+                activated_at__isnull=False,
+                used_at__isnull=True,
+            ).filter(models.Q(expires_at__isnull=True) | models.Q(expires_at__gt=now))
+        if self.value() == 'used':
+            return queryset.filter(
+                models.Q(used_at__isnull=False) |
+                models.Q(activated_at__isnull=False, used_at__isnull=True, expires_at__lte=now)
+            )
         return queryset
 
 
@@ -193,7 +204,10 @@ class InventoryItemAdmin(admin.ModelAdmin):
 
     @admin.display(description='Статус')
     def status_badge(self, obj):
-        if obj.used_at:
+        s = obj.status
+        if s == ItemStatus.ACTIVE:
+            return format_html('<span style="{}">⏱ Активирован</span>', _ACTIVE_STYLE)
+        if s in (ItemStatus.USED, ItemStatus.EXPIRED):
             return format_html('<span style="{}">✅ Использован</span>', _USED_STYLE)
         return format_html('<span style="{}">⏳ Не использован</span>', _PENDING_STYLE)
 
@@ -218,7 +232,10 @@ class InventoryItemAdmin(admin.ModelAdmin):
     def status_display(self, obj):
         if not obj.pk:
             return '—'
-        if obj.used_at:
+        s = obj.status
+        if s == ItemStatus.ACTIVE:
+            return format_html('<span style="{}">⏱ Активирован</span>', _ACTIVE_STYLE)
+        if s in (ItemStatus.USED, ItemStatus.EXPIRED):
             return format_html('<span style="{}">✅ Использован</span>', _USED_STYLE)
         return format_html('<span style="{}">⏳ Не использован</span>', _PENDING_STYLE)
 
