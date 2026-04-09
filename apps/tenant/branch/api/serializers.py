@@ -104,6 +104,9 @@ class ClientRegistrationRequestSerializer(serializers.Serializer):
     last_name  = serializers.CharField(required=False, allow_blank=True, default='')
     photo_url  = serializers.URLField(required=False, allow_blank=True, default='')
     birth_date = serializers.DateField(required=False, allow_null=True, default=None)
+    source     = serializers.ChoiceField(
+        choices=['restaurant', 'delivery'], required=False, default='restaurant',
+    )
 
 
 class ClientUpdateRequestSerializer(serializers.Serializer):

@@ -519,6 +519,7 @@ def register_or_get_client(
     last_name: str = '',
     photo_url: str = '',
     birth_date=None,
+    source: str = 'restaurant',
 ) -> tuple[ClientBranch, bool]:
     """
     Atomically finds or creates a ClientBranch for the given guest.
@@ -527,7 +528,7 @@ def register_or_get_client(
       1. Validate Branch (exists, active)
       2. Get or create guest.Client by vk_id; sync mutable fields if changed
       3. Get or create ClientBranch (guest × branch)
-      4. Record QR-scan visit (6-hour cooldown, atomic)
+      4. Record QR-scan visit (6-hour cooldown, atomic) — skipped for delivery
 
     Returns:
         (ClientBranch, created: bool)
@@ -589,8 +590,9 @@ def register_or_get_client(
         profile.birth_date_set_at = timezone.localdate()
         profile.save(update_fields=['birth_date', 'birth_date_set_at'])
 
-    # Record visit: atomic, 6-hour cooldown
-    ClientBranchVisit.record_visit(profile)
+    # Record visit: atomic, 6-hour cooldown (delivery tracks via Delivery model)
+    if source != 'delivery':
+        ClientBranchVisit.record_visit(profile)
 
     # ── Sync VK membership status on first registration ──────────────────
     if created:
