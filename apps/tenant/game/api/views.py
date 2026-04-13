@@ -15,7 +15,8 @@ from .serializers import (
     SuperPrizeRewardSerializer,
 )
 from .services import (
-    ClientNotFound, CodeRequired, GameCooldownActive, InvalidCode, InvalidToken,
+    ClientNotFound, CodeRequired, GameCooldownActive,
+    InvalidCode, InvalidToken,
     claim_game, get_game_cooldown, reset_game_cooldown, start_game,
 )
 

@@ -110,7 +110,7 @@ def reset_game_cooldown(vk_id: int, branch_id: int) -> None:
     Cooldown.objects.filter(client=cb, feature=CooldownFeature.GAME).delete()
 
 
-def start_game(vk_id: int, branch_id: int, code: str | None = None) -> dict:
+def start_game(vk_id: int, branch_id: int, code: str | None = None, delivery: bool = False) -> dict:
     """
     Phase 1 — validate eligibility and pre-determine the reward.
 
@@ -126,6 +126,7 @@ def start_game(vk_id: int, branch_id: int, code: str | None = None) -> dict:
       attempt 4 → 300  coins (score  6), code required*
       attempt 5+ → 1000 coins (score 8), code required*
       * unless the guest activated a delivery code (delivery bypass)
+        or delivery=True was passed as a query parameter
 
     Returns:
         {'session_token': str, 'score': int}
@@ -156,12 +157,13 @@ def start_game(vk_id: int, branch_id: int, code: str | None = None) -> dict:
             'cbid':  client_branch.pk,
             'count': attempt_count,
             'rt':    'sp',          # reward type: super_prize
+            'dl':    delivery,      # delivery flag
         })
         return {'session_token': token, 'score': 10}
 
     # Attempt 3+ → require daily code unless the guest came via delivery
     if attempt_num >= 3:
-        is_delivery = client_branch.activated_deliveries.exists()
+        is_delivery = delivery or client_branch.activated_deliveries.exists()
         if not is_delivery:
             if not code:
                 raise CodeRequired
@@ -173,6 +175,7 @@ def start_game(vk_id: int, branch_id: int, code: str | None = None) -> dict:
         'count': attempt_count,
         'rt':    'c',       # reward type: coin
         'ra':    coins,     # reward amount
+        'dl':    delivery,  # delivery flag
     })
     return {'session_token': token, 'score': score}
 
@@ -187,6 +190,9 @@ def claim_game(session_token: str, employee_id: int | None = None) -> dict:
     two concurrent requests carry the same token).
 
     Token expires after 10 minutes (signing.BadSignature raised if expired).
+
+    If the session was started with delivery=True, the delivery code is
+    activated separately by the guest via POST /api/v1/code/ after claiming.
 
     Returns:
         {'type': 'coin',        'reward': int}

@@ -10,6 +10,7 @@ class GameStartSerializer(serializers.Serializer):
     vk_id     = serializers.IntegerField()
     branch_id = serializers.IntegerField()
     code      = serializers.CharField(required=False, allow_blank=True, allow_null=True, default=None)
+    delivery  = serializers.BooleanField(required=False, default=False)
 
 
 class GameClaimSerializer(serializers.Serializer):
