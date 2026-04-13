@@ -15,8 +15,8 @@ from .serializers import (
     SuperPrizeRewardSerializer,
 )
 from .services import (
-    ClientNotFound, CodeRequired, GameCooldownActive,
-    InvalidCode, InvalidToken,
+    ClientNotFound, CodeRequired, DeliveryCodeNotActivated,
+    GameCooldownActive, InvalidCode, InvalidToken,
     claim_game, get_game_cooldown, reset_game_cooldown, start_game,
 )
 
@@ -91,6 +91,11 @@ class GameClaimView(APIView):
             return Response(
                 {'detail': 'Сессия игры недействительна или истекла.'},
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+        except DeliveryCodeNotActivated:
+            return Response(
+                {'detail': 'Необходимо ввести код доставки.', 'needs_delivery_code': True},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         if result['type'] == 'super_prize':

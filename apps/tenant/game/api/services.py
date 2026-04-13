@@ -39,6 +39,10 @@ class InvalidToken(Exception):
     pass
 
 
+class DeliveryCodeNotActivated(Exception):
+    pass
+
+
 # ── Reward table ──────────────────────────────────────────────────────────────
 
 # attempt_number → (coins, animation_score 1–10)
@@ -229,6 +233,11 @@ def claim_game(session_token: str, employee_id: int | None = None) -> dict:
             .filter(pk=employee_id, branch=client_branch.branch, is_employee=True)
             .first()
         )
+
+    # Delivery sessions require an activated delivery code before claiming
+    if payload.get('dl'):
+        if not client_branch.activated_deliveries.exists():
+            raise DeliveryCodeNotActivated
 
     ClientAttempt.objects.create(client=client_branch, served_by=served_by)
     _activate_game_cooldown(client_branch)
