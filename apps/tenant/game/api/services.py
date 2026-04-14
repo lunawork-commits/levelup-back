@@ -6,7 +6,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.tenant.branch.models import (
-    ClientBranch,
+    ClientBranch, ClientVKStatus,
     CoinTransaction, TransactionType, TransactionSource,
     Cooldown, CooldownFeature,
     DailyCode, DailyCodePurpose,
@@ -41,6 +41,13 @@ class InvalidToken(Exception):
 
 class DeliveryCodeNotActivated(Exception):
     pass
+
+
+class VKSubscriptionRequired(Exception):
+    """Guest must subscribe to VK community AND newsletter before claiming."""
+    def __init__(self, is_community_member: bool, is_newsletter_subscriber: bool):
+        self.is_community_member = is_community_member
+        self.is_newsletter_subscriber = is_newsletter_subscriber
 
 
 # ── Reward table ──────────────────────────────────────────────────────────────
@@ -238,6 +245,16 @@ def claim_game(session_token: str, employee_id: int | None = None) -> dict:
     if payload.get('dl'):
         if not client_branch.activated_deliveries.exists():
             raise DeliveryCodeNotActivated
+
+    # VK subscription gate: guest must be subscribed to BOTH the community
+    # and newsletter before the prize is awarded.  If not, we return early
+    # WITHOUT recording the attempt or cooldown so the same token can be
+    # retried once the guest subscribes (within the 10-minute TTL).
+    vk_status = ClientVKStatus.objects.filter(client=client_branch).first()
+    is_member = vk_status.is_community_member if vk_status else False
+    is_subscriber = vk_status.is_newsletter_subscriber if vk_status else False
+    if not (is_member and is_subscriber):
+        raise VKSubscriptionRequired(is_member, is_subscriber)
 
     ClientAttempt.objects.create(client=client_branch, served_by=served_by)
     _activate_game_cooldown(client_branch)

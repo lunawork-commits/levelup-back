@@ -16,7 +16,7 @@ from .serializers import (
 )
 from .services import (
     ClientNotFound, CodeRequired, DeliveryCodeNotActivated,
-    GameCooldownActive, InvalidCode, InvalidToken,
+    GameCooldownActive, InvalidCode, InvalidToken, VKSubscriptionRequired,
     claim_game, get_game_cooldown, reset_game_cooldown, start_game,
 )
 
@@ -95,6 +95,16 @@ class GameClaimView(APIView):
         except DeliveryCodeNotActivated:
             return Response(
                 {'detail': 'Необходимо ввести код доставки.', 'needs_delivery_code': True},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        except VKSubscriptionRequired as e:
+            return Response(
+                {
+                    'detail': 'Подпишитесь на сообщество и рассылку, чтобы получить приз.',
+                    'needs_vk_subscription': True,
+                    'is_community_member': e.is_community_member,
+                    'is_newsletter_subscriber': e.is_newsletter_subscriber,
+                },
                 status=status.HTTP_403_FORBIDDEN,
             )
 
