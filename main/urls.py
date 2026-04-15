@@ -26,6 +26,7 @@ urlpatterns = [
     path('api/v1/', include('apps.tenant.quest.api.urls')),
     path('telegram/', include('apps.tenant.telegram.api.urls')),
     path('api/v1/', include('apps.tenant.analytics.api.urls')),
+    path('api/v1/', include('apps.tenant.offline_promo.api.urls')),
     path('analytics/', include('apps.tenant.analytics.urls')),
 
     # API Docs
