@@ -1,0 +1,61 @@
+<div class="rev-card" data-review-id="{{ review.id }}">
+
+  <div class="d-flex align-items-center flex-wrap gap-2 mb-1">
+    {% if review.rating %}
+      <span class="stars">★</span>
+      <span class="small fw-bold" style="color:#f59e0b;">{{ review.rating }}/5</span>
+    {% else %}
+      <span class="small text-muted">Без оценки</span>
+    {% endif %}
+
+    <span class="src-pill {% if review.source == 'yandex' %}src-yandex{% else %}src-gis{% endif %}">{{ review.get_source_display }}</span>
+
+    <span class="st-badge st-{{ review.status }}" data-status-label>{{ review.get_status_display }}</span>
+
+    <span class="ms-auto rev-meta">
+      {% if review.published_at %}{{ review.published_at|date:"d.m.Y H:i" }}{% else %}—{% endif %}
+      · {{ review.branch.name }}
+    </span>
+  </div>
+
+  <div class="rev-meta mb-1">
+    <strong>{{ review.author_name|default:"Без автора" }}</strong>
+  </div>
+
+  <div class="rev-text">{{ review.text|default:"—" }}</div>
+
+  <label class="small text-muted mb-1" style="letter-spacing:.3px;">Ответ менеджера</label>
+  <textarea class="rep-ta" maxlength="4000" placeholder="Напишите ответ или сгенерируйте его ИИ">{{ review.reply_text }}</textarea>
+
+  <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+    <button type="button" class="btn btn-sm btn-outline-primary" data-rep-action="generate">🤖 Сгенерировать ИИ-ответ</button>
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-rep-action="copy">📋 Копировать</button>
+    <button type="button" class="btn btn-sm btn-success" data-rep-action="save">💾 Сохранить ответ</button>
+
+    {% with cfg=review.branch.config %}
+      {% if review.source == 'yandex' and cfg.yandex_map %}
+        <a href="{{ cfg.yandex_map }}" target="_blank" rel="noopener" class="btn btn-sm btn-warning">↗ Ответить на Яндекс</a>
+      {% elif review.source == 'gis' and cfg.gis_map %}
+        <a href="{{ cfg.gis_map }}/tab/reviews" target="_blank" rel="noopener" class="btn btn-sm btn-success">↗ Ответить на 2ГИС</a>
+      {% endif %}
+    {% endwith %}
+
+    <span class="ms-auto d-flex gap-2">
+      {% if review.status == 'new' %}
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-rep-action="seen">Просмотрено</button>
+      {% endif %}
+      {% if review.status != 'ignored' %}
+        <button type="button" class="btn btn-sm btn-outline-danger" data-rep-action="ignore">Игнор.</button>
+      {% endif %}
+    </span>
+  </div>
+
+  <div class="small mt-2" data-rep-msg></div>
+
+  {% if review.replied_at %}
+  <div class="rev-meta mt-1">
+    Ответ сохранён {{ review.replied_at|date:"d.m.Y H:i" }}{% if review.replied_by %} · {{ review.replied_by.email|default:review.replied_by }}{% endif %}
+  </div>
+  {% endif %}
+
+</div>
