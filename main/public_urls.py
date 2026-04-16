@@ -1,0 +1,32 @@
+from django.conf import settings
+from django.conf.urls.static import static
+from django.urls import include, path
+
+from drf_spectacular.views import SpectacularAPIView
+from drf_spectacular.views import SpectacularSwaggerView as _SwaggerView
+from drf_spectacular.views import SpectacularRedocView as _RedocView
+
+
+class SpectacularSwaggerView(_SwaggerView):
+    schema = None
+
+
+class SpectacularRedocView(_RedocView):
+    schema = None
+
+from apps.shared.config.admin_sites import public_admin
+from apps.tenant.delivery.api.public_views import PublicDeliveryWebhook
+
+urlpatterns = [
+    path('admin/', public_admin.urls),
+    path('api/v1/', include('apps.shared.clients.api.urls')),
+    path('api/v1/delivery/webhook/', PublicDeliveryWebhook.as_view(), name='public-delivery-webhook'),
+
+    # API Docs
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

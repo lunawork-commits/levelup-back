@@ -1,0 +1,724 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}История миграции — {{ block.super }}{% endblock %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Главная</a>
+  &rsaquo; <a href="{% url 'analytics-general' %}">Аналитика</a>
+  &rsaquo; <a href="{% url 'analytics-rf' %}">RF-анализ</a>
+  &rsaquo; История миграции
+</div>
+{% endblock %}
+
+{% block extrastyle %}
+<style>
+  :root {
+    --navy:   #1a2744;
+    --navy2:  #2d3a60;
+    --green:  #16a34a;
+    --blue:   #1d72b8;
+    --orange: #d97706;
+    --red:    #dc2626;
+    --purple: #7c3aed;
+    --teal:   #0d9488;
+    --card-radius: 12px;
+  }
+
+  .mig-wrap { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1e293b; max-width: 1200px; }
+
+  /* ── Page header ─────────────────────────────────────── */
+  .mig-header {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy2) 100%);
+    color: #fff;
+    padding: 22px 28px;
+    border-radius: var(--card-radius);
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .mig-header-left { display: flex; flex-direction: column; gap: 4px; }
+  .mig-header-title { font-size: 22px; font-weight: 700; letter-spacing: -.3px; }
+  .mig-header-meta  { font-size: 12px; opacity: .65; }
+  .mig-header-back  {
+    color: rgba(255,255,255,.7);
+    font-size: 12px;
+    text-decoration: none;
+    border: 1px solid rgba(255,255,255,.25);
+    padding: 5px 14px;
+    border-radius: 20px;
+    transition: all .15s;
+  }
+  .mig-header-back:hover { background: rgba(255,255,255,.1); color: #fff; }
+
+  /* ── Filters bar ─────────────────────────────────────── */
+  .filters-bar {
+    background: #fff;
+    border-radius: var(--card-radius);
+    border: 1px solid #e8edf3;
+    padding: 14px 20px;
+    margin-bottom: 18px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+  }
+  .filter-group { display: flex; flex-direction: column; gap: 4px; }
+  .filter-label { font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: #94a3b8; font-weight: 600; }
+
+  .pill-group { display: flex; gap: 0; border-radius: 8px; overflow: hidden; border: 1px solid #d0d7de; }
+  .pill-btn {
+    padding: 6px 14px;
+    background: #fff;
+    color: #555;
+    font-size: 11px;
+    font-weight: 600;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: all .15s;
+    border-right: 1px solid #d0d7de;
+    white-space: nowrap;
+  }
+  .pill-btn:last-child { border-right: none; }
+  .pill-btn.active { background: var(--navy); color: #fff; }
+  .pill-btn:hover:not(.active) { background: #f5f7fa; }
+
+  .filter-select {
+    padding: 6px 10px;
+    border: 1px solid #d0d7de;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #374151;
+    background: #fff;
+    cursor: pointer;
+    min-width: 150px;
+  }
+
+  .branch-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .branch-chip  {
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid #d0d7de;
+    background: #fff;
+    color: #555;
+    font-size: 10px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all .15s;
+  }
+  .branch-chip:hover  { border-color: var(--navy); color: var(--navy); }
+  .branch-chip.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+
+  .apply-btn {
+    padding: 7px 18px;
+    background: var(--blue);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-left: auto;
+    transition: opacity .15s;
+  }
+  .apply-btn:hover { opacity: .85; }
+
+  /* ── Effectiveness cards ─────────────────────────────── */
+  .eff-section { margin-bottom: 20px; }
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    margin-bottom: 12px;
+  }
+
+  .eff-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+  @media (max-width: 900px) { .eff-cards { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 480px) { .eff-cards { grid-template-columns: 1fr; } }
+
+  .ec {
+    background: #fff;
+    border-radius: var(--card-radius);
+    padding: 20px;
+    border: 1px solid #e8edf3;
+    box-shadow: 0 2px 8px rgba(0,0,0,.04);
+    position: relative;
+    overflow: hidden;
+  }
+  .ec::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .ec-green::before  { background: var(--green); }
+  .ec-orange::before { background: var(--orange); }
+  .ec-red::before    { background: var(--red); }
+  .ec-blue::before   { background: var(--blue); }
+
+  .ec-icon  { font-size: 28px; margin-bottom: 10px; line-height: 1; }
+  .ec-label { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+  .ec-value { font-size: 36px; font-weight: 900; line-height: 1; margin-bottom: 4px; }
+  .ec-sub   { font-size: 11px; color: #94a3b8; line-height: 1.4; }
+
+  .ec-green  .ec-value { color: var(--green); }
+  .ec-orange .ec-value { color: var(--orange); }
+  .ec-red    .ec-value { color: var(--red); }
+  .ec-blue   .ec-value { color: var(--blue); }
+
+  /* ── Flows section ───────────────────────────────────── */
+  .flows-section { margin-bottom: 20px; }
+  .flows-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 10px;
+  }
+
+  .flow-card {
+    background: #fff;
+    border-radius: 10px;
+    border: 1px solid #e8edf3;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: box-shadow .15s;
+  }
+  .flow-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+
+  .flow-from, .flow-to {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 12px;
+    border-radius: 8px;
+    text-align: center;
+  }
+  .flow-segment-emoji { font-size: 18px; line-height: 1; margin-bottom: 3px; }
+  .flow-segment-name  { font-size: 11px; font-weight: 600; color: rgba(0,0,0,.65); line-height: 1.2; }
+  .flow-segment-code  { font-size: 9px; color: rgba(0,0,0,.35); margin-top: 2px; text-transform: uppercase; }
+
+  .flow-arrow-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+  }
+  .flow-arrow { font-size: 18px; color: #cbd5e1; }
+  .flow-count-badge {
+    background: var(--navy);
+    color: #fff;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  /* ── Empty state ─────────────────────────────────────── */
+  .empty-state {
+    padding: 48px 20px;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 13px;
+    background: #fff;
+    border-radius: var(--card-radius);
+    border: 1px solid #e8edf3;
+  }
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+
+  /* ── Top flows table ─────────────────────────────────── */
+  .flows-table-card {
+    background: #fff;
+    border-radius: var(--card-radius);
+    border: 1px solid #e8edf3;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+  .flows-table-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .flows-table-title  { font-size: 13px; font-weight: 700; color: #1e293b; }
+  .flows-table-count  { font-size: 11px; color: #94a3b8; background: #f1f5f9; padding: 3px 10px; border-radius: 10px; }
+
+  .flow-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .flow-table th {
+    text-align: left;
+    padding: 10px 16px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: #94a3b8;
+    border-bottom: 1px solid #f0f4f8;
+    background: #f8fafc;
+    font-weight: 600;
+  }
+  .flow-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f8fafc;
+    vertical-align: middle;
+  }
+  .flow-table tbody tr:hover td { background: #f8fbff; }
+  .flow-table tbody tr:last-child td { border-bottom: none; }
+
+  .seg-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 14px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .flow-bar-wrap { background: #f1f5f9; border-radius: 4px; height: 6px; overflow: hidden; min-width: 80px; }
+  .flow-bar { height: 100%; border-radius: 4px; background: var(--blue); }
+  .count-num { font-size: 16px; font-weight: 800; color: #1e293b; }
+
+  /* ── Sankey chart ────────────────────────────────────── */
+  .sankey-card {
+    background: #fff;
+    border-radius: var(--card-radius);
+    border: 1px solid #e8edf3;
+    box-shadow: 0 2px 8px rgba(0,0,0,.04);
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+  .sankey-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .sankey-title { font-size: 13px; font-weight: 700; color: #1e293b; }
+  .sankey-sub   { font-size: 11px; color: #94a3b8; }
+  .sankey-body  { padding: 20px; overflow-x: auto; }
+  #flow-svg { display: block; min-width: 500px; font-family: -apple-system, sans-serif; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mig-wrap">
+
+  <!-- ── Page header ─────────────────────────────────────── -->
+  <div class="mig-header">
+    <div class="mig-header-left">
+      <div class="mig-header-title">📊 История миграции гостей</div>
+      <div class="mig-header-meta">
+        {% if active_branches %}
+          {% for b in active_branches %}{{ b.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+        {% else %}
+          Все торговые точки
+        {% endif %}
+        &nbsp;·&nbsp; Обновлено: {{ updated_at }}
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <button id="btn-recalc" onclick="recalcRF()"
+        style="font-size:12px;font-weight:600;padding:6px 14px;border:1px solid rgba(255,255,255,.3);border-radius:8px;background:rgba(255,255,255,.1);cursor:pointer;color:#fff;transition:all .15s;">
+        🔄 Пересчитать
+      </button>
+      <a href="{% url 'analytics-rf' %}?mode={{ active_mode }}{% if active_branch_ids %}&branches={% for id in active_branch_ids %}{{ id }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}"
+         class="mig-header-back">← RF-анализ</a>
+    </div>
+    <span id="recalc-status" style="display:none;font-size:11px;color:rgba(255,255,255,.8);width:100%;"></span>
+  </div>
+
+  <!-- ── Filters ─────────────────────────────────────────── -->
+  {% with b_param=active_branch_ids|join:"," s_param=active_segment %}
+  <div class="filters-bar">
+    <!-- Period -->
+    <div class="filter-group">
+      <div class="filter-label">Период</div>
+      <div class="pill-group">
+        {% for val, label in days_choices %}
+        <a href="?days={{ val }}&mode={{ active_mode }}{% if s_param %}&segment={{ s_param }}{% endif %}{% if b_param %}&branches={{ b_param }}{% endif %}"
+           class="pill-btn {% if active_days|stringformat:'s' == val %}active{% endif %}">{{ label }}</a>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Mode -->
+    <div class="filter-group">
+      <div class="filter-label">Режим</div>
+      <div class="pill-group">
+        <a href="?mode=restaurant&days={{ active_days }}{% if s_param %}&segment={{ s_param }}{% endif %}{% if b_param %}&branches={{ b_param }}{% endif %}"
+           class="pill-btn {% if active_mode == 'restaurant' %}active{% endif %}">🍽 Кафе</a>
+        <a href="?mode=delivery&days={{ active_days }}{% if s_param %}&segment={{ s_param }}{% endif %}{% if b_param %}&branches={{ b_param }}{% endif %}"
+           class="pill-btn {% if active_mode == 'delivery' %}active{% endif %}">🛵 Доставка</a>
+      </div>
+    </div>
+
+    <!-- Segment filter -->
+    <div class="filter-group">
+      <div class="filter-label">Сегмент</div>
+      <select class="filter-select" onchange="window.location='?mode={{ active_mode }}&days={{ active_days }}{% if b_param %}&branches={{ b_param }}{% endif %}&segment='+this.value">
+        <option value="">Все сегменты</option>
+        {% for seg in all_segments %}
+        <option value="{{ seg.code }}" {% if active_segment == seg.code %}selected{% endif %}>
+          {{ seg.emoji }} {{ seg.name }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Branch filter -->
+    <div class="filter-group">
+      <div class="filter-label">Точки</div>
+      <div class="branch-chips">
+        <a href="?mode={{ active_mode }}&days={{ active_days }}{% if s_param %}&segment={{ s_param }}{% endif %}"
+           class="branch-chip {% if not active_branch_ids %}active{% endif %}">Все</a>
+        {% for b in branches %}
+        <a href="?mode={{ active_mode }}&days={{ active_days }}{% if s_param %}&segment={{ s_param }}{% endif %}&branches={{ b.id }}"
+           class="branch-chip {% if b.id in active_branch_ids %}active{% endif %}">{{ b.name }}</a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endwith %}
+
+  <!-- ── Effectiveness KPIs ──────────────────────────────── -->
+  <div class="eff-section">
+    <div class="section-title">⚡ Эффективность за период</div>
+    <div class="eff-cards">
+      <div class="ec ec-green">
+        <div class="ec-icon">📈</div>
+        <div class="ec-label">Рост лояльности</div>
+        <div class="ec-value">{{ effectiveness.growth }}</div>
+        <div class="ec-sub">Гостей перешли в более<br>активный сегмент</div>
+      </div>
+      <div class="ec ec-orange">
+        <div class="ec-icon">📉</div>
+        <div class="ec-label">Остывание</div>
+        <div class="ec-value">{{ effectiveness.cooling }}</div>
+        <div class="ec-sub">Гостей стали посещать<br>реже или позже</div>
+      </div>
+      <div class="ec ec-red">
+        <div class="ec-icon">🚨</div>
+        <div class="ec-label">Отток в R0</div>
+        <div class="ec-value">{{ effectiveness.lost_to_r0 }}</div>
+        <div class="ec-sub">Гостей попали в<br>«потерянный» сегмент</div>
+      </div>
+      <div class="ec ec-blue">
+        <div class="ec-icon">🔄</div>
+        <div class="ec-label">Реактивация</div>
+        <div class="ec-value">{{ effectiveness.reactivated }}</div>
+        <div class="ec-sub">Гостей вернулись<br>из R0 в активный</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Sankey flow chart ───────────────────────────────── -->
+  {% if flows %}
+  <div class="sankey-card">
+    <div class="sankey-header">
+      <div class="sankey-title">🔀 Граф потоков миграции</div>
+      <div class="sankey-sub">Ширина потока пропорциональна числу гостей</div>
+    </div>
+    <div class="sankey-body">
+      <svg id="flow-svg"></svg>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ── Migration flows ─────────────────────────────────── -->
+  <div class="flows-section">
+    <div class="section-title">
+      🔀 Потоки перемещения клиентов
+      {% if active_segment %}· фильтр: {{ active_segment }}{% endif %}
+    </div>
+
+    {% if flows %}
+    <!-- Cards view for top flows -->
+    <div class="flows-grid" style="margin-bottom:20px;">
+      {% for f in flows|slice:":6" %}
+      <div class="flow-card">
+        <div class="flow-from" style="background:{{ f.from_color }}22; border:1.5px solid {{ f.from_color }}44;">
+          <div class="flow-segment-emoji">{{ f.from_emoji }}</div>
+          <div class="flow-segment-name">{{ f.from_name }}</div>
+          <div class="flow-segment-code">{{ f.from_code }}</div>
+        </div>
+        <div class="flow-arrow-block">
+          <div class="flow-arrow">→</div>
+          <div class="flow-count-badge">{{ f.count }}</div>
+        </div>
+        <div class="flow-to" style="background:{{ f.to_color }}22; border:1.5px solid {{ f.to_color }}44;">
+          <div class="flow-segment-emoji">{{ f.to_emoji }}</div>
+          <div class="flow-segment-name">{{ f.to_name }}</div>
+          <div class="flow-segment-code">{{ f.to_code }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Full table for all flows -->
+    {% if flows|length > 1 %}
+    <div class="flows-table-card">
+      <div class="flows-table-header">
+        <div class="flows-table-title">Все потоки</div>
+        <div class="flows-table-count">{{ flows|length }} переходов</div>
+      </div>
+      <table class="flow-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Из сегмента</th>
+            <th></th>
+            <th>В сегмент</th>
+            <th>Гостей</th>
+            <th>График</th>
+          </tr>
+        </thead>
+        <tbody id="flows-tbody">
+          {% with max_count=flows.0.count %}
+          {% for f in flows %}
+          <tr>
+            <td style="color:#94a3b8;font-size:11px;width:30px;">{{ forloop.counter }}</td>
+            <td>
+              <span class="seg-pill" style="background:{{ f.from_color }};">{{ f.from_emoji }} {{ f.from_name }}</span>
+            </td>
+            <td style="color:#cbd5e1;font-size:16px;text-align:center;width:30px;">→</td>
+            <td>
+              <span class="seg-pill" style="background:{{ f.to_color }};">{{ f.to_emoji }} {{ f.to_name }}</span>
+            </td>
+            <td><span class="count-num">{{ f.count }}</span></td>
+            <td style="min-width:100px;">
+              <div class="flow-bar-wrap">
+                <div class="flow-bar" style="width:{% widthratio f.count max_count 100 %}%; background:{{ f.from_color }};"></div>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+          {% endwith %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="empty-state">
+      <div class="icon">🔀</div>
+      <div style="font-weight:600;margin-bottom:6px;">Нет данных о миграциях</div>
+      <div>
+        {% if active_segment %}
+          Нет переходов для сегмента «{{ active_segment }}» за выбранный период.
+          <a href="?mode={{ active_mode }}&days={{ active_days }}" style="color:var(--blue);">Сбросить фильтр</a>
+        {% else %}
+          Миграции появятся после первого пересчёта RF-метрик.<br>
+          Запустите Celery-задачу <code>recalculate_rf_scores</code>.
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+</div><!-- /mig-wrap -->
+
+<script>
+(function () {
+  const FLOWS = {{ flows_json|safe }};
+  const svg = document.getElementById('flow-svg');
+  if (!svg || !FLOWS.length) return;
+
+  const BAR_W   = 18;
+  const GAP     = 6;
+  const PADDING = 24;
+  const LABEL_W = 160;
+
+  // ── Aggregate totals ──────────────────────────────────────────────
+  const fromTotals = {}, toTotals = {};
+  const fromMeta   = {}, toMeta   = {};
+
+  FLOWS.forEach(f => {
+    fromTotals[f.from_code] = (fromTotals[f.from_code] || 0) + f.count;
+    toTotals[f.to_code]     = (toTotals[f.to_code]     || 0) + f.count;
+    fromMeta[f.from_code]   = { name: f.from_name, emoji: f.from_emoji, color: f.from_color };
+    toMeta[f.to_code]       = { name: f.to_name,   emoji: f.to_emoji,   color: f.to_color   };
+  });
+
+  const fromList = Object.entries(fromTotals).sort((a, b) => b[1] - a[1]);
+  const toList   = Object.entries(toTotals).sort((a, b) => b[1] - a[1]);
+
+  const totalFlow  = fromList.reduce((s, [, v]) => s + v, 0);
+  const maxSegments = Math.max(fromList.length, toList.length);
+
+  // ── Sizing ────────────────────────────────────────────────────────
+  const W     = Math.min(Math.max(svg.parentElement.clientWidth || 700, 500), 900);
+  const LEFT  = LABEL_W;
+  const RIGHT = W - LABEL_W - BAR_W;
+  const USABLE_H = Math.max(maxSegments * 52, 240);
+  const H        = USABLE_H + 2 * PADDING;
+
+  svg.setAttribute('width',  W);
+  svg.setAttribute('height', H);
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+  // ── Scale ─────────────────────────────────────────────────────────
+  const scale = (USABLE_H - GAP * (fromList.length - 1)) / totalFlow;
+
+  function layoutBars(list) {
+    let y = PADDING;
+    return list.map(([code, count]) => {
+      const h    = Math.max(14, count * scale);
+      const yMid = y + h / 2;
+      const pos  = { y, h, yMid, count };
+      y += h + GAP;
+      return [code, pos];
+    });
+  }
+
+  const fromPos = Object.fromEntries(layoutBars(fromList));
+  const toPos   = Object.fromEntries(layoutBars(toList));
+
+  // Track vertical offsets within each bar for flow stacking
+  const fromOff = Object.fromEntries(fromList.map(([c]) => [c, 0]));
+  const toOff   = Object.fromEntries(toList.map(([c]) => [c, 0]));
+
+  let markup = '';
+
+  // ── Draw flow ribbons (back to front, sorted by count desc) ───────
+  FLOWS.forEach(f => {
+    const fp = fromPos[f.from_code];
+    const tp = toPos[f.to_code];
+    if (!fp || !tp) return;
+
+    const fh = Math.max(1, f.count * scale);
+
+    const x1 = LEFT + BAR_W;
+    const x2 = RIGHT;
+    const mx  = (x1 + x2) / 2;
+
+    const y1t = fp.y + fromOff[f.from_code];
+    const y1b = y1t + fh;
+    const y2t = tp.y + toOff[f.to_code];
+    const y2b = y2t + fh;
+
+    fromOff[f.from_code] += fh;
+    toOff[f.to_code]     += fh;
+
+    const col = f.from_color || '#94a3b8';
+
+    // Cubic bezier ribbon
+    const d = [
+      `M ${x1} ${y1t}`,
+      `C ${mx} ${y1t}, ${mx} ${y2t}, ${x2} ${y2t}`,
+      `L ${x2} ${y2b}`,
+      `C ${mx} ${y2b}, ${mx} ${y1b}, ${x1} ${y1b}`,
+      'Z',
+    ].join(' ');
+
+    markup += `<path d="${d}" fill="${col}38" stroke="${col}88" stroke-width="0.5">
+      <title>${f.from_name} → ${f.to_name}: ${f.count} гостей</title>
+    </path>`;
+  });
+
+  // ── Draw from-segment bars + labels ───────────────────────────────
+  fromList.forEach(([code, count]) => {
+    const p    = fromPos[code];
+    const meta = fromMeta[code];
+    const col  = meta.color || '#94a3b8';
+
+    // Bar
+    markup += `<rect x="${LEFT}" y="${p.y}" width="${BAR_W}" height="${p.h}"
+      fill="${col}" rx="3" ry="3"/>`;
+
+    // Label (left, right-aligned)
+    const yt = p.yMid;
+    markup += `
+      <text x="${LEFT - 8}" y="${yt - 5}" text-anchor="end"
+        font-size="12" fill="#1e293b" font-weight="600"
+        style="paint-order:stroke" stroke="#fff" stroke-width="3">${meta.emoji} ${meta.name}</text>
+      <text x="${LEFT - 8}" y="${yt + 10}" text-anchor="end"
+        font-size="10" fill="#94a3b8">${count} гостей</text>
+    `;
+  });
+
+  // ── Draw to-segment bars + labels ─────────────────────────────────
+  toList.forEach(([code, count]) => {
+    const p    = toPos[code];
+    const meta = toMeta[code];
+    const col  = meta.color || '#94a3b8';
+
+    markup += `<rect x="${RIGHT}" y="${p.y}" width="${BAR_W}" height="${p.h}"
+      fill="${col}" rx="3" ry="3"/>`;
+
+    const yt = p.yMid;
+    markup += `
+      <text x="${RIGHT + BAR_W + 8}" y="${yt - 5}" text-anchor="start"
+        font-size="12" fill="#1e293b" font-weight="600"
+        style="paint-order:stroke" stroke="#fff" stroke-width="3">${meta.emoji} ${meta.name}</text>
+      <text x="${RIGHT + BAR_W + 8}" y="${yt + 10}" text-anchor="start"
+        font-size="10" fill="#94a3b8">${count} гостей</text>
+    `;
+  });
+
+  // ── Column headers ────────────────────────────────────────────────
+  markup += `
+    <text x="${LEFT + BAR_W / 2}" y="${PADDING - 8}" text-anchor="middle"
+      font-size="11" fill="#94a3b8" font-weight="600" letter-spacing="1">ИЗ</text>
+    <text x="${RIGHT + BAR_W / 2}" y="${PADDING - 8}" text-anchor="middle"
+      font-size="11" fill="#94a3b8" font-weight="600" letter-spacing="1">В</text>
+  `;
+
+  svg.innerHTML = markup;
+})();
+
+// ── Recalculate RF ─────────────────────────────────────────────────────────
+function recalcRF() {
+  const btn    = document.getElementById('btn-recalc');
+  const status = document.getElementById('recalc-status');
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Считаем...';
+  status.style.display = 'inline';
+  status.textContent   = 'Идёт пересчёт...';
+
+  const mode = "{{ active_mode }}";
+  const branchIds = "{% if active_branch_ids %}{% for id in active_branch_ids %}{{ id }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}";
+
+  const body = new URLSearchParams();
+  body.set('mode', mode);
+  if (branchIds) body.set('branch_ids', branchIds);
+
+  fetch('/api/v1/analytics/rf/recalculate/', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': getCookie('csrftoken')},
+    body: body.toString(),
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.detail || data.non_field_errors) {
+        status.textContent = '⚠ ' + (data.detail || JSON.stringify(data));
+      } else {
+        status.textContent = `✓ Готово: обновлено ${data.updated}, создано ${data.created}, миграций ${data.migrations} (${data.duration_ms} мс)`;
+        setTimeout(() => location.reload(), 1500);
+      }
+    })
+    .catch(() => { status.textContent = '⚠ Ошибка соединения'; })
+    .finally(() => {
+      btn.disabled = false;
+      btn.textContent = '🔄 Пересчитать';
+    });
+}
+
+function getCookie(name) {
+  const m = document.cookie.match('(?:^|;)\\s*' + name + '=([^;]*)');
+  return m ? decodeURIComponent(m[1]) : '';
+}
+</script>
+{% endblock %}

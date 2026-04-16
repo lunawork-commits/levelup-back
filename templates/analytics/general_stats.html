@@ -1,0 +1,484 @@
+{% extends "admin/base_site.html" %}
+{% block title %}Статистика — {{ block.super }}{% endblock %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Главная</a>
+  &rsaquo; Аналитика
+</div>
+{% endblock %}
+{% block content_title %}{% endblock %}
+
+{% block extrastyle %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --green:#2e7d32;--blue:#1565c0;--orange:#e65100;--red:#c62828;
+  --purple:#6a1b9a;--teal:#00695c;--navy:#1a2744;
+}
+a,a:hover,a:focus,a:visited{text-decoration:none!important; color: black}
+#content{padding:0!important;}
+
+/* Page */
+.pg-bg{background:#f0f2f5;min-height:100vh;padding:18px 20px 48px;}
+
+/* Top bar */
+.pg-title{font-size:1.15rem;font-weight:800;color:var(--navy);letter-spacing:-.2px;}
+.branch-tab{font-size:12px;font-weight:600;text-decoration:none!important;}
+.branch-tab.active{background:var(--navy)!important;color:#fff!important;border-color:var(--navy)!important;}
+.period-btn{font-size:12px;font-weight:600;text-decoration:none!important;}
+.period-btn.active{background:var(--green)!important;color:#fff!important;border-color:var(--green)!important;}
+
+/* Reviews strip */
+.rev-strip{background:#fff;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.07);overflow:hidden;margin-bottom:20px;}
+.rev-head{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #eee;}
+.rev-head-title{font-size:13px;font-weight:700;color:var(--navy);letter-spacing:.2px;}
+.rev-col{flex:1;padding:14px 10px;text-align:center;border-right:1px solid #f0f0f0;cursor:pointer;transition:background .12s;}
+.rev-col:last-child{border-right:none;}
+.rev-col:hover{background:#f5f7fa;}
+.rev-label{font-size:11px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+.rev-num{font-size:2rem;font-weight:900;line-height:1;}
+
+/* Metric cards */
+.acc-green{border-top:4px solid var(--green)!important;}
+.acc-blue {border-top:4px solid var(--blue)!important;}
+.acc-orange{border-top:4px solid var(--orange)!important;}
+.acc-red  {border-top:4px solid var(--red)!important;}
+.acc-purple{border-top:4px solid var(--purple)!important;}
+.acc-teal {border-top:4px solid var(--teal)!important;}
+
+.mc-card{border-radius:10px!important;border:none!important;box-shadow:0 1px 6px rgba(0,0,0,.07)!important;transition:transform .15s,box-shadow .15s;height:100%;}
+.mc-link{display:block;color:inherit;height:100%;}
+.mc-link:hover .mc-card,.mc-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.13)!important;}
+.col-sm-6:hover{z-index:10;position:relative;}
+
+.mc-label{font-size:12px;font-weight:600;color:#374151;margin-bottom:10px;line-height:1.35;}
+.mc-val{font-size:2.4rem;font-weight:900;line-height:1;}
+.mc-sub{font-size:11px;color:#6b7280;margin-top:5px;font-weight:500;}
+
+.c-green {color:var(--green)!important;}
+.c-blue  {color:var(--blue)!important;}
+.c-orange{color:var(--orange)!important;}
+.c-red   {color:var(--red)!important;}
+.c-purple{color:var(--purple)!important;}
+.c-teal  {color:var(--teal)!important;}
+.c-grey  {color:#9ca3af!important;}
+
+/* Async skeleton loader */
+.slow-skeleton{display:inline-block;width:60px;height:1em;background:linear-gradient(90deg,#e5e7eb 25%,#f3f4f6 50%,#e5e7eb 75%);background-size:200% 100%;animation:skeleton-pulse 1.4s infinite;border-radius:4px;vertical-align:middle;}
+@keyframes skeleton-pulse{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* Tooltip */
+.tip-btn{position:absolute;top:10px;right:10px;width:18px;height:18px;border-radius:50%;background:#e5e7eb;color:#6b7280;font-size:11px;display:flex;align-items:center;justify-content:center;cursor:help;z-index:2;font-weight:700;}
+.tip-box{display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);width:340px;background:var(--navy);color:#fff;font-size:11px;font-weight:500;padding:9px 12px;border-radius:8px;z-index:40;line-height:1.6;white-space:normal;pointer-events:none;}
+.mc-card:hover .tip-box,.card:hover .tip-box{display:block;}
+
+/* Charts section */
+.charts-card{border-radius:10px!important;border:none!important;box-shadow:0 1px 6px rgba(0,0,0,.07)!important;}
+.chart-title{font-size:12px;font-weight:700;color:#1f2937;margin-bottom:8px;}
+.chart-legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;display:inline-block;}
+.chart-legend-label{font-size:11px;font-weight:600;color:#374151;}
+
+/* Section label */
+.sec-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#6b7280;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pg-bg">
+
+  <!-- Top bar -->
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+      <span class="pg-title">📊 Статистика</span>
+      <div class="d-flex flex-wrap gap-1">
+        <a href="?{{ period_qs }}" class="btn btn-sm btn-outline-secondary rounded-pill branch-tab {% if not active_branch_ids %}active{% endif %}">Все точки</a>
+        {% for b in branches %}
+        <a href="?{{ period_qs }}&branches={{ b.id }}" class="btn btn-sm btn-outline-secondary rounded-pill branch-tab {% if b.id in active_branch_ids %}active{% endif %}">{{ b.name }}</a>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+      {% for key,label in period_choices %}
+      <a href="?period={{ key }}{% if active_branch_ids %}&branches={% for bid in active_branch_ids %}{{ bid }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}"
+         class="btn btn-sm btn-outline-secondary rounded-pill period-btn {% if active_period == key %}active{% endif %}">{{ label }}</a>
+      {% endfor %}
+      <span class="text-muted">|</span>
+      <form method="get" class="d-flex align-items-center gap-2">
+        {% if active_branch_ids %}<input type="hidden" name="branches" value="{% for bid in active_branch_ids %}{{ bid }}{% if not forloop.last %},{% endif %}{% endfor %}">{% endif %}
+        <input type="date" name="start" value="{{ start }}" class="form-control form-control-sm" style="width:135px;">
+        <span class="text-muted fw-bold">—</span>
+        <input type="date" name="end" value="{{ end }}" class="form-control form-control-sm" style="width:135px;">
+        <button type="submit" class="btn btn-sm btn-success px-3">Применить</button>
+      </form>
+      <a href="{% url 'analytics-report' %}?{{ period_qs }}{% if active_branch_ids %}&branches={% for bid in active_branch_ids %}{{ bid }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}"
+         class="btn btn-sm px-3" style="background:#dc2626;color:#fff;font-weight:700;border:none;">📄 Отчёт</a>
+    </div>
+  </div>
+
+  <!-- Sub title -->
+  <p style="font-size:12px;color:#6b7280;margin-bottom:16px;">
+    Сводная статистика · <strong style="color:#374151;">{{ start_display }} — {{ end_display }}</strong>
+    &nbsp;·&nbsp;
+    <a href="{% url 'analytics-rf' %}{% if active_branch_ids %}?branches={% for bid in active_branch_ids %}{{ bid }}{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}" style="color:var(--blue);font-weight:600;">RF-аналитика →</a>
+  </p>
+
+  {% with bp=active_branch_ids|join:"," %}
+
+  <!-- VK Reviews strip -->
+  <div class="rev-strip">
+    <div class="rev-head">
+      <span class="rev-head-title">💬 Анализ отзывов из ВК</span>
+      <a href="{% url 'analytics-reviews' %}?{{ period_qs }}{% if bp %}&branches={{ bp }}{% endif %}" style="font-size:12px;font-weight:600;color:var(--blue);">Подробнее →</a>
+    </div>
+    <div class="d-flex">
+      <a href="{% url 'analytics-reviews-detail' %}?sentiment=POSITIVE&{{ period_qs }}{% if bp %}&branches={{ bp }}{% endif %}" class="rev-col" style="color:inherit;">
+        <div class="rev-label" style="color:#16a34a;">Позитивный</div>
+        <div class="rev-num" style="color:#16a34a;">{{ reviews_summary.positive }}</div>
+      </a>
+      <a href="{% url 'analytics-reviews-detail' %}?sentiment=NEGATIVE&{{ period_qs }}{% if bp %}&branches={{ bp }}{% endif %}" class="rev-col" style="color:inherit;">
+        <div class="rev-label" style="color:var(--red);">Негативный</div>
+        <div class="rev-num" style="color:var(--red);">{{ reviews_summary.negative }}</div>
+      </a>
+      <a href="{% url 'analytics-reviews-detail' %}?sentiment=PARTIALLY_NEGATIVE&{{ period_qs }}{% if bp %}&branches={{ bp }}{% endif %}" class="rev-col" style="color:inherit;">
+        <div class="rev-label" style="color:var(--orange);">Частично негат.</div>
+        <div class="rev-num" style="color:var(--orange);">{{ reviews_summary.partial }}</div>
+      </a>
+      <a href="{% url 'analytics-reviews-detail' %}?sentiment=NEUTRAL&{{ period_qs }}{% if bp %}&branches={{ bp }}{% endif %}" class="rev-col" style="color:inherit;">
+        <div class="rev-label" style="color:var(--blue);">Нейтральный</div>
+        <div class="rev-num" style="color:var(--blue);">{{ reviews_summary.neutral }}</div>
+      </a>
+      <a href="{% url 'analytics-reviews-detail' %}?sentiment=WAITING&{{ period_qs }}{% if bp %}&branches={{ bp }}{% endif %}" class="rev-col" style="color:inherit;">
+        <div class="rev-label" style="color:#9ca3af;">Спам / не по теме</div>
+        <div class="rev-num" style="color:#9ca3af;">{{ reviews_summary.waiting }}</div>
+      </a>
+    </div>
+  </div>
+
+  <!-- Section label -->
+  <div class="sec-label mb-2">Ключевые показатели</div>
+
+  <!-- Metric cards grid -->
+  <div class="row g-3 mb-4">
+
+    <div class="col-sm-6 col-md-4 col-xl-3">
+      <a href="{% url 'analytics-stats-detail' %}?metric=qr_scans&{{ period_qs }}{% if bp %}&branches={{ bp }}{% endif %}" class="mc-link">
+        <div class="mc-card card acc-green position-relative">
+          <div class="tip-btn">?</div>
+          <div class="card-body">
+            <div class="mc-label">📱 Отсканировали QR-код</div>
+            <div class="mc-val c-green">{{ stats.qr_scans }}</div>
+            <div class="tip-box">Сколько раз гости отсканировали QR-код в заведении за выбранный период. Это основной показатель того, сколько людей реально взаимодействуют с приложением на месте. У одного гостя не может быть больше одного сканирования за 6 часов — это защита от случайных повторных сканов. Если гость пришёл утром и вечером — это 2 сканирования.</div>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-sm-6 col-md-4 col-xl-3">
+      <a href="{% url 'analytics-stats-detail' %}?metric=total_vk_subscribers&{{ period_qs }}{% if bp %}&branches={{ bp }}{% endif %}" class="mc-link">
+        <div class="mc-card card acc-blue position-relative">
+          <div class="tip-btn">?</div>
+          <div class="card-body">
+            <div class="mc-label">📬 Гостей в рассылке</div>
+            <div class="mc-val c-blue">{{ stats.total_vk_subscribers }}</div>
+            <div class="mc-sub">За всё время</div>
+            <div class="tip-box">Сколько всего уникальных людей подписались на рассылку ВК именно через наше приложение за всё время работы. Эта цифра не зависит от выбранного периода — она всегда показывает общий итог. Те, кто разрешал сообщения от сообщества ещё до того, как начал пользоваться приложением, сюда не попадают — считаются только те, кого реально привело приложение.</div>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-sm-6 col-md-4 col-xl-3">
+      <a href="{% url 'analytics-stats-detail' %}?metric=new_group_with_gift&{{ period_qs }}{% if bp %}&branches={{ bp }}{% endif %}" class="mc-link">
+        <div class="mc-card card acc-green position-relative">
+          <div class="tip-btn">?</div>
+          <div class="card-body">
+            <div class="mc-label">🎁 Новые в группе + получили подарок</div>
+            <div class="mc-val c-green">{{ stats.new_group_with_gift }}</div>
+            <div class="tip-box">Гости, которые за выбранный период одновременно выполнили два условия. Первое — они получили свой самый первый в жизни суперприз через игру в приложении (то есть раньше никогда не выигрывали, это их первая победа). Второе — они подписались на группу ВК, или разрешили рассылку, или сделали и то и другое, причём именно через наше приложение (не были подписаны заранее).</div>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-sm-6 col-md-4 col-xl-3">
+      <a href="{% url 'analytics-stats-detail' %}?metric=repeat_game_players&{{ period_qs }}{% if bp %}&branches={{ bp }}{% endif %}" class="mc-link">
+        <div class="mc-card card acc-teal position-relative">
+          <div class="tip-btn">?</div>
+          <div class="card-body">
+            <div class="mc-label">🔄 Вернулись и сыграли повторно</div>
+            <div class="mc-val c-teal">{{ stats.repeat_game_players }}</div>
+            <div class="tip-box">Гости, которые за выбранный период играли в приложение минимум в два разных календарных дня. Важно: если гость сыграл 10 раз за один день — это считается одним визитом, не повторным. Засчитывается только когда человек ушёл и вернулся в другой день. Например, сыграл в понедельник и четверг — это повторный визит. Сыграл утром и вечером в понедельник — это нет.</div>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-sm-6 col-md-4 col-xl-3">
+      <a href="{% url 'analytics-stats-detail' %}?metric=coin_purchasers&{{ period_qs }}{% if bp %}&branches={{ bp }}{% endif %}" class="mc-link">
+        <div class="mc-card card acc-purple position-relative">
+          <div class="tip-btn">?</div>
+          <div class="card-body">
+            <div class="mc-label">💰 Купили подарки за баллы</div>
+            <div class="mc-val c-purple">{{ stats.coin_purchasers }}</div>
+            <div class="tip-box">Сколько уникальных гостей потратили свои монеты (баллы) в магазине приложения хотя бы один раз за период. Если один гость купил 5 разных призов — он считается один раз.</div>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-sm-6 col-md-4 col-xl-3">
+      <a href="{% url 'analytics-stats-detail' %}?metric=new_community_subscribers&{{ period_qs }}{% if bp %}&branches={{ bp }}{% endif %}" class="mc-link">
+        <div class="mc-card card acc-blue position-relative">
+          <div class="tip-btn">?</div>
+          <div class="card-body">
+            <div class="mc-label">📬 Подписались в сообщество ВК</div>
+            <div class="mc-val c-blue">{{ stats.new_community_subscribers }}</div>
+            <div class="tip-box">Сколько гостей подписались на группу ВК именно через наше приложение за выбранный период. Система при первом входе гостя в приложение проверяет через VK API — был ли он уже подписан на группу. Если был подписан заранее (например, подписался сам через ВК, до того как узнал о приложении) — он не считается. Считаются только те, кто подписался именно потому, что приложение его попросило.</div>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-sm-6 col-md-4 col-xl-3">
+      <a href="{% url 'analytics-stats-detail' %}?metric=new_newsletter_subscribers&{{ period_qs }}{% if bp %}&branches={{ bp }}{% endif %}" class="mc-link">
+        <div class="mc-card card acc-blue position-relative">
+          <div class="tip-btn">?</div>
+          <div class="card-body">
+            <div class="mc-label">📨 Подписались на рассылку ВК</div>
+            <div class="mc-val c-blue">{{ stats.new_newsletter_subscribers }}</div>
+            <div class="tip-box">Аналогично предыдущей метрике, но про рассылку (разрешение на отправку сообщений от сообщества). Считаются только те, кто разрешил сообщения именно через наше приложение за выбранный период. Те, кто разрешал раньше сам — не считаются.</div>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-sm-6 col-md-4 col-xl-3">
+      <div class="mc-card card {% if stats.birthday_greetings_sent > 0 %}acc-orange{% else %}acc-green{% endif %} position-relative">
+        <div class="tip-btn">?</div>
+        <div class="card-body">
+          <div class="mc-label">🎂 Поздравлений с ДР отправлено</div>
+          <div class="mc-val {% if stats.birthday_greetings_sent > 0 %}c-orange{% else %}c-grey{% endif %}">{{ stats.birthday_greetings_sent }}</div>
+          <div class="tip-box">Сколько уникальных гостей получили хотя бы одно поздравительное сообщение с днём рождения за период. Система отправляет до трёх сообщений каждому имениннику: за 7 дней до ДР, за 1 день и в сам день рождения. Но даже если гость получил все три сообщения — он считается как одно поздравление, потому что метрика считает людей, а не сообщения.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-sm-6 col-md-4 col-xl-3">
+      <a href="{% url 'analytics-stats-detail' %}?metric=birthday_celebrants&{{ period_qs }}{% if bp %}&branches={{ bp }}{% endif %}" class="mc-link">
+        <div class="mc-card card {% if stats.birthday_celebrants > 0 %}acc-orange{% else %}acc-green{% endif %} position-relative">
+          <div class="tip-btn">?</div>
+          <div class="card-body">
+            <div class="mc-label">🎁 Пришли отметить день рождения</div>
+            <div class="mc-val {% if stats.birthday_celebrants > 0 %}c-orange{% else %}c-grey{% endif %}">{{ stats.birthday_celebrants }}</div>
+            <div class="tip-box">Сколько уникальных гостей реально пришли в заведение, ввели код дня у персонала и активировали свой подарок ко дню рождения. Код дня — это ежедневный код, который знает только персонал на месте. Без ввода этого кода подарок не активируется. То есть если в метрике стоит цифра — значит эти люди точно были в заведении физически.</div>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-sm-6 col-md-4 col-xl-3">
+      <div class="mc-card card acc-orange position-relative">
+        <div class="tip-btn">?</div>
+        <div class="card-body">
+          <div class="mc-label">📊 % открываемости сообщений ВК</div>
+          <div class="mc-val {% if stats.message_open_rate is not None %}c-orange{% else %}c-grey{% endif %}">
+            {{ stats.message_open_rate }}%
+          </div>
+          <div class="mc-sub">Прочитано {{ stats.message_total_read }} из {{ stats.message_total_sent }} отправленных</div>
+          <div class="tip-box">Какой процент от всех отправленных сообщений был прочитан гостями за период. Формула: прочитанные ÷ отправленные × 100%. Статус «прочитано» обновляется автоматически через VK API каждые 2 минуты, поэтому свежие рассылки могут показывать заниженный процент — нужно подождать.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-sm-6 col-md-4 col-xl-3">
+      <a href="{% url 'analytics-stats-detail' %}?metric=vk_stories_publishers&{{ period_qs }}{% if bp %}&branches={{ bp }}{% endif %}" class="mc-link">
+        <div class="mc-card card acc-teal position-relative">
+          <div class="tip-btn">?</div>
+          <div class="card-body">
+            <div class="mc-label">📖 Опубликовали истории в ВК</div>
+            <div class="mc-val {% if stats.vk_stories_publishers > 0 %}c-teal{% else %}c-grey{% endif %}">{{ stats.vk_stories_publishers }}</div>
+            <div class="tip-box">Сколько уникальных гостей опубликовали сторис (историю) в ВК через приложение за выбранный период. Фильтр идёт по дате публикации сторис — если гость зарегистрировался месяц назад, но сторис опубликовал сегодня, он попадёт в метрику за сегодня.</div>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-sm-6 col-md-4 col-xl-3">
+      <div class="mc-card card acc-teal position-relative">
+        <div class="tip-btn">?</div>
+        <div class="card-body">
+          <div class="mc-label">➡️ Перешли из историй ВК</div>
+          <div class="mc-val {% if stats.stories_referrals > 0 %}c-teal{% else %}c-grey{% endif %}">{{ stats.stories_referrals }}</div>
+          <div class="tip-box">Сколько новых гостей пришли по реферальной ссылке из сторис других гостей и зарегистрировались за период. То есть гость А опубликовал сторис со ссылкой → гость Б перешёл по ней и зарегистрировался → гость Б попадает в эту метрику.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-sm-6 col-md-4 col-xl-3">
+      <div class="mc-card card acc-green position-relative">
+        <div class="tip-btn">?</div>
+        <div class="card-body">
+          <div class="mc-label">👥 Гостей по POS-системе</div>
+          <div class="mc-val c-grey" id="stat-pos-guests"><span class="slow-skeleton"></span></div>
+          <div class="mc-sub">IIKO / Dooglys</div>
+          <div class="tip-box">Количество гостей из кассовой системы (IIKO или Dooglys) за период. Это реальное количество посетителей заведения по данным кассы. Данные подгружаются из внешних систем и могут приходить с небольшой задержкой.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-sm-6 col-md-4 col-xl-3">
+      <div class="mc-card card acc-orange position-relative">
+        <div class="tip-btn">?</div>
+        <div class="card-body">
+          <div class="mc-label">🔄 Индекс сканирования</div>
+          <div class="mc-val c-grey" id="stat-scan-index"><span class="slow-skeleton"></span></div>
+          <div class="mc-sub">QR ÷ POS × 100%</div>
+          <div class="tip-box">QR-сканирования ÷ гости POS-системы × 100%. Показывает, какую долю реальных гостей заведения удалось оцифровать через приложение.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  {% endwith %}
+
+  <!-- Charts -->
+  <div class="sec-label mb-2">Графики за период</div>
+  <div class="charts-card card">
+    <div class="card-body py-4">
+      <div class="row g-4">
+
+        <div class="col-6 col-md-3 col-xl text-center">
+          <div class="chart-title mb-2">Повторные визиты</div>
+          <canvas id="ch-repeat" style="max-height:140px;"></canvas>
+          <div class="d-flex flex-wrap justify-content-center gap-2 mt-2">
+            <div class="d-flex align-items-center gap-1"><span class="chart-legend-dot" style="background:#2e7d32;"></span><span class="chart-legend-label">Повторно</span></div>
+            <div class="d-flex align-items-center gap-1"><span class="chart-legend-dot" style="background:#d1d5db;"></span><span class="chart-legend-label">Разово</span></div>
+          </div>
+        </div>
+
+        <div class="col-6 col-md-3 col-xl text-center">
+          <div class="chart-title mb-2">Источники: кафе / истории</div>
+          <canvas id="ch-sources" style="max-height:140px;"></canvas>
+          <div class="d-flex flex-wrap justify-content-center gap-2 mt-2">
+            <div class="d-flex align-items-center gap-1"><span class="chart-legend-dot" style="background:#1565c0;"></span><span class="chart-legend-label">Из кафе</span></div>
+            <div class="d-flex align-items-center gap-1"><span class="chart-legend-dot" style="background:#00897b;"></span><span class="chart-legend-label">Из историй</span></div>
+          </div>
+        </div>
+
+        <div class="col-6 col-md-3 col-xl text-center">
+          <div class="chart-title mb-2">Истории ВК</div>
+          <canvas id="ch-stories" style="max-height:140px;"></canvas>
+          <div class="d-flex flex-wrap justify-content-center gap-2 mt-2">
+            <div class="d-flex align-items-center gap-1"><span class="chart-legend-dot" style="background:#c62828;"></span><span class="chart-legend-label">Опубликовали</span></div>
+            <div class="d-flex align-items-center gap-1"><span class="chart-legend-dot" style="background:#d1d5db;"></span><span class="chart-legend-label">Нет</span></div>
+          </div>
+        </div>
+
+        <div class="col-6 col-md-3 col-xl text-center">
+          <div class="chart-title mb-2">Подарки</div>
+          <canvas id="ch-gifts" style="max-height:140px;"></canvas>
+          <div class="d-flex flex-wrap justify-content-center gap-2 mt-2">
+            <div class="d-flex align-items-center gap-1"><span class="chart-legend-dot" style="background:#0d9488;"></span><span class="chart-legend-label">Бесплатный</span></div>
+            <div class="d-flex align-items-center gap-1"><span class="chart-legend-dot" style="background:#6a1b9a;"></span><span class="chart-legend-label">За баллы</span></div>
+          </div>
+        </div>
+
+        <div class="col-6 col-md-3 col-xl text-center">
+          <div class="chart-title mb-2">Персонал</div>
+          <canvas id="ch-staff" style="max-height:140px;"></canvas>
+          <div class="d-flex flex-wrap justify-content-center gap-2 mt-2">
+            <div class="d-flex align-items-center gap-1"><span class="chart-legend-dot" style="background:#00897b;"></span><span class="chart-legend-label">Вовлечены</span></div>
+            <div class="d-flex align-items-center gap-1"><span class="chart-legend-dot" style="background:#d1d5db;"></span><span class="chart-legend-label">Остальные</span></div>
+          </div>
+        </div>
+
+        <div class="col-6 col-md-3 col-xl text-center">
+          <div class="chart-title mb-2">Индекс качества</div>
+          <canvas id="ch-quality" style="max-height:140px;"></canvas>
+          <div class="d-flex flex-wrap justify-content-center gap-2 mt-2">
+            <div class="d-flex align-items-center gap-1"><span class="chart-legend-dot" style="background:#16a34a;"></span><span class="chart-legend-label">Позитивный</span></div>
+            <div class="d-flex align-items-center gap-1"><span class="chart-legend-dot" style="background:#C2410C;"></span><span class="chart-legend-label">Частично</span></div>
+            <div class="d-flex align-items-center gap-1"><span class="chart-legend-dot" style="background:#dc2626;"></span><span class="chart-legend-label">Негативный</span></div>
+          </div>
+        </div>
+
+        <div class="col-6 col-md-3 col-xl text-center">
+          <div class="chart-title mb-2">Отзывы</div>
+          <canvas id="ch-reviews" style="max-height:140px;"></canvas>
+          <div class="d-flex flex-wrap justify-content-center gap-2 mt-2">
+            <div class="d-flex align-items-center gap-1"><span class="chart-legend-dot" style="background:#3b82f6;"></span><span class="chart-legend-label">Оставили</span></div>
+            <div class="d-flex align-items-center gap-1"><span class="chart-legend-dot" style="background:#d1d5db;"></span><span class="chart-legend-label">Нет</span></div>
+          </div>
+        </div>
+
+        <div class="col-6 col-md-3 col-xl text-center">
+          <div class="chart-title mb-2">Задания</div>
+          <canvas id="ch-quests" style="max-height:140px;"></canvas>
+          <div class="d-flex flex-wrap justify-content-center gap-2 mt-2">
+            <div class="d-flex align-items-center gap-1"><span class="chart-legend-dot" style="background:#00bcd4;"></span><span class="chart-legend-label">Выполнили</span></div>
+            <div class="d-flex align-items-center gap-1"><span class="chart-legend-dot" style="background:#d1d5db;"></span><span class="chart-legend-label">Нет</span></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const D = {{ charts_json|safe }};
+function donut(id, vals, colors) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const total = vals.reduce((a,b)=>a+b,0);
+  new Chart(el, {
+    type: 'doughnut',
+    data: { datasets: [{ data: total ? vals : [1], backgroundColor: total ? colors : ['#e5e7eb'], borderWidth: 2, borderColor: '#fff' }] },
+    options: { cutout: '68%', plugins: { legend: { display: false }, tooltip: { enabled: !!total } }, animation: { duration: 600 } }
+  });
+}
+document.addEventListener('DOMContentLoaded', () => {
+  donut('ch-repeat',   [D.repeat_visits.repeat,        D.repeat_visits.first_time],                          ['#2e7d32','#d1d5db']);
+  donut('ch-sources',  [D.sources.from_cafe,            D.sources.from_stories],                              ['#1565c0','#00897b']);
+  donut('ch-stories',  [D.vk_stories.uploaded,          D.vk_stories.not_uploaded],                           ['#c62828','#d1d5db']);
+  donut('ch-gifts',    [D.gift_sources.free,             D.gift_sources.coins],                                ['#0d9488','#6a1b9a']);
+  donut('ch-staff',    [D.staff_involvement.served,      D.staff_involvement.not_served],                      ['#00897b','#d1d5db']);
+  donut('ch-quality',  [D.reviews_sentiment.positive,   D.reviews_sentiment.partial, D.reviews_sentiment.negative], ['#16a34a','#C2410C','#dc2626']);
+  donut('ch-reviews',  [D.reviews_ratio.left,            D.reviews_ratio.not_left],                            ['#3b82f6','#d1d5db']);
+  donut('ch-quests',   [D.quests.completed,              D.quests.pending],                                    ['#00bcd4','#d1d5db']);
+
+  // Async load slow stats (POS guests + scan index)
+  (function loadSlowStats() {
+    const params = new URLSearchParams(window.location.search);
+    // Keep only period/start/end params for the API call;
+    // rename branches → branch_ids to match StatsQuerySerializer
+    const apiParams = new URLSearchParams();
+    ['period','start','end'].forEach(k => { if (params.has(k)) apiParams.set(k, params.get(k)); });
+    if (params.has('branches')) apiParams.set('branch_ids', params.get('branches'));
+    fetch('/api/v1/analytics/stats/slow/?' + apiParams.toString())
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(data => {
+        const posEl  = document.getElementById('stat-pos-guests');
+        const scanEl = document.getElementById('stat-scan-index');
+        if (posEl) {
+          posEl.textContent = data.pos_guests ?? '0';
+          if (data.pos_guests > 0) posEl.classList.replace('c-grey', 'c-green');
+        }
+        if (scanEl) {
+          scanEl.textContent = data.scan_index ? data.scan_index + '%' : '0%';
+          if (data.scan_index > 0) scanEl.classList.replace('c-grey', 'c-orange');
+        }
+      })
+      .catch(() => {
+        const posEl  = document.getElementById('stat-pos-guests');
+        const scanEl = document.getElementById('stat-scan-index');
+        if (posEl)  posEl.textContent = '—';
+        if (scanEl) scanEl.textContent = '—';
+      });
+  })();
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %}

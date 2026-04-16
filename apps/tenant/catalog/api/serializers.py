@@ -1,0 +1,77 @@
+from rest_framework import serializers
+
+
+# ── Request ────────────────────────────────────────────────────────────────────
+
+class CatalogRequestSerializer(serializers.Serializer):
+    branch_id = serializers.IntegerField()
+
+
+class CooldownRequestSerializer(serializers.Serializer):
+    vk_id     = serializers.IntegerField()
+    branch_id = serializers.IntegerField()
+
+
+class BuyRequestSerializer(serializers.Serializer):
+    vk_id      = serializers.IntegerField()
+    branch_id  = serializers.IntegerField()
+    product_id = serializers.IntegerField()
+
+
+# ── Response ───────────────────────────────────────────────────────────────────
+
+class ProductSerializer(serializers.Serializer):
+    """Single product in the catalog."""
+    id               = serializers.IntegerField()
+    name             = serializers.CharField()
+    description      = serializers.CharField()
+    image_url        = serializers.SerializerMethodField()
+    price            = serializers.IntegerField()
+    is_super_prize   = serializers.BooleanField()
+    is_birthday_prize = serializers.BooleanField()
+    category_id      = serializers.SerializerMethodField()
+    category_name    = serializers.SerializerMethodField()
+
+    def get_image_url(self, obj) -> str | None:
+        if not (obj.image and obj.image.name):
+            return None
+        request = self.context.get('request')
+        return request.build_absolute_uri(obj.image.url) if request else obj.image.url
+
+    def get_category_id(self, obj) -> int | None:
+        return getattr(obj, 'branch_category_id', None)
+
+    def get_category_name(self, obj) -> str | None:
+        return getattr(obj, 'branch_category_name', None)
+
+
+class CooldownResponseSerializer(serializers.Serializer):
+    """SHOP cooldown status for a guest."""
+    is_active         = serializers.BooleanField()
+    expires_at        = serializers.DateTimeField()
+    seconds_remaining = serializers.SerializerMethodField()
+
+    def get_seconds_remaining(self, obj) -> int:
+        remaining = obj.remaining
+        return int(remaining.total_seconds()) if remaining else 0
+
+
+class BuyResponseSerializer(serializers.Serializer):
+    """InventoryItem created after a successful purchase."""
+    id                = serializers.IntegerField()
+    product_id        = serializers.IntegerField(source='product.pk')
+    product_name      = serializers.CharField(source='product.name')
+    product_image_url = serializers.SerializerMethodField()
+    price             = serializers.IntegerField(source='product.price')
+    acquired_from     = serializers.CharField()
+    status            = serializers.CharField()
+    duration          = serializers.IntegerField()
+    activated_at      = serializers.DateTimeField(allow_null=True)
+    expires_at        = serializers.DateTimeField(allow_null=True)
+
+    def get_product_image_url(self, obj) -> str | None:
+        img = obj.product.image
+        if not (img and img.name):
+            return None
+        request = self.context.get('request')
+        return request.build_absolute_uri(img.url) if request else img.url

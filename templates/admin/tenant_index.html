@@ -1,0 +1,79 @@
+{% extends "admin/index.html" %}
+{% load i18n %}
+
+{% block nav-sidebar %}
+  {% if not user_is_client %}{% include "admin/nav_sidebar.html" %}{% endif %}
+{% endblock %}
+
+{% block sidebar %}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+#content{max-width:none!important;width:100%!important;}
+#content-main{max-width:none!important;width:100%!important;}
+.lv-panel{background:#e0e0e0;border-radius:8px;margin:0 0 20px;overflow:hidden;width:100%;}
+.lv-panel-head{padding:14px 20px;font-size:15px;font-weight:700;text-transform:uppercase;color:#333;letter-spacing:.3px;}
+.lv-table{width:100%;border-collapse:collapse;font-size:13px;background:#e0e0e0;}
+.lv-table th{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#666;font-weight:600;padding:8px 20px;border-bottom:1px solid #ccc;text-align:center;}
+.lv-table th:first-child{text-align:left;}
+.lv-table td{padding:12px 20px;border-bottom:1px solid #ccc;text-align:center;vertical-align:middle;}
+.lv-table td:first-child{text-align:left;font-weight:500;color:#333;}
+.lv-table tr:last-child td{border-bottom:none;}
+.lv-code{display:inline-block;min-width:60px;padding:5px 14px;background:#fff;border:2px solid #555;border-radius:6px;font-family:monospace;font-size:15px;font-weight:700;color:#333;letter-spacing:1px;}
+.lv-code.empty{border-color:#bbb;color:#bbb;font-weight:400;}
+
+.lv-panel-head.analytics{color:#2e7d32;font-size:16px;}
+.lv-row{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid #ccc;}
+.lv-row:last-child{border-bottom:none;}
+.lv-row-label{font-size:14px;color:#333;font-weight:500;}
+.lv-btn{display:inline-block;padding:6px 20px;background:#2e7d32;color: #fff!important;;text-decoration:none;border-radius:20px;font-size:12px;font-weight:600;transition:background .15s;}
+.lv-btn:hover{background:#1b5e20;color:#fff;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main" class="app-list">
+
+  <div class="lv-panel">
+    <div class="lv-panel-head">Коды дня на сегодня ({{ daily_code_date|date:"d.m.Y" }})</div>
+    {% if daily_code_rows %}
+    <table class="lv-table">
+      <thead>
+        <tr>
+          <th>Ресторан</th>
+          <th>Код дня игры</th>
+          <th>Код дня к заданию</th>
+          <th>Код дня ко дню рождения</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in daily_code_rows %}
+        <tr>
+          <td>{{ row.name }}</td>
+          <td><span class="lv-code{% if row.game == '—' %} empty{% endif %}">{{ row.game }}</span></td>
+          <td><span class="lv-code{% if row.quest == '—' %} empty{% endif %}">{{ row.quest }}</span></td>
+          <td><span class="lv-code{% if row.birthday == '—' %} empty{% endif %}">{{ row.birthday }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="padding:20px;color:#999;text-align:center;">Коды на сегодня не сгенерированы</p>
+    {% endif %}
+  </div>
+
+  <div class="lv-panel">
+    <div class="lv-panel-head analytics">Аналитика</div>
+    <div class="lv-row">
+      <span class="lv-row-label">Общая Аналитика</span>
+      <a href="{% url 'analytics-general' %}" class="lv-btn">Перейти</a>
+    </div>
+    <div class="lv-row">
+      <span class="lv-row-label">RF Аналитика</span>
+      <a href="{% url 'analytics-rf' %}" class="lv-btn">Перейти</a>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

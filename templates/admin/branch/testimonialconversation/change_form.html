@@ -1,0 +1,310 @@
+{% extends "admin/change_form.html" %}
+{% load i18n %}
+
+{% block after_related_objects %}
+{{ block.super }}
+
+{# ── AI generate helper (shared) ── #}
+<script>
+(function () {
+  if (window._lvAiGenerate) return;
+  window._lvAiGenerate = function (btn, convId) {
+    var ta = document.getElementById('lv-ta');
+    var orig = btn.textContent;
+    btn.disabled = true; btn.textContent = '⏳…';
+    fetch('/admin/ai/generate/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': (document.cookie.match('(^|;)\\s*csrftoken=([^;]+)') || [])[2] || ''
+      },
+      body: JSON.stringify({ draft: ta ? ta.value : '', type: 'reply', conversation_id: convId })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (d) { btn.disabled = false; btn.textContent = orig; if (d.text && ta) ta.value = d.text; })
+    .catch(function ()  { btn.disabled = false; btn.textContent = orig; });
+  };
+})();
+</script>
+
+<style>
+.lv-chat-box {
+  margin-top: 28px;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0,0,0,.06);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.lv-chat-header {
+  background: linear-gradient(135deg, #1a2744, #2d3a60);
+  color: #fff;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  font-weight: 700;
+}
+.lv-chat-header span { font-size: 11px; font-weight: 400; opacity: .65; }
+.lv-messages {
+  background: #f3f4f6;
+  min-height: 280px;
+  max-height: 480px;
+  overflow-y: auto;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  scroll-behavior: smooth;
+}
+/* Guest (left) */
+.lv-msg-guest { display: flex; gap: 8px; align-items: flex-end; }
+.lv-avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: #4a76a8;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0;
+}
+.lv-bubble-guest {
+  max-width: 68%;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px 16px 16px 16px;
+  padding: 9px 13px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.05);
+}
+.lv-text { margin: 0; font-size: 13px; line-height: 1.55; color: #111827; white-space: pre-wrap; word-break: break-word; }
+.lv-meta { margin: 4px 0 0; font-size: 11px; color: #6b7280; }
+.lv-time { font-size: 10px; color: #9ca3af; margin-top: 3px; }
+/* Admin (right) */
+.lv-msg-admin { display: flex; justify-content: flex-end; }
+.lv-bubble-admin {
+  max-width: 68%;
+  background: #1a2744;
+  border-radius: 16px 16px 4px 16px;
+  padding: 9px 13px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.12);
+}
+.lv-bubble-admin .lv-text { color: #fff; }
+.lv-bubble-admin .lv-time { color: rgba(255,255,255,.45); text-align: right; }
+/* Reply area */
+.lv-reply-area {
+  background: #fff;
+  border-top: 1px solid #e5e7eb;
+  padding: 12px 16px;
+}
+.lv-reply-row { display: flex; gap: 10px; align-items: flex-end; }
+#lv-ta {
+  flex: 1;
+  min-height: 54px;
+  max-height: 150px;
+  resize: vertical;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  line-height: 1.5;
+}
+#lv-ta:focus { border-color: #4a76a8; }
+.lv-btns { display: flex; flex-direction: column; gap: 6px; }
+.lv-btn {
+  border: none; border-radius: 8px; padding: 8px 16px;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  white-space: nowrap; transition: opacity .15s;
+}
+.lv-btn:hover { opacity: .85; }
+.lv-btn-send { background: #4a76a8; color: #fff; }
+.lv-btn-ai   { background: #6b7280; color: #fff; }
+.lv-sync-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #22c55e; display: inline-block; margin-right: 6px;
+  animation: lv-pulse 2s infinite;
+}
+@keyframes lv-pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+</style>
+
+<span id="lv-av-char" style="display:none;">{{ conv_name|slice:":1" }}</span>
+<span id="lv-conv-id" style="display:none;">{{ original.pk }}</span>
+
+<div class="lv-chat-box">
+
+  <div class="lv-chat-header">
+    <div>
+      💬 История сообщений
+      {% if conv_name %}<span style="margin-left:8px;">— {{ conv_name }}</span>{% endif %}
+    </div>
+    <div style="font-size:11px;display:flex;align-items:center;gap:6px;">
+      <span class="lv-sync-dot" id="lv-sync-dot"></span>
+      <span id="lv-sync-label">синхронизация</span>
+    </div>
+  </div>
+
+  <div class="lv-messages" id="lv-messages">
+    {% for msg in chat_messages %}
+
+      {% if msg.source == 'ADMIN_REPLY' %}
+      <div class="lv-msg-admin" data-id="{{ msg.id }}">
+        <div class="lv-bubble-admin">
+          <p class="lv-text">{{ msg.text }}</p>
+          <p class="lv-time">{{ msg.created_at|date:"d.m.Y H:i" }}</p>
+        </div>
+      </div>
+
+      {% else %}
+      <div class="lv-msg-guest" data-id="{{ msg.id }}">
+        <div class="lv-avatar">{{ conv_name|slice:":1"|upper }}</div>
+        <div>
+          <div class="lv-bubble-guest">
+            <p class="lv-text">{{ msg.text }}</p>
+            {% if msg.rating %}
+            <p class="lv-meta">
+              {% for i in "12345" %}{% if forloop.counter <= msg.rating %}⭐{% else %}<span style="color:#d1d5db;">☆</span>{% endif %}{% endfor %}
+            </p>
+            {% endif %}
+            {% if msg.phone %}<p class="lv-meta">📞 {{ msg.phone }}</p>{% endif %}
+            {% if msg.table_number %}<p class="lv-meta">🪑 Стол {{ msg.table_number }}</p>{% endif %}
+          </div>
+          <p class="lv-time">
+            {% if msg.source == 'APP' %}📱{% else %}💬{% endif %}
+            {{ msg.created_at|date:"d.m.Y H:i" }}
+          </p>
+        </div>
+      </div>
+      {% endif %}
+
+    {% empty %}
+    <p style="text-align:center;color:#9ca3af;margin:auto;font-size:13px;">Нет сообщений</p>
+    {% endfor %}
+  </div>
+
+  {% if can_reply %}
+  <div class="lv-reply-area">
+    <form method="post" action="" id="lv-form">
+      {% csrf_token %}
+      <div class="lv-reply-row">
+        <textarea id="lv-ta" name="reply_text"
+          placeholder="Введите сообщение… (Ctrl+Enter — отправить)"
+          onkeydown="if(event.ctrlKey&&event.key==='Enter'){document.getElementById('lv-send').click();return false;}"
+        ></textarea>
+        <div class="lv-btns">
+          <button type="button" class="lv-btn lv-btn-ai"
+            onclick="_lvAiGenerate(this, parseInt(document.getElementById('lv-conv-id').textContent,10))">🤖 ИИ</button>
+          <button id="lv-send" type="submit" name="_send_reply" value="1"
+            class="lv-btn lv-btn-send">📤 Отправить</button>
+        </div>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+
+</div>{# /lv-chat-box #}
+
+<script>
+(function () {
+  var convId     = parseInt(document.getElementById('lv-conv-id').textContent, 10);
+  var avatarChar = 'V';
+
+  var messagesEl = document.getElementById('lv-messages');
+  var syncDot    = document.getElementById('lv-sync-dot');
+  var syncLabel  = document.getElementById('lv-sync-label');
+
+  // Track the latest message ID already in DOM
+  var knownIds = new Set();
+  messagesEl.querySelectorAll('[data-id]').forEach(function (el) {
+    knownIds.add(parseInt(el.dataset.id, 10));
+  });
+
+  // Scroll to bottom on load
+  scrollBottom();
+
+  function scrollBottom() {
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function renderMessage(m) {
+    var wrap = document.createElement('div');
+    if (m.source === 'ADMIN_REPLY') {
+      wrap.className = 'lv-msg-admin';
+      wrap.dataset.id = m.id;
+      wrap.innerHTML =
+        '<div class="lv-bubble-admin">' +
+          '<p class="lv-text">' + escHtml(m.text) + '</p>' +
+          '<p class="lv-time">' + m.created_fmt + '</p>' +
+        '</div>';
+    } else {
+      var srcIcon = m.source === 'APP' ? '📱' : '💬';
+      var extras  = '';
+      if (m.rating) {
+        var stars = '';
+        for (var i = 1; i <= 5; i++) {
+          stars += i <= m.rating ? '⭐' : '<span style="color:#d1d5db;">☆</span>';
+        }
+        extras += '<p class="lv-meta">' + stars + '</p>';
+      }
+      if (m.phone)        extras += '<p class="lv-meta">📞 ' + escHtml(m.phone) + '</p>';
+      if (m.table_number) extras += '<p class="lv-meta">🪑 Стол ' + m.table_number + '</p>';
+
+      wrap.className = 'lv-msg-guest';
+      wrap.dataset.id = m.id;
+      wrap.innerHTML =
+        '<div class="lv-avatar">' + avatarChar + '</div>' +
+        '<div>' +
+          '<div class="lv-bubble-guest">' +
+            '<p class="lv-text">' + escHtml(m.text) + '</p>' +
+            extras +
+          '</div>' +
+          '<p class="lv-time">' + srcIcon + ' ' + m.created_fmt + '</p>' +
+        '</div>';
+    }
+    return wrap;
+  }
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // ── Polling ──────────────────────────────────────────────────────────────
+  var lastId = knownIds.size ? Math.max.apply(null, Array.from(knownIds)) : 0;
+
+  function poll() {
+    fetch('messages-json/?since_id=' + lastId, { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        setSyncState(true);
+        if (!data.messages || !data.messages.length) return;
+
+        var atBottom = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < 60;
+
+        data.messages.forEach(function (m) {
+          if (!knownIds.has(m.id)) {
+            knownIds.add(m.id);
+            messagesEl.appendChild(renderMessage(m));
+            if (m.id > lastId) lastId = m.id;
+          }
+        });
+
+        if (atBottom) scrollBottom();
+      })
+      .catch(function () { setSyncState(false); });
+  }
+
+  function setSyncState(ok) {
+    syncDot.style.background   = ok ? '#22c55e' : '#ef4444';
+    syncLabel.textContent      = ok ? 'синхронизация' : 'нет связи';
+  }
+
+  // Read avatar char from hidden span injected by template
+  var _av = document.getElementById('lv-av-char');
+  if (_av) avatarChar = (_av.textContent || '').trim().toUpperCase() || 'V';
+
+  setInterval(poll, 8000);   // poll every 8 seconds
+  poll();                    // immediate first poll
+})();
+</script>
+
+{% endblock %}
