@@ -1028,6 +1028,139 @@ RF-анализ: матрица сегментов, тренды, миграци
 
 ---
 
+### Reputation (Внешние отзывы Яндекс / 2ГИС)
+
+Все эндпоинты требуют `IsAdminUser` (staff-session cookie, как и остальной admin API).
+Схема определяется django-tenants по домену запроса.
+
+#### GET `/api/v1/reputation/reviews/`
+
+Список отзывов с площадок. Параметры query:
+
+| Параметр | Тип | Описание |
+|---|---|---|
+| `branch`  | int  | Фильтр по `Branch.id` |
+| `source`  | str  | `yandex` или `gis` |
+| `status`  | str  | `new`/`seen`/`answered`/`ignored`, допускается список через запятую |
+| `limit`   | int  | 1..200, default 50 |
+| `offset`  | int  | default 0 |
+
+Ответ:
+
+```json
+{
+  "total": 42, "limit": 50, "offset": 0,
+  "items": [
+    {
+      "id": 17,
+      "branch": 3, "branch_name": "ЛевОне Ленина",
+      "source": "yandex", "source_label": "Яндекс.Карты",
+      "external_id": "yandex-42",
+      "author_name": "Иван И.", "rating": 4,
+      "text": "В целом понравилось, но...",
+      "published_at": "2026-04-15T12:00:00Z",
+      "status": "new", "status_label": "Новый",
+      "reply_text": "", "replied_at": null,
+      "reply_deeplink": "https://yandex.ru/maps/org/...",
+      "fetched_at": "2026-04-16T04:00:00Z"
+    }
+  ]
+}
+```
+
+#### POST `/api/v1/reputation/reviews/<id>/mark-seen/`
+
+NEW → SEEN. Идемпотентно. Возвращает обновлённый ExternalReview.
+
+#### POST `/api/v1/reputation/reviews/<id>/ignore/`
+
+Помечает отзыв IGNORED. Возвращает обновлённый ExternalReview.
+
+#### POST `/api/v1/reputation/reviews/<id>/save-reply/`
+
+Сохраняет подготовленный ответ. Публикация на площадку — вручную через `reply_deeplink`.
+
+Тело:
+
+```json
+{ "reply_text": "Спасибо за отзыв..." }
+```
+
+Ответ: обновлённый ExternalReview (status становится `answered`, `replied_at` — now).
+
+#### POST `/api/v1/reputation/reviews/<id>/generate-reply/`
+
+Просит Claude Haiku 4.5 сгенерировать черновик ответа. Ответ не сохраняется —
+возвращается только текст.
+
+- `503 Service Unavailable` — нет `ANTHROPIC_API_KEY`
+- `502 Bad Gateway` — ошибка AI-провайдера
+
+```json
+{ "suggestion": "Здравствуйте, Иван! Спасибо, что поделились..." }
+```
+
+#### POST `/api/v1/reputation/sync/`
+
+Диспатчит Celery-задачу `fetch_reviews_for_branch_task` на обновление отзывов.
+
+Тело:
+
+```json
+{ "branch_id": 3, "source": "yandex" }
+```
+
+Если `source` не передан — синхронизируются оба источника. Ответ `202 Accepted`:
+
+```json
+{ "dispatched": ["yandex", "gis"], "schema": "levone" }
+```
+
+#### GET `/api/v1/reputation/sync-states/`
+
+Состояние последней синхронизации по всем (branch × source):
+
+```json
+[
+  {
+    "id": 1, "branch": 3, "branch_name": "ЛевОне Ленина",
+    "source": "yandex", "source_label": "Яндекс.Карты",
+    "last_run_at": "2026-04-17T04:00:00Z",
+    "last_ok_at":  "2026-04-17T04:00:00Z",
+    "last_error": "",
+    "reviews_fetched": 128
+  }
+]
+```
+
+---
+
+### Public: Landing Settings (видео-модалка профиля)
+
+#### GET `/api/v1/public/landing-settings/`
+
+Публичный read-only эндпоинт. AllowAny, без авторизации.
+Кэшируется на 5 минут (`Cache-Control: public, max-age=300`).
+
+```json
+{
+  "is_enabled": true,
+  "button_label": "ХОЧУ ЛЕВЕЛUP В СВОЁ КАФЕ",
+  "title": "LevelUP для вашего кафе",
+  "description": "Покажем, как это работает, за 30 секунд.",
+  "video_url": "/media/landing/pitch.mp4",
+  "poster_url": "/media/landing/posters/pitch.jpg",
+  "cta_label": "Написать в Telegram",
+  "cta_url": "https://t.me/LevelUP_bot",
+  "updated_at": "2026-04-17T08:12:34Z"
+}
+```
+
+Если `is_enabled=False` или `video_url` пуст — фронт показывает старую
+Telegram-кнопку (поведение по умолчанию).
+
+---
+
 ## 6. Telegram Webhook
 
 #### GET/POST `/telegram/webhook/<bot_token>/`
