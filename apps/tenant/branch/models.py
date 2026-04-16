@@ -117,6 +117,15 @@ class BranchConfig(TimeStampedModel):
         verbose_name='2ГИС',
         help_text='Ссылка на точку в 2ГИС.',
     )
+    reputation_enabled = models.BooleanField(
+        default=False,
+        verbose_name='Репутация: синхронизация включена',
+        help_text=(
+            'Если включено — ежедневная задача парсит отзывы с Яндекс.Карт и 2ГИС '
+            'по адресам в yandex_map / gis_map. Opt-in: по умолчанию выключено '
+            'для всех точек; включается вручную после заполнения обоих URL.'
+        ),
+    )
 
     def __str__(self):
         return f'Настройки: {self.branch.name}'
