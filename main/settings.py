@@ -64,6 +64,7 @@ TENANT_APPS = [
     'apps.tenant.inventory.apps.InventoryConfig',
     'apps.tenant.quest.apps.QuestConfig',
     'apps.tenant.analytics.apps.AnalyticsConfig',
+    'apps.tenant.reputation.apps.ReputationConfig',
     'apps.tenant.senler.apps.SenlerConfig',
     'apps.tenant.delivery.apps.DeliveryConfig',
     'apps.tenant.telegram.apps.TelegramConfig',
