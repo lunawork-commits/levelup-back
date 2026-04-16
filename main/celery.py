@@ -75,6 +75,12 @@ app.conf.beat_schedule = {
         'task': 'apps.tenant.senler.tasks.check_read_status_task',
         'schedule': crontab(minute=30),  # every hour at :30
     },
+    # Fetch external reviews (Yandex / 2GIS) daily at 04:00 for every branch
+    # with reputation_enabled=True. Controlled by REPUTATION_FETCH_ENABLED env.
+    'fetch-external-reviews-daily': {
+        'task': 'apps.tenant.reputation.tasks.fetch_external_reviews_task',
+        'schedule': crontab(hour=4, minute=0),
+    },
 }
 
 app.conf.timezone = 'Europe/Moscow'
