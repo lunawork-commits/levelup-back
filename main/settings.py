@@ -202,6 +202,10 @@ VK_SECRET = os.getenv('VK_SECRET')
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
 VK_MINI_APP_ID=os.getenv('VK_MINI_APP_ID', 53418653)
 
+# Reputation sync: global kill-switch + 2GIS public key (см. apps.tenant.reputation)
+REPUTATION_FETCH_ENABLED = os.getenv('REPUTATION_FETCH_ENABLED', 'False') == 'True'
+GIS_PUBLIC_KEY = os.getenv('GIS_PUBLIC_KEY', '')
+
 # ---------------------------------------------------------------------------
 # Celery
 # ---------------------------------------------------------------------------
