@@ -21,6 +21,12 @@ from apps.tenant.analytics.api.services import (
     get_rf_stats,
     get_migration_history,
 )
+from apps.tenant.reputation.models import (
+    ExternalReview,
+    ReputationSyncState,
+    ReviewSource,
+    ReviewStatus,
+)
 
 PERIOD_CHOICES = [
     ('today', 'Сегодня'),
@@ -761,4 +767,106 @@ class LoyaltyReportView(View):
             response = render(request, 'analytics/loyalty_report_pdf.html', context)
             response['X-Frame-Options'] = 'SAMEORIGIN'
             return response
+        return render(request, self.template_name, context)
+
+
+# ── Reputation dashboard ──────────────────────────────────────────────────────
+
+def _build_qs(params: dict, drop: tuple[str, ...] = ()) -> str:
+    """Build URL query-string from dict, skipping empty values and `drop` keys."""
+    parts = []
+    for k, v in params.items():
+        if k in drop or v in (None, '', []):
+            continue
+        parts.append(f'{k}={v}')
+    return '&'.join(parts)
+
+
+@method_decorator(staff_member_required, name='dispatch')
+class ReputationDashboardView(View):
+    template_name = 'analytics/reputation.html'
+
+    def get(self, request):
+        active_branch_id = request.GET.get('branch') or ''
+        active_source    = request.GET.get('source') or ''
+        active_status    = request.GET.get('status') or ''
+        try:
+            active_branch_id = int(active_branch_id) if active_branch_id else None
+        except ValueError:
+            active_branch_id = None
+        try:
+            limit = max(1, min(int(request.GET.get('limit', 25)), 100))
+        except ValueError:
+            limit = 25
+        try:
+            offset = max(0, int(request.GET.get('offset', 0)))
+        except ValueError:
+            offset = 0
+
+        branches = list(
+            Branch.objects
+            .filter(is_active=True, config__reputation_enabled=True)
+            .select_related('config')
+            .order_by('name')
+        )
+
+        active_branch = next((b for b in branches if b.id == active_branch_id), None)
+
+        qs = (
+            ExternalReview.objects
+            .select_related('branch', 'branch__config', 'replied_by')
+            .order_by('-published_at', '-fetched_at')
+        )
+        if active_branch_id:
+            qs = qs.filter(branch_id=active_branch_id)
+        if active_source:
+            qs = qs.filter(source=active_source)
+
+        status_counts = dict(
+            qs.values_list('status').annotate(n=Count('id')).values_list('status', 'n')
+        )
+        status_filters = [
+            {'key': k, 'label': lbl, 'count': status_counts.get(k, 0)}
+            for k, lbl in ReviewStatus.choices
+        ]
+
+        if active_status:
+            qs = qs.filter(status=active_status)
+
+        total = qs.count()
+        reviews = list(qs[offset:offset + limit])
+        shown_end = offset + len(reviews)
+
+        sync_qs = ReputationSyncState.objects.select_related('branch').order_by('branch__name', 'source')
+        if active_branch_id:
+            sync_qs = sync_qs.filter(branch_id=active_branch_id)
+        sync_states = list(sync_qs)
+
+        params = {'branch': active_branch_id or '', 'source': active_source, 'status': active_status, 'limit': limit}
+        context = {
+            'branches':         branches,
+            'active_branch':    active_branch,
+            'active_branch_id': active_branch_id,
+            'active_source':    active_source,
+            'active_status':    active_status,
+            'source_choices':   ReviewSource.choices,
+            'status_choices':   ReviewStatus.choices,
+            'status_filters':   status_filters,
+            'reviews':          reviews,
+            'sync_states':      sync_states,
+            'total':            total,
+            'count_new':        status_counts.get(ReviewStatus.NEW, 0),
+            'count_answered':   status_counts.get(ReviewStatus.ANSWERED, 0),
+            'limit':            limit,
+            'offset':           offset,
+            'shown_end':        shown_end,
+            'has_prev':         offset > 0,
+            'has_next':         offset + limit < total,
+            'prev_offset':      max(0, offset - limit),
+            'next_offset':      offset + limit,
+            'base_qs':          _build_qs(params, drop=('branch',)),
+            'source_qs':        _build_qs(params, drop=('branch', 'source', 'offset')),
+            'status_qs':        _build_qs(params, drop=('branch', 'status', 'offset')),
+            'page_qs':          _build_qs(params, drop=('offset',)),
+        }
         return render(request, self.template_name, context)

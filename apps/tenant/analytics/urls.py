@@ -5,6 +5,7 @@ from .views import (
     RFAnalysisView, RFMigrationView, StatsDetailView,
     SegmentExportSenlerView, SegmentCreateBroadcastView,
     LoyaltyReportView,
+    ReputationDashboardView,
 )
 
 urlpatterns = [
@@ -19,4 +20,5 @@ urlpatterns = [
     path('reviews/detail/',   ReviewsDetailView.as_view(),    name='analytics-reviews-detail'),
     path('reviews/reply/',    ReviewsReplyView.as_view(),     name='analytics-reviews-reply'),
     path('reviews/ai-reply/', ReviewsAIReplyView.as_view(),   name='analytics-reviews-ai-reply'),
+    path('reputation/',       ReputationDashboardView.as_view(), name='analytics-reputation'),
 ]
