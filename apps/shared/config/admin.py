@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 
 from apps.shared.config.admin_sites import public_admin
-from .models import ClientConfig, POSType
+from .models import ClientConfig, LandingSettings, POSType
 
 
 class ClientConfigForm(forms.ModelForm):
@@ -118,3 +118,52 @@ class ClientConfigAdmin(admin.ModelAdmin):
     @admin.display(boolean=True, description='Брендинг')
     def has_branding(self, obj):
         return bool(obj.logotype_image or obj.coin_image)
+
+
+@admin.register(LandingSettings, site=public_admin)
+class LandingSettingsAdmin(admin.ModelAdmin):
+    """Синглтон — одна строка на всю платформу, редактируется суперадмином."""
+
+    list_display  = ('__str__', 'is_enabled', 'updated_at')
+    readonly_fields = ('video_preview', 'poster_preview', 'updated_at')
+
+    fieldsets = (
+        (None, {
+            'fields': ('is_enabled', 'button_label'),
+        }),
+        ('Модалка', {
+            'fields': ('title', 'description', 'video_mp4', 'video_preview',
+                       'video_poster', 'poster_preview'),
+        }),
+        ('Кнопка под видео', {
+            'fields': ('cta_label', 'cta_url'),
+        }),
+        ('Служебное', {
+            'fields': ('updated_at',),
+            'classes': ('collapse',),
+        }),
+    )
+
+    def has_add_permission(self, request):
+        return not LandingSettings.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    @admin.display(description='Превью видео')
+    def video_preview(self, obj):
+        if obj and obj.video_mp4:
+            return format_html(
+                '<video src="{}" controls style="max-width:360px;max-height:240px;border-radius:8px;"></video>',
+                obj.video_mp4.url,
+            )
+        return '—'
+
+    @admin.display(description='Превью постера')
+    def poster_preview(self, obj):
+        if obj and obj.video_poster:
+            return format_html(
+                '<img src="{}" style="max-height:160px;border-radius:8px;" />',
+                obj.video_poster.url,
+            )
+        return '—'

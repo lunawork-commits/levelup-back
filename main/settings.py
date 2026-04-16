@@ -206,6 +206,9 @@ VK_MINI_APP_ID=os.getenv('VK_MINI_APP_ID', 53418653)
 REPUTATION_FETCH_ENABLED = os.getenv('REPUTATION_FETCH_ENABLED', 'False') == 'True'
 GIS_PUBLIC_KEY = os.getenv('GIS_PUBLIC_KEY', '')
 
+# Лимит на загрузку медиа (видео-модалка, постеры и т. п.)
+MAX_UPLOAD_MB = int(os.getenv('MAX_UPLOAD_MB', '50'))
+
 # ---------------------------------------------------------------------------
 # Celery
 # ---------------------------------------------------------------------------
