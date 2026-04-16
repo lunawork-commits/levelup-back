@@ -20,6 +20,7 @@ from apps.tenant.delivery.api.public_views import PublicDeliveryWebhook
 urlpatterns = [
     path('admin/', public_admin.urls),
     path('api/v1/', include('apps.shared.clients.api.urls')),
+    path('api/v1/', include('apps.shared.config.api.urls')),
     path('api/v1/delivery/webhook/', PublicDeliveryWebhook.as_view(), name='public-delivery-webhook'),
 
     # API Docs
