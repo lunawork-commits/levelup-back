@@ -245,19 +245,28 @@ def get_birthday_greetings_sent(
 ) -> int:
     """
     Unique guests who received at least one birthday auto-broadcast in the period.
-    Counts by distinct vk_id from SENT BroadcastRecipient records where
-    trigger_type='auto' (birthday triggers: 7d, 1d, day-of).
+    Counts by distinct vk_id from AutoBroadcastLog (birthday triggers: 7d, 1d, day-of).
+    Note: birthday sends bypass BroadcastRecipient and log directly to AutoBroadcastLog.
     """
-    from apps.tenant.senler.models import BroadcastRecipient, RecipientStatus
+    from apps.tenant.senler.models import AutoBroadcastLog, AutoBroadcastType
 
-    qs = BroadcastRecipient.objects.filter(
-        status=RecipientStatus.SENT,
+    BIRTHDAY_TRIGGERS = [
+        AutoBroadcastType.BIRTHDAY_7_DAYS,
+        AutoBroadcastType.BIRTHDAY_1_DAY,
+        AutoBroadcastType.BIRTHDAY,
+    ]
+    qs = AutoBroadcastLog.objects.filter(
+        trigger_type__in=BIRTHDAY_TRIGGERS,
         sent_at__date__gte=start_date,
         sent_at__date__lte=end_date,
-        send__trigger_type='auto',
     )
     if branch_ids:
-        qs = qs.filter(send__broadcast__branch__in=branch_ids)
+        from apps.tenant.branch.models import ClientBranch
+        vk_ids = ClientBranch.objects.filter(
+            branch__in=branch_ids,
+            client__vk_id__isnull=False,
+        ).values_list('client__vk_id', flat=True)
+        qs = qs.filter(vk_id__in=vk_ids)
     return qs.values('vk_id').distinct().count()
 
 
@@ -267,15 +276,16 @@ def get_birthday_celebrants(
     branch_ids: list[int] | None, start_date: date, end_date: date
 ) -> int:
     """
-    Unique guests who redeemed a birthday prize (InventoryItem acquired_from=BIRTHDAY,
-    used_at in the period). This confirms the guest was physically present.
+    Unique guests who activated a birthday prize at the cafe in the period.
+    Uses activated_at (guest enters birthday code at the counter) rather than
+    used_at (waiter confirmation), since activation requires physical presence.
     """
     from apps.tenant.inventory.models import InventoryItem, AcquisitionSource
 
     qs = InventoryItem.objects.filter(
         acquired_from=AcquisitionSource.BIRTHDAY,
-        used_at__date__gte=start_date,
-        used_at__date__lte=end_date,
+        activated_at__date__gte=start_date,
+        activated_at__date__lte=end_date,
     )
     qs = _branch_filter(qs, branch_ids, 'client_branch__branch__in')
     return qs.values('client_branch').distinct().count()
@@ -1496,8 +1506,8 @@ def get_stat_clients(
         from apps.tenant.inventory.models import InventoryItem, AcquisitionSource
         qs = InventoryItem.objects.filter(
             acquired_from=AcquisitionSource.BIRTHDAY,
-            used_at__date__gte=start_date,
-            used_at__date__lte=end_date,
+            activated_at__date__gte=start_date,
+            activated_at__date__lte=end_date,
         )
         if branch_ids:
             qs = qs.filter(client_branch__branch__in=branch_ids)
