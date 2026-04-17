@@ -320,6 +320,8 @@ _METRIC_LABELS = {
     'coin_purchasers':           'Купили подарки за баллы',
     'new_community_subscribers': 'Подписались в сообщество ВК',
     'new_newsletter_subscribers': 'Подписались на рассылку ВК',
+    'first_gift_receivers':      'Получили первый подарок',
+    'gift_activators':           'Активировали подарок',
     'birthday_celebrants':       'Пришли на день рождения',
     'vk_stories_publishers':     'Опубликовали истории в ВК',
 }

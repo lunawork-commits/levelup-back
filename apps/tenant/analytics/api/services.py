@@ -197,6 +197,47 @@ def get_new_newsletter_subscribers(
     return _branch_filter(qs, branch_ids, 'client__branch__in').count()
 
 
+# ── Metric 7b: First gift receivers ──────────────────────────────────────────
+
+def get_first_gift_receivers(
+    branch_ids: list[int] | None, start_date: date, end_date: date
+) -> int:
+    """
+    Unique guests whose very first InventoryItem (any acquisition source) was
+    created within the period — i.e. they got their first-ever gift in this range.
+    """
+    from apps.tenant.inventory.models import InventoryItem
+
+    qs = InventoryItem.objects.all()
+    qs = _branch_filter(qs, branch_ids, 'client_branch__branch__in')
+
+    first_items = (
+        qs.values('client_branch')
+        .annotate(first_at=Min('created_at'))
+        .filter(
+            first_at__date__gte=start_date,
+            first_at__date__lte=end_date,
+        )
+    )
+    return first_items.count()
+
+
+# ── Metric 7c: Gift activators ───────────────────────────────────────────────
+
+def get_gift_activators(
+    branch_ids: list[int] | None, start_date: date, end_date: date
+) -> int:
+    """Unique guests who activated at least one InventoryItem in the period."""
+    from apps.tenant.inventory.models import InventoryItem
+
+    qs = InventoryItem.objects.filter(
+        activated_at__date__gte=start_date,
+        activated_at__date__lte=end_date,
+    )
+    qs = _branch_filter(qs, branch_ids, 'client_branch__branch__in')
+    return qs.values('client_branch').distinct().count()
+
+
 # ── Metric 8: Birthday greetings sent ────────────────────────────────────────
 
 def get_birthday_greetings_sent(
@@ -432,6 +473,8 @@ def get_general_stats(
         'coin_purchasers':           get_coin_purchasers(branch_ids, start_date, end_date),
         'new_community_subscribers': get_new_community_subscribers(branch_ids, start_date, end_date),
         'new_newsletter_subscribers': get_new_newsletter_subscribers(branch_ids, start_date, end_date),
+        'first_gift_receivers':      get_first_gift_receivers(branch_ids, start_date, end_date),
+        'gift_activators':           get_gift_activators(branch_ids, start_date, end_date),
         'birthday_greetings_sent':   get_birthday_greetings_sent(branch_ids, start_date, end_date),
         'birthday_celebrants':       get_birthday_celebrants(branch_ids, start_date, end_date),
         'message_open_rate':         get_message_open_rate(branch_ids, start_date, end_date),
@@ -1356,6 +1399,34 @@ def get_stat_clients(
         if branch_ids:
             qs = qs.filter(client__branch__in=branch_ids)
         return base.filter(pk__in=qs.values('client_id'))
+
+    if metric == 'first_gift_receivers':
+        from apps.tenant.inventory.models import InventoryItem
+
+        qs = InventoryItem.objects.all()
+        if branch_ids:
+            qs = qs.filter(client_branch__branch__in=branch_ids)
+        first_items = (
+            qs.values('client_branch')
+            .annotate(first_at=Min('created_at'))
+            .filter(
+                first_at__date__gte=start_date,
+                first_at__date__lte=end_date,
+            )
+        )
+        cb_ids = [r['client_branch'] for r in first_items]
+        return base.filter(pk__in=cb_ids)
+
+    if metric == 'gift_activators':
+        from apps.tenant.inventory.models import InventoryItem
+
+        qs = InventoryItem.objects.filter(
+            activated_at__date__gte=start_date,
+            activated_at__date__lte=end_date,
+        )
+        if branch_ids:
+            qs = qs.filter(client_branch__branch__in=branch_ids)
+        return base.filter(pk__in=qs.values('client_branch_id'))
 
     if metric == 'coin_purchasers':
         qs = CoinTransaction.objects.filter(

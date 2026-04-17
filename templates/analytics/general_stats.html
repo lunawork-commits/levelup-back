@@ -254,6 +254,32 @@ a,a:hover,a:focus,a:visited{text-decoration:none!important; color: black}
     </div>
 
     <div class="col-sm-6 col-md-4 col-xl-3">
+      <a href="{% url 'analytics-stats-detail' %}?metric=first_gift_receivers&{{ period_qs }}{% if bp %}&branches={{ bp }}{% endif %}" class="mc-link">
+        <div class="mc-card card acc-green position-relative">
+          <div class="tip-btn">?</div>
+          <div class="card-body">
+            <div class="mc-label">🎁 Получили первый подарок</div>
+            <div class="mc-val c-green">{{ stats.first_gift_receivers }}</div>
+            <div class="tip-box">Сколько уникальных гостей получили свой самый первый в жизни подарок в приложении за выбранный период. Считается любой подарок в инвентаре — неважно, откуда он появился: выигран в игре, куплен за баллы, выдан на день рождения или вручную. Если у гостя раньше уже был хотя бы один подарок — он сюда не попадает. Метрика показывает, сколько новых людей реально «попробовали» систему призов.</div>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-sm-6 col-md-4 col-xl-3">
+      <a href="{% url 'analytics-stats-detail' %}?metric=gift_activators&{{ period_qs }}{% if bp %}&branches={{ bp }}{% endif %}" class="mc-link">
+        <div class="mc-card card acc-green position-relative">
+          <div class="tip-btn">?</div>
+          <div class="card-body">
+            <div class="mc-label">✅ Активировали подарок</div>
+            <div class="mc-val c-green">{{ stats.gift_activators }}</div>
+            <div class="tip-box">Сколько уникальных гостей активировали свой подарок в приложении за выбранный период. Активация — это когда гость нажимает кнопку «Активировать» у приза в инвентаре, чтобы показать его персоналу. Метрика показывает, сколько людей реально дошли до использования полученного подарка. Если один гость активировал несколько подарков — он считается один раз.</div>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-sm-6 col-md-4 col-xl-3">
       <div class="mc-card card {% if stats.birthday_greetings_sent > 0 %}acc-orange{% else %}acc-green{% endif %} position-relative">
         <div class="tip-btn">?</div>
         <div class="card-body">
