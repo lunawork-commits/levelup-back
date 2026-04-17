@@ -276,19 +276,28 @@ def get_birthday_celebrants(
     branch_ids: list[int] | None, start_date: date, end_date: date
 ) -> int:
     """
-    Unique guests who activated a birthday prize at the cafe in the period.
-    Uses activated_at (guest enters birthday code at the counter) rather than
-    used_at (waiter confirmation), since activation requires physical presence.
+    Unique guests who visited the cafe on their birthday (month+day of visit matches birth_date).
+    Counts distinct guests from ClientBranchVisit where visit date matches their birthday.
     """
-    from apps.tenant.inventory.models import InventoryItem, AcquisitionSource
+    from django.db.models import F
+    from django.db.models.functions import ExtractMonth, ExtractDay
+    from apps.tenant.branch.models import ClientBranchVisit
 
-    qs = InventoryItem.objects.filter(
-        acquired_from=AcquisitionSource.BIRTHDAY,
-        activated_at__date__gte=start_date,
-        activated_at__date__lte=end_date,
+    qs = ClientBranchVisit.objects.filter(
+        visited_at__date__gte=start_date,
+        visited_at__date__lte=end_date,
+        client__birth_date__isnull=False,
+    ).annotate(
+        visit_month=ExtractMonth('visited_at'),
+        visit_day=ExtractDay('visited_at'),
+        birth_month=ExtractMonth('client__birth_date'),
+        birth_day=ExtractDay('client__birth_date'),
+    ).filter(
+        visit_month=F('birth_month'),
+        visit_day=F('birth_day'),
     )
-    qs = _branch_filter(qs, branch_ids, 'client_branch__branch__in')
-    return qs.values('client_branch').distinct().count()
+    qs = _branch_filter(qs, branch_ids, 'client__branch__in')
+    return qs.values('client').distinct().count()
 
 
 # ── Metric 10: Message open rate ─────────────────────────────────────────────
@@ -1503,15 +1512,27 @@ def get_stat_clients(
         return base.filter(pk__in=cb_ids)
 
     if metric == 'birthday_celebrants':
-        from apps.tenant.inventory.models import InventoryItem, AcquisitionSource
-        qs = InventoryItem.objects.filter(
-            acquired_from=AcquisitionSource.BIRTHDAY,
-            activated_at__date__gte=start_date,
-            activated_at__date__lte=end_date,
+        from django.db.models import F
+        from django.db.models.functions import ExtractMonth, ExtractDay
+        from apps.tenant.branch.models import ClientBranchVisit
+
+        visits_qs = ClientBranchVisit.objects.filter(
+            visited_at__date__gte=start_date,
+            visited_at__date__lte=end_date,
+            client__birth_date__isnull=False,
+        ).annotate(
+            visit_month=ExtractMonth('visited_at'),
+            visit_day=ExtractDay('visited_at'),
+            birth_month=ExtractMonth('client__birth_date'),
+            birth_day=ExtractDay('client__birth_date'),
+        ).filter(
+            visit_month=F('birth_month'),
+            visit_day=F('birth_day'),
         )
         if branch_ids:
-            qs = qs.filter(client_branch__branch__in=branch_ids)
-        return base.filter(pk__in=qs.values('client_branch_id'))
+            visits_qs = visits_qs.filter(client__branch__in=branch_ids)
+        cb_ids = visits_qs.values_list('client_id', flat=True).distinct()
+        return base.filter(pk__in=cb_ids)
 
     if metric == 'vk_stories_publishers':
         qs = ClientVKStatus.objects.filter(
