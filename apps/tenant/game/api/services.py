@@ -262,7 +262,7 @@ def claim_game(session_token: str, employee_id: int | None = None) -> dict:
     if not (is_member and is_subscriber):
         reward_type = payload.get('rt')
         if reward_type == 'sp':
-            prize_preview = {'type': 'super_prize'}
+            prize_preview = {'type': 'prize'}
         else:
             prize_preview = {'type': 'coin', 'reward': int(payload.get('ra', 1000))}
         raise VKSubscriptionRequired(is_member, is_subscriber, prize_preview)
