@@ -3,7 +3,7 @@ import random
 from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, OuterRef, Q, Subquery, Sum
 from django.http import HttpResponseRedirect
 from django.db.models.functions import Coalesce
 from django.urls import reverse
@@ -234,10 +234,23 @@ class ClientBranchAdmin(admin.ModelAdmin):
     )
 
     def get_queryset(self, request):
+        income_sq = (
+            CoinTransaction.objects
+            .filter(client=OuterRef('pk'), type='income')
+            .values('client')
+            .annotate(s=Sum('amount'))
+            .values('s')
+        )
+        expense_sq = (
+            CoinTransaction.objects
+            .filter(client=OuterRef('pk'), type='expense')
+            .values('client')
+            .annotate(s=Sum('amount'))
+            .values('s')
+        )
         return super().get_queryset(request).annotate(
-            _balance=Coalesce(Sum('transactions__amount', filter=Q(transactions__type='income')), 0)
-                   - Coalesce(Sum('transactions__amount', filter=Q(transactions__type='expense')), 0),
-            _visits=Count('visits'),
+            _balance=Coalesce(Subquery(income_sq), 0) - Coalesce(Subquery(expense_sq), 0),
+            _visits=Count('visits', distinct=True),
         )
 
     @admin.display(description='Баланс ★', ordering='_balance')
