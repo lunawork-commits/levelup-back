@@ -40,6 +40,8 @@ function sendReply(convId) {
   const text = ta.value.trim();
   if (!text) return;
 
+  const btn = document.querySelector('#reply-' + convId + ' .btn-send');
+  if (btn) btn.disabled = true;
   setStatus(convId, 'Отправка...', '#6b7280');
 
   fetch(REVIEW_REPLY_URL, {
@@ -67,9 +69,13 @@ function sendReply(convId) {
         }
       } else {
         setStatus(convId, '✗ ' + (data.error || 'Ошибка'), '#dc2626');
+        if (btn) btn.disabled = false;
       }
     })
-    .catch(() => setStatus(convId, '✗ Сетевая ошибка', '#dc2626'));
+    .catch(() => {
+      setStatus(convId, '✗ Сетевая ошибка', '#dc2626');
+      if (btn) btn.disabled = false;
+    });
 }
 
 function generateAI(convId, btn) {

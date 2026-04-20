@@ -125,7 +125,7 @@
       <div class="reply-panel" id="reply-{{ conv.id }}" style="display:none;">
         <textarea id="reply-text-{{ conv.id }}" class="form-control mb-2" rows="3" placeholder="Введите ответ гостю..."></textarea>
         <div class="d-flex gap-2 align-items-center flex-wrap">
-          <button class="btn btn-sm btn-primary" onclick="sendReply({{ conv.id }})">Отправить</button>
+          <button class="btn btn-sm btn-primary btn-send" onclick="sendReply({{ conv.id }})">Отправить</button>
           <button class="btn btn-sm btn-outline-secondary" onclick="generateAI({{ conv.id }}, this)">✨ Сгенерировать (AI)</button>
           <span id="reply-status-{{ conv.id }}" class="small text-muted"></span>
         </div>

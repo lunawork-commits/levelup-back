@@ -928,6 +928,18 @@ def handle_vk_incoming_message(
     branch = existing_conv.branch if existing_conv else branches[0]
     conv = _get_or_create_conversation(branch, vk_sender_id)
 
+    # Dedup: if same text was already saved as an APP message in the last 5 min, skip.
+    # This handles VK Callback retries echoing messages submitted via the app form.
+    from datetime import timedelta
+    recent_cutoff = timezone.now() - timedelta(minutes=5)
+    if TestimonialMessage.objects.filter(
+        conversation=conv,
+        source=TestimonialMessage.Source.APP,
+        text=text,
+        created_at__gte=recent_cutoff,
+    ).exists():
+        return []
+
     msg = TestimonialMessage.objects.create(
         conversation=conv,
         source=TestimonialMessage.Source.VK_MESSAGE,
