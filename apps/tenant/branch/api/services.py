@@ -818,34 +818,48 @@ def upload_story(vk_id: int, branch_id: int) -> tuple[ClientVKStatus, bool]:
 # ── Testimonials ──────────────────────────────────────────────────────────────
 
 def _get_or_create_conversation(
-    branch: Branch, vk_sender_id: str,
+    branch: Branch,
+    vk_sender_id: str,
+    link_vk_guest: bool = False,
 ) -> TestimonialConversation:
     """
     Возвращает существующий тред для этого отправителя или создаёт новый.
-    Если есть зарегистрированный ClientBranch с таким vk_id — привязывает его.
-    """
-    from django.utils import timezone
 
-    conv, created = TestimonialConversation.objects.get_or_create(
+    link_vk_guest=False (APP): привязывает ClientBranch если гость зарегистрирован.
+    link_vk_guest=True (VK_MESSAGE): привязывает shared Client без точки,
+        чтобы знать имя/фото отправителя, но не привязывать его к Branch.
+    """
+    conv, _ = TestimonialConversation.objects.get_or_create(
         branch=branch,
         vk_sender_id=vk_sender_id,
         defaults={'has_unread': True},
     )
 
-    # Попытка привязать ClientBranch если гость уже зарегистрирован.
-    # Проверяем при каждом вызове (не только при создании): гость мог
-    # зарегистрироваться в приложении позже, чем оставил первый отзыв.
-    if not conv.client_id:
-        try:
-            cb = ClientBranch.objects.filter(
-                branch=branch,
-                client__vk_id=int(vk_sender_id),
-            ).first()
-        except (ValueError, TypeError):
-            cb = None
-        if cb:
-            conv.client = cb
-            conv.save(update_fields=['client'])
+    if link_vk_guest:
+        # Линкуем к shared Client (vk_id, first_name, last_name, photo_url).
+        # Проверяем при каждом вызове: гость мог зарегистрироваться позже.
+        if not conv.vk_guest_id:
+            try:
+                from apps.shared.guest.models import Client as GuestClient
+                guest = GuestClient.objects.filter(vk_id=int(vk_sender_id)).first()
+            except (ValueError, TypeError):
+                guest = None
+            if guest:
+                conv.vk_guest = guest
+                conv.save(update_fields=['vk_guest'])
+    else:
+        # Линкуем к ClientBranch (гость зарегистрирован в этой точке).
+        if not conv.client_id:
+            try:
+                cb = ClientBranch.objects.filter(
+                    branch=branch,
+                    client__vk_id=int(vk_sender_id),
+                ).first()
+            except (ValueError, TypeError):
+                cb = None
+            if cb:
+                conv.client = cb
+                conv.save(update_fields=['client'])
 
     return conv
 
@@ -926,7 +940,7 @@ def handle_vk_incoming_message(
     ).order_by('-last_message_at').first()
 
     branch = existing_conv.branch if existing_conv else branches[0]
-    conv = _get_or_create_conversation(branch, vk_sender_id)
+    conv = _get_or_create_conversation(branch, vk_sender_id, link_vk_guest=True)
 
     # Dedup: if same text was already saved as an APP message in the last 5 min, skip.
     # This handles VK Callback retries echoing messages submitted via the app form.

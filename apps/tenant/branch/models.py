@@ -845,6 +845,13 @@ class TestimonialConversation(TimeStampedModel):
         related_name='testimonials',
         verbose_name='Гость (если зарегистрирован)',
     )
+    vk_guest = models.ForeignKey(
+        'guest.Client',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='vk_conversations',
+        verbose_name='VK гость (из группы, без точки)',
+    )
     # Primary key for thread matching — VK user ID as a string
     vk_sender_id = models.CharField(
         'VK ID отправителя',
