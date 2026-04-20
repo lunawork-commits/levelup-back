@@ -212,7 +212,7 @@ class ClientBranchAdmin(admin.ModelAdmin):
     list_filter = ('branch', 'is_employee')
     search_fields = ('client__first_name', 'client__last_name', 'client__vk_id')
     date_hierarchy = 'created_at'
-    readonly_fields = ('balance_col', 'transactions_link', 'visits_link', 'created_at', 'updated_at')
+    readonly_fields = ('balance_col', 'transactions_link', 'visits_link', 'created_at', 'updated_at', 'invited_by')
 
     fieldsets = (
         (None, {
