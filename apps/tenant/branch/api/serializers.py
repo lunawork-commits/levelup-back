@@ -107,7 +107,7 @@ class ClientRegistrationRequestSerializer(serializers.Serializer):
     source            = serializers.ChoiceField(
         choices=['restaurant', 'delivery'], required=False, default='restaurant',
     )
-    invited_by_vk_id  = serializers.IntegerField(required=False, allow_null=True, default=None)
+    invited_by_cb_id  = serializers.IntegerField(required=False, allow_null=True, default=None)
 
 
 class ClientUpdateRequestSerializer(serializers.Serializer):

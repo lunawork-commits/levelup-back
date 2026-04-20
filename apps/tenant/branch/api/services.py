@@ -520,7 +520,7 @@ def register_or_get_client(
     photo_url: str = '',
     birth_date=None,
     source: str = 'restaurant',
-    invited_by_vk_id: int | None = None,
+    invited_by_cb_id: int | None = None,
 ) -> tuple[ClientBranch, bool]:
     """
     Atomically finds or creates a ClientBranch for the given guest.
@@ -597,12 +597,9 @@ def register_or_get_client(
         ClientBranchVisit.record_visit(profile)
 
     # ── On first registration: link referrer from VK story ────────────────
-    if created and invited_by_vk_id and invited_by_vk_id != vk_id:
+    if created and invited_by_cb_id and invited_by_cb_id != profile.pk:
         try:
-            inviter = ClientBranch.objects.get(
-                client__vk_id=invited_by_vk_id,
-                branch=branch,
-            )
+            inviter = ClientBranch.objects.get(pk=invited_by_cb_id, branch=branch)
             profile.invited_by = inviter
             profile.save(update_fields=['invited_by'])
         except ClientBranch.DoesNotExist:
