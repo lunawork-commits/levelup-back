@@ -104,6 +104,7 @@ class GameClaimView(APIView):
                     'needs_vk_subscription': True,
                     'is_community_member': e.is_community_member,
                     'is_newsletter_subscriber': e.is_newsletter_subscriber,
+                    'prize_preview': e.prize_preview,
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )

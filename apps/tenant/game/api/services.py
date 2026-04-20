@@ -45,9 +45,15 @@ class DeliveryCodeNotActivated(Exception):
 
 class VKSubscriptionRequired(Exception):
     """Guest must subscribe to VK community AND newsletter before claiming."""
-    def __init__(self, is_community_member: bool, is_newsletter_subscriber: bool):
+    def __init__(
+        self,
+        is_community_member: bool,
+        is_newsletter_subscriber: bool,
+        prize_preview: dict,
+    ):
         self.is_community_member = is_community_member
         self.is_newsletter_subscriber = is_newsletter_subscriber
+        self.prize_preview = prize_preview
 
 
 # ── Reward table ──────────────────────────────────────────────────────────────
@@ -254,7 +260,12 @@ def claim_game(session_token: str, employee_id: int | None = None) -> dict:
     is_member = vk_status.is_community_member if vk_status else False
     is_subscriber = vk_status.is_newsletter_subscriber if vk_status else False
     if not (is_member and is_subscriber):
-        raise VKSubscriptionRequired(is_member, is_subscriber)
+        reward_type = payload.get('rt')
+        if reward_type == 'sp':
+            prize_preview = {'type': 'super_prize'}
+        else:
+            prize_preview = {'type': 'coin', 'reward': int(payload.get('ra', 1000))}
+        raise VKSubscriptionRequired(is_member, is_subscriber, prize_preview)
 
     ClientAttempt.objects.create(client=client_branch, served_by=served_by)
     _activate_game_cooldown(client_branch)
