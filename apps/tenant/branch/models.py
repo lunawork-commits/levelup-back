@@ -162,6 +162,15 @@ class ClientBranch(TimeStampedModel):
             'только если дата установлена не менее 30 дней назад.'
         ),
     )
+    invited_by = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='invited_guests',
+        verbose_name='Пригласил',
+        help_text='ClientBranch гостя, который пригласил через сторис. Устанавливается только при первой регистрации.',
+    )
     is_employee = models.BooleanField(
         default=False,
         verbose_name='Сотрудник',

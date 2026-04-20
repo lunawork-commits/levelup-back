@@ -385,9 +385,16 @@ def get_stories_referrals(
 ) -> int:
     """
     New guests who registered via a referral link from someone's VK story.
-    TODO: requires referral tracking model (not yet created).
+    Counts ClientBranch records where invited_by is set and created_at is in period.
     """
-    return 0
+    from apps.tenant.branch.models import ClientBranch
+
+    qs = ClientBranch.objects.filter(
+        invited_by__isnull=False,
+        created_at__date__gte=start_date,
+        created_at__date__lte=end_date,
+    )
+    return _branch_filter(qs, branch_ids, 'branch__in').count()
 
 
 # ── Metric 13: POS guests ────────────────────────────────────────────────────
