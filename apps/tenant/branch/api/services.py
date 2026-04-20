@@ -815,16 +815,15 @@ def upload_story(vk_id: int, branch_id: int) -> tuple[ClientVKStatus, bool]:
 # ── Testimonials ──────────────────────────────────────────────────────────────
 
 def _get_or_create_conversation(
-    branch: Branch,
+    branch: Branch | None,
     vk_sender_id: str,
     link_vk_guest: bool = False,
 ) -> TestimonialConversation:
     """
     Возвращает существующий тред для этого отправителя или создаёт новый.
 
-    link_vk_guest=False (APP): привязывает ClientBranch если гость зарегистрирован.
-    link_vk_guest=True (VK_MESSAGE): привязывает shared Client без точки,
-        чтобы знать имя/фото отправителя, но не привязывать его к Branch.
+    link_vk_guest=False (APP): branch обязателен, привязывает ClientBranch.
+    link_vk_guest=True (VK_MESSAGE): branch=None, привязывает shared Client.
     """
     conv, _ = TestimonialConversation.objects.get_or_create(
         branch=branch,
@@ -929,15 +928,7 @@ def handle_vk_incoming_message(
     if TestimonialMessage.objects.filter(vk_message_id=vk_msg_id_str).exists():
         return []
 
-    # Route to a single branch: prefer one where sender already has a conversation
-    branches = [c.branch for c in configs]
-    existing_conv = TestimonialConversation.objects.filter(
-        branch__in=branches,
-        vk_sender_id=vk_sender_id,
-    ).order_by('-last_message_at').first()
-
-    branch = existing_conv.branch if existing_conv else branches[0]
-    conv = _get_or_create_conversation(branch, vk_sender_id, link_vk_guest=True)
+    conv = _get_or_create_conversation(None, vk_sender_id, link_vk_guest=True)
 
     # Dedup: if same text was already saved as an APP message in the last 5 min, skip.
     # This handles VK Callback retries echoing messages submitted via the app form.

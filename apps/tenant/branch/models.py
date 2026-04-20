@@ -834,7 +834,8 @@ class TestimonialConversation(TimeStampedModel):
 
     branch = models.ForeignKey(
         Branch,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
         related_name='testimonials',
         verbose_name='Торговая точка',
     )
@@ -876,7 +877,8 @@ class TestimonialConversation(TimeStampedModel):
 
     def __str__(self):
         ident = str(self.client) if self.client_id else (f'VK {self.vk_sender_id}' if self.vk_sender_id else '?')
-        return f'{ident} — {self.branch.name}'
+        branch_name = self.branch.name if self.branch_id else 'ВК группа'
+        return f'{ident} — {branch_name}'
 
     class Meta:
         verbose_name = 'Отзыв / Обращение'
