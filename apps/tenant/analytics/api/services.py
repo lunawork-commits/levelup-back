@@ -48,18 +48,26 @@ def get_qr_scan_count(branch_ids: list[int] | None, start_date: date, end_date: 
         | Q(vk_status__is_story_uploaded=True)                      # Опубликовали сторис
         | Exists(ClientAttempt.objects.filter(                       # Сыграли в игру
             client=OuterRef('pk'),
+            created_at__date__gte=start_date,
+            created_at__date__lte=end_date,
         ))
         | Exists(TestimonialMessage.objects.filter(                  # Оставили отзыв
             conversation__client=OuterRef('pk'),
             source=TestimonialMessage.Source.APP,
+            created_at__date__gte=start_date,
+            created_at__date__lte=end_date,
         ))
         | Exists(Delivery.objects.filter(                            # Активировали код доставки
             activated_by=OuterRef('pk'),
+            activated_at__date__gte=start_date,
+            activated_at__date__lte=end_date,
         ))
         | Exists(CoinTransaction.objects.filter(                     # Потратили монеты в магазине
             client=OuterRef('pk'),
             type=TransactionType.EXPENSE,
             source=TransactionSource.SHOP,
+            created_at__date__gte=start_date,
+            created_at__date__lte=end_date,
         ))
     ).count()
 
@@ -561,15 +569,24 @@ def get_chart_data(
     quests_pending = quest_qs.filter(completed_at__isnull=True).count()
 
     # ── 5. VK stories ─────────────────────────────────────────────────────────
+    # Both sides scoped to the period: uploaded in period vs visited but didn't upload.
     from apps.tenant.branch.models import ClientVKStatus
     story_qs = ClientVKStatus.objects.filter(
         story_uploaded_at__date__gte=start_date,
         story_uploaded_at__date__lte=end_date,
     )
     story_qs = _branch_filter(story_qs, branch_ids, 'client__branch__in')
-    stories_uploaded    = story_qs.count()
+    stories_uploaded = story_qs.count()
+
+    period_visitor_ids = (
+        _branch_filter(visits_qs, branch_ids, 'client__branch__in')
+        .values('client_id').distinct()
+    )
     stories_not_uploaded = (
-        _branch_filter(ClientVKStatus.objects.filter(is_story_uploaded=False), branch_ids, 'client__branch__in').count()
+        ClientVKStatus.objects
+        .filter(client_id__in=period_visitor_ids)
+        .exclude(client_id__in=story_qs.values('client_id'))
+        .count()
     )
 
     return {
@@ -921,17 +938,38 @@ def get_rf_segment_guests(
     )
     qs = _branch_filter(qs, branch_ids, 'client__branch__in')
 
-    from django.db.models import Max
-    from apps.tenant.branch.models import ClientBranchVisit
+    from django.db.models import Max, Sum, Q as _Q
+    from apps.tenant.branch.models import ClientBranchVisit, CoinTransaction
+
+    scores = list(qs[:limit])
+    if not scores:
+        return []
+
+    cb_ids = [s.client_id for s in scores]
+
+    last_visit_map = {
+        r['client_id']: r['last']
+        for r in ClientBranchVisit.objects
+        .filter(client_id__in=cb_ids)
+        .values('client_id')
+        .annotate(last=Max('visited_at'))
+    }
+
+    balance_map = {
+        r['client_id']: (r['income'] or 0) - (r['expense'] or 0)
+        for r in CoinTransaction.objects
+        .filter(client_id__in=cb_ids)
+        .values('client_id')
+        .annotate(
+            income=Sum('amount', filter=_Q(type='income')),
+            expense=Sum('amount', filter=_Q(type='expense')),
+        )
+    }
 
     result = []
-    for score in qs[:limit]:
+    for score in scores:
         cb = score.client
-        last_visit = (
-            ClientBranchVisit.objects
-            .filter(client=cb)
-            .aggregate(last=Max('visited_at'))['last']
-        )
+        last_visit = last_visit_map.get(cb.pk)
         result.append({
             'id':           cb.pk,
             'vk_id':        cb.client.vk_id,
@@ -942,7 +980,7 @@ def get_rf_segment_guests(
             'r_score':      score.r_score,
             'f_score':      score.f_score,
             'last_visit':   last_visit.strftime('%d.%m.%Y') if last_visit else '—',
-            'coins':        cb.coins_balance,
+            'coins':        balance_map.get(cb.pk, 0),
         })
     return result
 
@@ -1378,16 +1416,28 @@ def get_stat_clients(
             _Q(vk_status__community_via_app=True)
             | _Q(vk_status__newsletter_via_app=True)
             | _Q(vk_status__is_story_uploaded=True)
-            | Exists(ClientAttempt.objects.filter(client=OuterRef('pk')))
+            | Exists(ClientAttempt.objects.filter(
+                client=OuterRef('pk'),
+                created_at__date__gte=start_date,
+                created_at__date__lte=end_date,
+            ))
             | Exists(TestimonialMessage.objects.filter(
                 conversation__client=OuterRef('pk'),
                 source=TestimonialMessage.Source.APP,
+                created_at__date__gte=start_date,
+                created_at__date__lte=end_date,
             ))
-            | Exists(Delivery.objects.filter(activated_by=OuterRef('pk')))
+            | Exists(Delivery.objects.filter(
+                activated_by=OuterRef('pk'),
+                activated_at__date__gte=start_date,
+                activated_at__date__lte=end_date,
+            ))
             | Exists(CoinTransaction.objects.filter(
                 client=OuterRef('pk'),
                 type=TransactionType.EXPENSE,
                 source=TransactionSource.SHOP,
+                created_at__date__gte=start_date,
+                created_at__date__lte=end_date,
             ))
         )
 

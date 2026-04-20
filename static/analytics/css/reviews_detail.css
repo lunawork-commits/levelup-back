@@ -1,0 +1,20 @@
+.pg-bg { background: #f5f6fa; min-height: 100vh; padding: 20px 24px 40px; }
+.branch-tab { text-decoration: none !important; }
+.branch-tab.active { background: #1a2744 !important; color: #fff !important; border-color: #1a2744 !important; }
+.period-btn { text-decoration: none !important; }
+.period-btn.active { background: #2e7d32 !important; color: #fff !important; border-color: #2e7d32 !important; }
+.s-badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 600; color: #fff; white-space: nowrap; }
+
+.chat-area { max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; }
+.msg { max-width: 80%; padding: 8px 12px; border-radius: 10px; font-size: 12px; line-height: 1.5; }
+.msg.app   { align-self: flex-start; background: #e3f2fd; color: #1a2744; border-bottom-left-radius: 2px; }
+.msg.vk    { align-self: flex-start; background: #f3e5f5; color: #1a2744; border-bottom-left-radius: 2px; }
+.msg.admin { align-self: flex-end; background: #1a2744; color: #fff; border-bottom-right-radius: 2px; }
+.msg-meta   { font-size: 10px; opacity: .6; margin-top: 3px; }
+.msg-rating { font-size: 11px; color: #f59e0b; margin-top: 2px; letter-spacing: 1px; }
+
+.reply-panel { background: #f8fafc; border-top: 1px solid #e5e7eb; padding: 12px 14px; }
+.reply-panel textarea { font-size: 13px; resize: vertical; min-height: 72px; }
+
+.card.needs-reply { border-left: 4px solid #f59e0b !important; box-shadow: 0 0 0 1px #f59e0b22, 0 2px 8px #0001 !important; }
+.card.needs-reply .card-header { background: #fffbeb !important; }

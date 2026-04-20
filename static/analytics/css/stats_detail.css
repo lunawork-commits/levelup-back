@@ -1,0 +1,7 @@
+.pg-bg { background: #f5f6fa; min-height: 100vh; padding: 20px 24px 40px; }
+.branch-tab { text-decoration: none !important; }
+.branch-tab.active { background: #1a2744 !important; color: #fff !important; border-color: #1a2744 !important; }
+.period-btn { text-decoration: none !important; }
+.period-btn.active { background: #2e7d32 !important; color: #fff !important; border-color: #2e7d32 !important; }
+.avatar-ph { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #4a76a8, #1a2744); color: #fff; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.avatar-img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }

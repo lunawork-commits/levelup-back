@@ -791,7 +791,7 @@ class Promotions(TimeStampedModel):
     branch = models.ForeignKey(Branch, on_delete=models.CASCADE, verbose_name='Ресторан')
 
     title = models.CharField(max_length=100, verbose_name='Название', help_text='Заголовок акции, который видит гость в приложении.')
-    discount = models.CharField(verbose_name='Акция', help_text='Описание условий акции, например: «−20% на всё меню».')
+    discount = models.CharField(max_length=500, verbose_name='Акция', help_text='Описание условий акции, например: «−20% на всё меню».')
     dates = models.CharField(max_length=255, verbose_name='Даты', help_text='Период действия, например: «01.06 – 30.06».')
     images = models.ImageField(upload_to='promotions', verbose_name='Фото', help_text='Баннер акции, отображается в приложении.')
 

@@ -1,0 +1,61 @@
+:root{
+  --green:#2e7d32;--blue:#1565c0;--orange:#e65100;--red:#c62828;
+  --purple:#6a1b9a;--teal:#00695c;--navy:#1a2744;
+}
+a,a:hover,a:focus,a:visited{text-decoration:none!important; color: black}
+#content{padding:0!important;}
+
+.pg-bg{background:#f0f2f5;min-height:100vh;padding:18px 20px 48px;}
+
+.pg-title{font-size:1.15rem;font-weight:800;color:var(--navy);letter-spacing:-.2px;}
+.branch-tab{font-size:12px;font-weight:600;text-decoration:none!important;}
+.branch-tab.active{background:var(--navy)!important;color:#fff!important;border-color:var(--navy)!important;}
+.period-btn{font-size:12px;font-weight:600;text-decoration:none!important;}
+.period-btn.active{background:var(--green)!important;color:#fff!important;border-color:var(--green)!important;}
+
+.rev-strip{background:#fff;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.07);overflow:hidden;margin-bottom:20px;}
+.rev-head{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid #eee;}
+.rev-head-title{font-size:13px;font-weight:700;color:var(--navy);letter-spacing:.2px;}
+.rev-col{flex:1;padding:14px 10px;text-align:center;border-right:1px solid #f0f0f0;cursor:pointer;transition:background .12s;}
+.rev-col:last-child{border-right:none;}
+.rev-col:hover{background:#f5f7fa;}
+.rev-label{font-size:11px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+.rev-num{font-size:2rem;font-weight:900;line-height:1;}
+
+.acc-green{border-top:4px solid var(--green)!important;}
+.acc-blue {border-top:4px solid var(--blue)!important;}
+.acc-orange{border-top:4px solid var(--orange)!important;}
+.acc-red  {border-top:4px solid var(--red)!important;}
+.acc-purple{border-top:4px solid var(--purple)!important;}
+.acc-teal {border-top:4px solid var(--teal)!important;}
+
+.mc-card{border-radius:10px!important;border:none!important;box-shadow:0 1px 6px rgba(0,0,0,.07)!important;transition:transform .15s,box-shadow .15s;height:100%;}
+.mc-link{display:block;color:inherit;height:100%;}
+.mc-link:hover .mc-card,.mc-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.13)!important;}
+.col-sm-6:hover{z-index:10;position:relative;}
+
+.mc-label{font-size:12px;font-weight:600;color:#374151;margin-bottom:10px;line-height:1.35;}
+.mc-val{font-size:2.4rem;font-weight:900;line-height:1;}
+.mc-sub{font-size:11px;color:#6b7280;margin-top:5px;font-weight:500;}
+
+.c-green {color:var(--green)!important;}
+.c-blue  {color:var(--blue)!important;}
+.c-orange{color:var(--orange)!important;}
+.c-red   {color:var(--red)!important;}
+.c-purple{color:var(--purple)!important;}
+.c-teal  {color:var(--teal)!important;}
+.c-grey  {color:#9ca3af!important;}
+
+.slow-skeleton{display:inline-block;width:60px;height:1em;background:linear-gradient(90deg,#e5e7eb 25%,#f3f4f6 50%,#e5e7eb 75%);background-size:200% 100%;animation:skeleton-pulse 1.4s infinite;border-radius:4px;vertical-align:middle;}
+@keyframes skeleton-pulse{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+.tip-btn{position:absolute;top:10px;right:10px;width:18px;height:18px;border-radius:50%;background:#e5e7eb;color:#6b7280;font-size:11px;display:flex;align-items:center;justify-content:center;cursor:help;z-index:2;font-weight:700;}
+.tip-box{display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);width:340px;background:var(--navy);color:#fff;font-size:11px;font-weight:500;padding:9px 12px;border-radius:8px;z-index:40;line-height:1.6;white-space:normal;pointer-events:none;}
+.mc-card:hover .tip-box,.card:hover .tip-box{display:block;}
+
+.charts-card{border-radius:10px!important;border:none!important;box-shadow:0 1px 6px rgba(0,0,0,.07)!important;}
+.chart-title{font-size:12px;font-weight:700;color:#1f2937;margin-bottom:8px;}
+.chart-legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;display:inline-block;}
+.chart-legend-label{font-size:11px;font-weight:600;color:#374151;}
+
+.sec-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#6b7280;}

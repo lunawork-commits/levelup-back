@@ -27,7 +27,7 @@ class Client(TimeStampedModel):
         choices=Gender.choices,
         blank=True,
         null=True,
-        default='',
+        default=None,
         verbose_name='Пол',
         help_text='Берётся из VK API при регистрации (1 = женский, 2 = мужской).',
     )

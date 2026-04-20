@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 
 from apps.shared.base import TimeStampedModel
@@ -260,6 +261,10 @@ class BroadcastSend(TimeStampedModel):
     skipped_count    = models.PositiveIntegerField(default=0, verbose_name='Пропущено')
 
     error_message = models.TextField(blank=True, verbose_name='Ошибка')
+
+    def clean(self):
+        if not self.broadcast_id and not self.auto_broadcast_template_id:
+            raise ValidationError('Необходимо указать рассылку или шаблон авторассылки.')
 
     def __str__(self):
         name = (
