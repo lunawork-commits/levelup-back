@@ -228,7 +228,7 @@ class ClientBranchAdmin(admin.ModelAdmin):
             'fields': ('visits_link',),
         }),
         ('Служебное', {
-            'fields': ('created_at', 'updated_at'),
+            'fields': ('created_at', 'updated_at', 'invited_by'),
             'classes': ('collapse',),
         }),
     )
