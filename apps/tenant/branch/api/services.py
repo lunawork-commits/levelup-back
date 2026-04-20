@@ -597,7 +597,7 @@ def register_or_get_client(
         ClientBranchVisit.record_visit(profile)
 
     # ── Link referrer from VK story (first-time only, even for existing profiles) ──
-    if invited_by_cb_id and not profile.invited_by_id and invited_by_cb_id != profile.pk:
+    if invited_by_cb_id and not profile.invited_by and invited_by_cb_id != profile.pk:
         try:
             inviter = ClientBranch.objects.get(pk=invited_by_cb_id, branch=branch)
             profile.invited_by = inviter
