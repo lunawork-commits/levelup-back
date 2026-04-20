@@ -79,9 +79,9 @@
         <div class="rev-label" style="color:var(--blue);">Нейтральный</div>
         <div class="rev-num" style="color:var(--blue);">{{ reviews_summary.neutral }}</div>
       </a>
-      <a href="{% url 'analytics-reviews-detail' %}?sentiment=WAITING&{{ period_qs }}{% if bp %}&branches={{ bp }}{% endif %}" class="rev-col" style="color:inherit;">
+      <a href="{% url 'analytics-reviews-detail' %}?sentiment=SPAM&{{ period_qs }}{% if bp %}&branches={{ bp }}{% endif %}" class="rev-col" style="color:inherit;">
         <div class="rev-label" style="color:#9ca3af;">Спам / не по теме</div>
-        <div class="rev-num" style="color:#9ca3af;">{{ reviews_summary.waiting }}</div>
+        <div class="rev-num" style="color:#9ca3af;">{{ reviews_summary.spam }}</div>
       </a>
     </div>
   </div>
