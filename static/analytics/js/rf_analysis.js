@@ -1,6 +1,6 @@
 // ── Build matrix grid ──────────────────────────────────────────────
 function buildMatrix() {
-  const { r_levels, f_levels, cells, total } = matrixData;
+  const { r_levels, f_levels, cells } = matrixData;
   if (!r_levels || !r_levels.length) {
     document.getElementById('matrix-container').innerHTML =
       '<div class="empty-state"><div class="icon">📊</div>Нет данных. Запустите пересчёт RF-метрик.</div>';
@@ -68,6 +68,20 @@ function buildMatrix() {
         ${actionsHtml}
         ${tipText ? `<div class="rf-cell-tip"><strong>📋 Подсказка:</strong><br>${tipText.replace(/\n/g, '<br>')}</div>` : ''}
       `;
+      if (tipText) {
+        const tip = el.querySelector('.rf-cell-tip');
+        el.addEventListener('mouseenter', () => {
+          const rect = el.getBoundingClientRect();
+          const TIP_W = 320;
+          const TIP_GAP = 10;
+          let left = rect.left + rect.width / 2 - TIP_W / 2;
+          left = Math.max(8, Math.min(left, window.innerWidth - TIP_W - 8));
+          const top = rect.top - TIP_GAP;
+          tip.style.left = left + 'px';
+          tip.style.top = top + 'px';
+          tip.style.transform = 'translateY(-100%)';
+        });
+      }
       el.addEventListener('click', () => selectCell(rl.r_score, fl.f_score, cell, bg));
       container.appendChild(el);
     });
