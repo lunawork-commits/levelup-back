@@ -597,13 +597,25 @@ def register_or_get_client(
         ClientBranchVisit.record_visit(profile)
 
     # ── Link referrer from VK story (first-time only, even for existing profiles) ──
+    import logging
+    _log = logging.getLogger(__name__)
     if invited_by_cb_id and not profile.invited_by and invited_by_cb_id != profile.pk:
         try:
             inviter = ClientBranch.objects.get(pk=invited_by_cb_id, branch=branch)
             profile.invited_by = inviter
             profile.save(update_fields=['invited_by'])
+            _log.warning('invited_by SET ok: profile=%s invited_by=%s', profile.pk, inviter.pk)
         except ClientBranch.DoesNotExist:
-            pass
+            exists_anywhere = ClientBranch.objects.filter(pk=invited_by_cb_id).exists()
+            _log.warning(
+                'invited_by MISS: cb_id=%s branch=%s exists_anywhere=%s',
+                invited_by_cb_id, branch.branch_id, exists_anywhere,
+            )
+    else:
+        _log.warning(
+            'invited_by SKIP: cb_id=%s has_inviter=%s same_pk=%s',
+            invited_by_cb_id, bool(profile.invited_by), invited_by_cb_id == profile.pk,
+        )
 
     # ── Sync VK membership status on first registration ──────────────────
     if created:
