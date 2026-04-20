@@ -185,9 +185,9 @@
 .rf-cell:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,.12); z-index: 10; }
 .rf-cell.selected { box-shadow: 0 0 0 3px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.12); transform: translateY(-2px); z-index: 2; }
 
-.rf-cell-tip {
+#rf-global-tip {
   display: none;
-  position: fixed;
+  position: absolute;
   width: 320px;
   max-width: min(320px, 90vw);
   background: var(--navy);
@@ -201,8 +201,9 @@
   z-index: 9999;
   pointer-events: none;
   box-shadow: 0 8px 24px rgba(0,0,0,.25);
+  transform: translateY(calc(-100% - 10px));
 }
-.rf-cell-tip::after {
+#rf-global-tip::after {
   content: '';
   position: absolute;
   top: 100%;
@@ -211,7 +212,6 @@
   border: 6px solid transparent;
   border-top-color: var(--navy);
 }
-.rf-cell:hover .rf-cell-tip { display: block; }
 
 .rf-cell-emoji  { font-size: 24px; line-height: 1; margin-bottom: 4px; }
 .rf-cell-name   { font-size: 13px; font-weight: 600; color: rgba(0,0,0,.6); margin-bottom: 6px; line-height: 1.2; }

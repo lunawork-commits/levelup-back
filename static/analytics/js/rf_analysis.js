@@ -1,3 +1,25 @@
+// ── Shared tooltip (appended to body to avoid transform stacking context) ──
+const _rfTip = document.createElement('div');
+_rfTip.id = 'rf-global-tip';
+document.body.appendChild(_rfTip);
+
+function rfTooltipShow(cell, text) {
+  _rfTip.innerHTML = '<strong>📋 Подсказка:</strong><br>' + text.replace(/\n/g, '<br>');
+  _rfTip.style.display = 'block';
+  const rect = cell.getBoundingClientRect();
+  const TIP_W = 320;
+  const GAP   = 10;
+  let left = rect.left + rect.width / 2 - TIP_W / 2;
+  left = Math.max(8, Math.min(left, window.innerWidth - TIP_W - 8));
+  const top = rect.top + window.scrollY - GAP;
+  _rfTip.style.left = left + 'px';
+  _rfTip.style.top  = top  + 'px';
+}
+
+function rfTooltipHide() {
+  _rfTip.style.display = 'none';
+}
+
 // ── Build matrix grid ──────────────────────────────────────────────
 function buildMatrix() {
   const { r_levels, f_levels, cells } = matrixData;
@@ -66,21 +88,10 @@ function buildMatrix() {
         <div class="rf-cell-count" style="color: black">${cell.count}</div>
         <div class="rf-cell-pct">${cell.pct}%</div>
         ${actionsHtml}
-        ${tipText ? `<div class="rf-cell-tip"><strong>📋 Подсказка:</strong><br>${tipText.replace(/\n/g, '<br>')}</div>` : ''}
       `;
       if (tipText) {
-        const tip = el.querySelector('.rf-cell-tip');
-        el.addEventListener('mouseenter', () => {
-          const rect = el.getBoundingClientRect();
-          const TIP_W = 320;
-          const TIP_GAP = 10;
-          let left = rect.left + rect.width / 2 - TIP_W / 2;
-          left = Math.max(8, Math.min(left, window.innerWidth - TIP_W - 8));
-          const top = rect.top - TIP_GAP;
-          tip.style.left = left + 'px';
-          tip.style.top = top + 'px';
-          tip.style.transform = 'translateY(-100%)';
-        });
+        el.addEventListener('mouseenter', () => rfTooltipShow(el, tipText));
+        el.addEventListener('mouseleave', rfTooltipHide);
       }
       el.addEventListener('click', () => selectCell(rl.r_score, fl.f_score, cell, bg));
       container.appendChild(el);
