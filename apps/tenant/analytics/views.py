@@ -688,8 +688,10 @@ class LoyaltyReportView(View):
             'repeat_players':    stats['repeat_game_players'],
             'coin_purchasers':   stats['coin_purchasers'],
             'stories_publishers': stats['vk_stories_publishers'],
-            'stories_referrals': stats['stories_referrals'],
-            'message_open_rate': stats['message_open_rate'],
+            'stories_referrals':  stats['stories_referrals'],
+            'message_open_rate':  stats['message_open_rate'],
+            'message_total_sent': stats['message_total_sent'],
+            'message_total_read': stats['message_total_read'],
             'qr_scans':          stats['qr_scans'],
             # Section 3: Scan index
             'pos_guests':        pos_guests,

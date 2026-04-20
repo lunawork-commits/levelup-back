@@ -335,7 +335,7 @@ def get_message_open_rate(
         sent_at__date__lte=end_date,
     )
     if branch_ids:
-        bc_qs = bc_qs.filter(send__broadcast__branch__in=branch_ids)
+        bc_qs = bc_qs.filter(client_branch__branch__in=branch_ids)
 
     bc_sent = bc_qs.count()
     bc_read = bc_qs.filter(read_at__isnull=False).count()
@@ -354,11 +354,11 @@ def get_message_open_rate(
     reply_read = reply_qs.filter(read_at__isnull=False).count()
 
     total_sent = bc_sent + reply_sent
-    if total_sent == 0:
-        return 0.0
-
     total_read = bc_read + reply_read
-    return round(total_read / total_sent * 100, 1)
+    if total_sent == 0:
+        return 0.0, 0, 0
+
+    return round(total_read / total_sent * 100, 1), total_sent, total_read
 
 
 # ── Metric 11 & 12: VK stories (not yet implemented) ─────────────────────────
@@ -504,7 +504,10 @@ def get_general_stats(
         'gift_activators':           get_gift_activators(branch_ids, start_date, end_date),
         'birthday_greetings_sent':   get_birthday_greetings_sent(branch_ids, start_date, end_date),
         'birthday_celebrants':       get_birthday_celebrants(branch_ids, start_date, end_date),
-        'message_open_rate':         get_message_open_rate(branch_ids, start_date, end_date),
+        **dict(zip(
+            ('message_open_rate', 'message_total_sent', 'message_total_read'),
+            get_message_open_rate(branch_ids, start_date, end_date),
+        )),
         'vk_stories_publishers':     get_vk_stories_publishers(branch_ids, start_date, end_date),
         'stories_referrals':         get_stories_referrals(branch_ids, start_date, end_date),
         'pos_guests':                pos,
@@ -539,7 +542,7 @@ def get_chart_data(
         created_at__date__lte=end_date,
     )
     sp_qs = _branch_filter(sp_qs, branch_ids, 'client_branch__branch__in')
-    free_prizes = sp_qs.count()
+    free_prizes = sp_qs.values('client_branch').distinct().count()
 
     coins_qs = CoinTransaction.objects.filter(
         type=TransactionType.EXPENSE,
@@ -548,7 +551,7 @@ def get_chart_data(
         created_at__date__lte=end_date,
     )
     coins_qs = _branch_filter(coins_qs, branch_ids, 'client__branch__in')
-    coin_purchases = coins_qs.count()
+    coin_purchases = coins_qs.values('client').distinct().count()
 
     # ── 3. Staff involvement ──────────────────────────────────────────────────
     attempts_qs = ClientAttempt.objects.filter(
@@ -572,6 +575,7 @@ def get_chart_data(
     # Both sides scoped to the period: uploaded in period vs visited but didn't upload.
     from apps.tenant.branch.models import ClientVKStatus
     story_qs = ClientVKStatus.objects.filter(
+        is_story_uploaded=True,
         story_uploaded_at__date__gte=start_date,
         story_uploaded_at__date__lte=end_date,
     )
