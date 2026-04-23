@@ -800,7 +800,9 @@ def get_rf_matrix(branch_ids: list[int] | None, mode: str = 'restaurant') -> dic
     """
     ScoreModel = _get_score_model(mode)
     qs = ScoreModel.objects.select_related('segment').all()
-    qs = _branch_filter(qs, branch_ids, 'client__branch__in')
+    qs = _branch_filter(qs, branch_ids, 'client__branch_profiles__branch__in')
+    if branch_ids:
+        qs = qs.distinct()
 
     total = qs.count()
 
@@ -915,7 +917,9 @@ def get_rf_summary_stats(branch_ids: list[int] | None, mode: str = 'restaurant')
     """
     ScoreModel = _get_score_model(mode)
     qs = ScoreModel.objects.all()
-    qs = _branch_filter(qs, branch_ids, 'client__branch__in')
+    qs = _branch_filter(qs, branch_ids, 'client__branch_profiles__branch__in')
+    if branch_ids:
+        qs = qs.distinct()
 
     total = qs.count()
 
@@ -944,33 +948,34 @@ def get_rf_segment_guests(
     ScoreModel = _get_score_model(mode)
     qs = (
         ScoreModel.objects
-        .select_related('client__client', 'segment')
+        .select_related('client', 'segment')
         .filter(r_score=r_score, f_score=f_score)
     )
-    qs = _branch_filter(qs, branch_ids, 'client__branch__in')
+    qs = _branch_filter(qs, branch_ids, 'client__branch_profiles__branch__in')
 
     from django.db.models import Max, Sum, Q as _Q
     from apps.tenant.branch.models import ClientBranchVisit, CoinTransaction
 
-    scores = list(qs[:limit])
+    scores = list(qs.distinct()[:limit])
     if not scores:
         return []
 
-    cb_ids = [s.client_id for s in scores]
+    guest_ids = [s.client_id for s in scores]
 
+    # Aggregate across ALL branches for each unique guest
     last_visit_map = {
-        r['client_id']: r['last']
+        r['client__client_id']: r['last']
         for r in ClientBranchVisit.objects
-        .filter(client_id__in=cb_ids)
-        .values('client_id')
+        .filter(client__client_id__in=guest_ids)
+        .values('client__client_id')
         .annotate(last=Max('visited_at'))
     }
 
     balance_map = {
-        r['client_id']: (r['income'] or 0) - (r['expense'] or 0)
+        r['client__client_id']: (r['income'] or 0) - (r['expense'] or 0)
         for r in CoinTransaction.objects
-        .filter(client_id__in=cb_ids)
-        .values('client_id')
+        .filter(client__client_id__in=guest_ids)
+        .values('client__client_id')
         .annotate(
             income=Sum('amount', filter=_Q(type='income')),
             expense=Sum('amount', filter=_Q(type='expense')),
@@ -979,19 +984,19 @@ def get_rf_segment_guests(
 
     result = []
     for score in scores:
-        cb = score.client
-        last_visit = last_visit_map.get(cb.pk)
+        guest = score.client  # guest.Client
+        last_visit = last_visit_map.get(guest.pk)
         result.append({
-            'id':           cb.pk,
-            'vk_id':        cb.client.vk_id,
-            'first_name':   cb.client.first_name,
-            'last_name':    cb.client.last_name,
+            'id':           guest.pk,
+            'vk_id':        guest.vk_id,
+            'first_name':   guest.first_name,
+            'last_name':    guest.last_name,
             'recency_days': score.recency_days,
             'frequency':    score.frequency,
             'r_score':      score.r_score,
             'f_score':      score.f_score,
             'last_visit':   last_visit.strftime('%d.%m.%Y') if last_visit else '—',
-            'coins':        balance_map.get(cb.pk, 0),
+            'coins':        balance_map.get(guest.pk, 0),
         })
     return result
 
@@ -1046,7 +1051,7 @@ def get_rf_migration_summary(
         to_segment__isnull=False,           # skip records where target segment was deleted
     )
     if branch_ids:
-        qs = qs.filter(client__branch__in=branch_ids)
+        qs = qs.filter(client__branch_profiles__branch__in=branch_ids)
 
     # Use select_related to avoid INNER JOIN problem with nullable from_segment
     # (Django .values('from_segment__code') uses INNER JOIN which drops NULL rows)
@@ -1250,115 +1255,129 @@ def recalculate_rf_scores(
     if branch_ids:
         branch_qs = branch_qs.filter(pk__in=branch_ids)
 
-    total_updated = total_created = total_migrations = 0
+    # ── Global analysis period: max across all branches ───────────────
+    settings_qs = RFSettings.objects.all()
+    if branch_ids:
+        settings_qs = settings_qs.filter(branch__pk__in=branch_ids)
 
-    for branch in branch_qs:
-        # ── Get analysis period for this branch ───────────────────────
-        try:
-            rf_settings     = branch.rf_settings
-            analysis_period = rf_settings.analysis_period
-            reset_date      = rf_settings.stats_reset_date
-        except RFSettings.DoesNotExist:
-            analysis_period = 365
-            reset_date      = None
+    agg = settings_qs.aggregate(max_period=Max('analysis_period'))
+    analysis_period = agg['max_period'] or 365
 
-        since = today - timedelta(days=analysis_period)
-        if reset_date:
-            reset_day = reset_date.date() if hasattr(reset_date, 'date') else reset_date
-            if reset_day > since:
-                since = reset_day
+    reset_date = None
+    latest_reset = settings_qs.exclude(stats_reset_date=None).order_by('-stats_reset_date').first()
+    if latest_reset:
+        reset_date = latest_reset.stats_reset_date
 
-        # ── Aggregate visit/delivery data per client ──────────────────
-        if mode == 'restaurant':
-            rows = (
-                ClientBranchVisit.objects
-                .filter(client__branch=branch, visited_at__date__gte=since)
-                .values('client_id')
-                .annotate(freq=Count('id'), last_at=Max('visited_at'))
-            )
-        else:
-            from apps.tenant.delivery.models import Delivery
-            rows = (
-                Delivery.objects
-                .filter(
-                    activated_by__branch=branch,
-                    activated_at__isnull=False,
-                    activated_at__date__gte=since,
-                )
-                .values('activated_by_id')
-                .annotate(freq=Count('id'), last_at=Max('activated_at'))
-            )
-            rows = [{'client_id': r['activated_by_id'], 'freq': r['freq'], 'last_at': r['last_at']} for r in rows]
+    since = today - timedelta(days=analysis_period)
+    if reset_date:
+        reset_day = reset_date.date() if hasattr(reset_date, 'date') else reset_date
+        if reset_day > since:
+            since = reset_day
 
+    # ── Aggregate visit/delivery data per unique guest.Client ─────────
+    if mode == 'restaurant':
+        visit_qs = ClientBranchVisit.objects.filter(visited_at__date__gte=since)
+        if branch_ids:
+            visit_qs = visit_qs.filter(client__branch__pk__in=branch_ids)
+        rows = (
+            visit_qs
+            .values('client__client_id')
+            .annotate(freq=Count('id'), last_at=Max('visited_at'))
+        )
         visit_map = {
-            r['client_id']: {'frequency': r['freq'], 'last_at': r['last_at']}
+            r['client__client_id']: {'frequency': r['freq'], 'last_at': r['last_at']}
             for r in rows
         }
-        if not visit_map:
-            continue
-
-        # ── Load existing scores ──────────────────────────────────────
-        existing_scores = {
-            s.client_id: s
-            for s in ScoreModel.objects.filter(
-                client__branch=branch,
-                client_id__in=visit_map.keys(),
-            ).select_related('segment')
+    else:
+        from apps.tenant.delivery.models import Delivery
+        delivery_qs = Delivery.objects.filter(
+            activated_at__isnull=False,
+            activated_at__date__gte=since,
+        )
+        if branch_ids:
+            delivery_qs = delivery_qs.filter(activated_by__branch__pk__in=branch_ids)
+        rows = (
+            delivery_qs
+            .values('activated_by__client_id')
+            .annotate(freq=Count('id'), last_at=Max('activated_at'))
+        )
+        visit_map = {
+            r['activated_by__client_id']: {'frequency': r['freq'], 'last_at': r['last_at']}
+            for r in rows
         }
 
-        # ── Score each client ─────────────────────────────────────────
-        with transaction.atomic():
-            for client_id, data in visit_map.items():
-                last_at      = data['last_at']
-                last_date    = last_at.date() if hasattr(last_at, 'date') else last_at
-                recency_days = (today - last_date).days
-                frequency    = data['frequency']
-                r            = _r_score(recency_days)
-                f            = _f_score(frequency)
-                segment      = find_segment(recency_days, frequency)
+    if not visit_map:
+        return {
+            'updated': 0, 'created': 0, 'migrations': 0,
+            'branches': branch_qs.count(),
+            'duration_ms': int((time.monotonic() - t0) * 1000),
+        }
 
-                existing = existing_scores.get(client_id)
-                if existing:
-                    old_segment = existing.segment
-                    existing.recency_days = recency_days
-                    existing.frequency    = frequency
-                    existing.r_score      = r
-                    existing.f_score      = f
-                    existing.segment      = segment
-                    existing.save(update_fields=[
-                        'recency_days', 'frequency', 'r_score', 'f_score', 'segment',
-                    ])
-                    total_updated += 1
-                    if old_segment != segment:
-                        MigModel.objects.create(
-                            client_id=client_id,
-                            from_segment=old_segment,
-                            to_segment=segment,
-                        )
-                        total_migrations += 1
-                else:
-                    ScoreModel.objects.update_or_create(
-                        client_id=client_id,
-                        defaults={
-                            'recency_days': recency_days,
-                            'frequency':    frequency,
-                            'r_score':      r,
-                            'f_score':      f,
-                            'segment':      segment,
-                        },
+    # ── Load existing scores ──────────────────────────────────────────
+    existing_scores = {
+        s.client_id: s
+        for s in ScoreModel.objects.filter(
+            client_id__in=visit_map.keys(),
+        ).select_related('segment')
+    }
+
+    total_updated = total_created = total_migrations = 0
+
+    # ── Score each unique guest ───────────────────────────────────────
+    with transaction.atomic():
+        for guest_id, data in visit_map.items():
+            last_at      = data['last_at']
+            last_date    = last_at.date() if hasattr(last_at, 'date') else last_at
+            recency_days = (today - last_date).days
+            frequency    = data['frequency']
+            r            = _r_score(recency_days)
+            f            = _f_score(frequency)
+            segment      = find_segment(recency_days, frequency)
+
+            existing = existing_scores.get(guest_id)
+            if existing:
+                old_segment = existing.segment
+                existing.recency_days = recency_days
+                existing.frequency    = frequency
+                existing.r_score      = r
+                existing.f_score      = f
+                existing.segment      = segment
+                existing.save(update_fields=[
+                    'recency_days', 'frequency', 'r_score', 'f_score', 'segment',
+                ])
+                total_updated += 1
+                if old_segment != segment:
+                    MigModel.objects.create(
+                        client_id=guest_id,
+                        from_segment=old_segment,
+                        to_segment=segment,
                     )
-                    total_created += 1
+                    total_migrations += 1
+            else:
+                ScoreModel.objects.update_or_create(
+                    client_id=guest_id,
+                    defaults={
+                        'recency_days': recency_days,
+                        'frequency':    frequency,
+                        'r_score':      r,
+                        'f_score':      f,
+                        'segment':      segment,
+                    },
+                )
+                total_created += 1
 
-            # ── Refresh today's snapshot ──────────────────────────────
-            seg_counts: dict[int, int] = {}
-            for score in ScoreModel.objects.filter(client__branch=branch).select_related('segment'):
-                if score.segment_id:
-                    seg_counts[score.segment_id] = seg_counts.get(score.segment_id, 0) + 1
-
-            for seg_id, count in seg_counts.items():
+        # ── Refresh today's snapshot per branch ───────────────────────
+        for branch in branch_qs:
+            for seg in segments:
+                count = (
+                    ScoreModel.objects
+                    .filter(segment=seg, client__branch_profiles__branch=branch)
+                    .distinct()
+                    .count()
+                )
                 SnapshotModel.objects.update_or_create(
                     branch=branch,
-                    segment_id=seg_id,
+                    segment=seg,
                     date=today,
                     defaults={'guests_count': count},
                 )

@@ -161,7 +161,7 @@ class GuestRFScore(models.Model):
     """
 
     client = models.OneToOneField(
-        'branch.ClientBranch',
+        'guest.Client',
         on_delete=models.CASCADE,
         related_name='rf_score',
         verbose_name='Гость',
@@ -226,7 +226,7 @@ class RFMigrationLog(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Мигрировал')
 
     client = models.ForeignKey(
-        'branch.ClientBranch',
+        'guest.Client',
         on_delete=models.CASCADE,
         related_name='rf_migrations',
         verbose_name='Гость',
@@ -363,7 +363,7 @@ class GuestRFScoreDelivery(models.Model):
     """
 
     client = models.OneToOneField(
-        'branch.ClientBranch',
+        'guest.Client',
         on_delete=models.CASCADE,
         related_name='rf_score_delivery',
         verbose_name='Гость',
@@ -417,7 +417,7 @@ class RFMigrationLogDelivery(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Мигрировал')
 
     client = models.ForeignKey(
-        'branch.ClientBranch',
+        'guest.Client',
         on_delete=models.CASCADE,
         related_name='rf_migrations_delivery',
         verbose_name='Гость',
