@@ -149,14 +149,12 @@ class RFSegmentAdmin(admin.ModelAdmin):
         if branch_ids:
             try:
                 ids = [int(x) for x in branch_ids.split(',') if x.strip()]
-                qs = qs.filter(client__branch_id__in=ids)
+                qs = qs.filter(client__branch_profiles__branch_id__in=ids).distinct()
             except ValueError:
                 pass
 
         # Get all VK IDs for guests in this segment
-        vk_ids = qs.select_related('client__client').values_list(
-            'client__client__vk_id', flat=True,
-        )
+        vk_ids = qs.values_list('client__vk_id', flat=True)
 
         # Filter out None values and build the file content
         lines = [str(vk_id) for vk_id in vk_ids if vk_id]
@@ -296,9 +294,9 @@ class GuestRFScoreAdmin(admin.ModelAdmin):
         'segment_badge_col', 'calculated_at',
     )
     list_display_links = ('client_col',)
-    list_filter = ('segment', RScoreFilter, FScoreFilter, 'client__branch')
-    search_fields = ('client__client__first_name', 'client__client__last_name')
-    list_select_related = ('client__client', 'client__branch', 'segment')
+    list_filter = ('segment', RScoreFilter, FScoreFilter, 'client__branch_profiles__branch')
+    search_fields = ('client__first_name', 'client__last_name')
+    list_select_related = ('client', 'segment')
     readonly_fields = ('calculated_at',)
 
     fieldsets = (
@@ -315,18 +313,20 @@ class GuestRFScoreAdmin(admin.ModelAdmin):
     )
 
     def get_queryset(self, request):
-        return super().get_queryset(request).select_related(
-            'client__client', 'client__branch', 'segment',
-        )
+        return super().get_queryset(request).select_related('client', 'segment')
 
-    @admin.display(description='Гость', ordering='client__client__first_name')
+    @admin.display(description='Гость', ordering='client__first_name')
     def client_col(self, obj):
-        c = obj.client.client
+        c = obj.client
         return c.first_name or f'vk{c.vk_id}'
 
-    @admin.display(description='Точка', ordering='client__branch__name')
+    @admin.display(description='Точки')
     def branch_col(self, obj):
-        return obj.client.branch.name
+        names = list(
+            obj.client.branch_profiles.select_related('branch')
+            .values_list('branch__name', flat=True)
+        )
+        return ', '.join(names) if names else '—'
 
     @admin.display(description='R / F', ordering='r_score')
     def score_col(self, obj):
@@ -351,9 +351,9 @@ class RFMigrationLogAdmin(admin.ModelAdmin):
         'created_at',
     )
     list_display_links = ('client_col',)
-    list_filter = ('from_segment', 'to_segment', 'client__branch')
-    search_fields = ('client__client__first_name', 'client__client__last_name')
-    list_select_related = ('client__client', 'client__branch', 'from_segment', 'to_segment')
+    list_filter = ('from_segment', 'to_segment', 'client__branch_profiles__branch')
+    search_fields = ('client__first_name', 'client__last_name')
+    list_select_related = ('client', 'from_segment', 'to_segment')
     date_hierarchy = 'created_at'
     readonly_fields = ('created_at',)
 
@@ -362,17 +362,21 @@ class RFMigrationLogAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related(
-            'client__client', 'client__branch', 'from_segment', 'to_segment',
+            'client', 'from_segment', 'to_segment',
         )
 
-    @admin.display(description='Гость', ordering='client__client__first_name')
+    @admin.display(description='Гость', ordering='client__first_name')
     def client_col(self, obj):
-        c = obj.client.client
+        c = obj.client
         return c.first_name or f'vk{c.vk_id}'
 
-    @admin.display(description='Точка', ordering='client__branch__name')
+    @admin.display(description='Точки')
     def branch_col(self, obj):
-        return obj.client.branch.name
+        names = list(
+            obj.client.branch_profiles.select_related('branch')
+            .values_list('branch__name', flat=True)
+        )
+        return ', '.join(names) if names else '—'
 
     @admin.display(description='Из сегмента', ordering='from_segment__name')
     def from_seg_badge(self, obj):
