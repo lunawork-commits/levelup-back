@@ -1276,7 +1276,34 @@ def recalculate_rf_scores(
 
     # ── Aggregate visit/delivery data per unique guest.Client ─────────
     if mode == 'restaurant':
-        visit_qs = ClientBranchVisit.objects.filter(visited_at__date__gte=since)
+        from django.db.models import Exists, OuterRef, Q as _Q
+        from apps.tenant.branch.models import (
+            TestimonialMessage, CoinTransaction, TransactionType, TransactionSource,
+        )
+        from apps.tenant.game.models import ClientAttempt
+
+        # Qualifying guest.Client IDs: those who did at least one meaningful action
+        # (matches the definition used in get_qr_scan_count)
+        qualifying_guest_ids = ClientBranch.objects.filter(
+            _Q(vk_status__community_via_app=True)
+            | _Q(vk_status__newsletter_via_app=True)
+            | _Q(vk_status__is_story_uploaded=True)
+            | Exists(ClientAttempt.objects.filter(client=OuterRef('pk')))
+            | Exists(TestimonialMessage.objects.filter(
+                conversation__client=OuterRef('pk'),
+                source=TestimonialMessage.Source.APP,
+            ))
+            | Exists(CoinTransaction.objects.filter(
+                client=OuterRef('pk'),
+                type=TransactionType.EXPENSE,
+                source=TransactionSource.SHOP,
+            ))
+        ).values('client_id')
+
+        visit_qs = ClientBranchVisit.objects.filter(
+            visited_at__date__gte=since,
+            client__client_id__in=qualifying_guest_ids,
+        )
         if branch_ids:
             visit_qs = visit_qs.filter(client__branch__pk__in=branch_ids)
         rows = (
