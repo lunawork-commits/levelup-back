@@ -38,6 +38,23 @@
 }
 .rf-header-back:hover { background: rgba(255,255,255,.1); color: #fff; }
 
+.rf-period-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.rf-period-bar .period-btn {
+  font-size: 12px;
+  padding: 4px 12px;
+}
+.rf-period-bar .period-btn.active {
+  background: #1a73e8;
+  border-color: #1a73e8;
+  color: #fff;
+}
+
 .rf-toolbar {
   display: flex;
   flex-wrap: wrap;

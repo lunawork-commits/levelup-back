@@ -67,11 +67,16 @@ class StatsQuerySerializer(serializers.Serializer):
 
 class RFQuerySerializer(serializers.Serializer):
     """Query params for RF analysis endpoint."""
+    PERIOD_CHOICES = ['today', '7d', '30d', '90d', 'year', 'all']
+
     branch_ids = serializers.CharField(required=False, allow_blank=True, default='')
     trend_days = serializers.IntegerField(min_value=7, max_value=365, default=30)
     mode       = serializers.ChoiceField(choices=['restaurant', 'delivery'], default='restaurant')
     r_score    = serializers.IntegerField(min_value=1, max_value=10, required=False)
     f_score    = serializers.IntegerField(min_value=1, max_value=10, required=False)
+    period     = serializers.ChoiceField(choices=PERIOD_CHOICES, required=False, default='30d')
+    start      = serializers.DateField(required=False)
+    end        = serializers.DateField(required=False)
 
     def validate_branch_ids(self, value: str) -> list[int]:
         if not value:
@@ -80,6 +85,35 @@ class RFQuerySerializer(serializers.Serializer):
             return [int(x.strip()) for x in value.split(',') if x.strip()]
         except ValueError:
             raise serializers.ValidationError('branch_ids must be comma-separated integers.')
+
+    def validate(self, attrs):
+        today = date.today()
+
+        if 'start' in attrs and 'end' in attrs:
+            if attrs['start'] > attrs['end']:
+                raise serializers.ValidationError('start must be before end.')
+            return attrs
+
+        period = attrs.get('period', '30d')
+        if period == 'today':
+            attrs['start'] = attrs['end'] = today
+        elif period == '7d':
+            attrs['start'] = today - timedelta(days=6)
+            attrs['end']   = today
+        elif period == '30d':
+            attrs['start'] = today - timedelta(days=29)
+            attrs['end']   = today
+        elif period == '90d':
+            attrs['start'] = today - timedelta(days=89)
+            attrs['end']   = today
+        elif period == 'year':
+            attrs['start'] = today.replace(month=1, day=1)
+            attrs['end']   = today
+        elif period == 'all':
+            attrs['start'] = date(2000, 1, 1)
+            attrs['end']   = today
+
+        return attrs
 
 
 # ── Response ──────────────────────────────────────────────────────────────────

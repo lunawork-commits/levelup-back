@@ -739,6 +739,9 @@ _RF_TO_CODE = {
     (1, 1): 'R0F1', (1, 2): 'R0F2', (1, 3): 'R0F3',
 }
 
+# Reverse: segment code → (r_score, f_score)
+_CODE_TO_RF: dict[str, tuple[int, int]] = {v: k for k, v in _RF_TO_CODE.items()}
+
 
 def _apply_standard_hints(cell: dict) -> None:
     """Override hint & strategy with hardcoded standard values."""
@@ -905,6 +908,121 @@ def get_rf_matrix(branch_ids: list[int] | None, mode: str = 'restaurant') -> dic
     }
 
 
+# ── RF Matrix from snapshot (period-based) ───────────────────────────────────
+
+def get_rf_matrix_from_snapshot(
+    branch_ids: list[int] | None, start_date: date, end_date: date,
+    mode: str = 'restaurant',
+) -> dict:
+    """
+    Build the RF matrix from BranchSegmentSnapshot for a given period.
+
+    Takes the most recent snapshot date within [start_date, end_date] and
+    sums guest counts per segment across branches.
+    Falls back to get_rf_matrix() (live GuestRFScore) when no snapshot data exists.
+    """
+    from django.db.models import Max, Sum
+
+    SnapshotModel = _get_snapshot_model(mode)
+    qs = SnapshotModel.objects.filter(date__gte=start_date, date__lte=end_date)
+    if branch_ids:
+        qs = qs.filter(branch__in=branch_ids)
+
+    last_date = qs.aggregate(m=Max('date'))['m']
+    if not last_date:
+        return get_rf_matrix(branch_ids, mode=mode)
+
+    rows = (
+        qs.filter(date=last_date)
+        .values(
+            'segment__id', 'segment__code', 'segment__name',
+            'segment__emoji', 'segment__color',
+            'segment__strategy', 'segment__hint',
+        )
+        .annotate(count=Sum('guests_count'))
+    )
+
+    total = sum((r['count'] or 0) for r in rows) or 0
+
+    cell_lookup: dict[str, dict] = {}
+    for row in rows:
+        code = row['segment__code'] or ''
+        rf = _CODE_TO_RF.get(code)
+        if not rf:
+            continue
+        r, f = rf
+        cell_lookup[f'{r}_{f}'] = {
+            'r_score':          r,
+            'f_score':          f,
+            'segment_id':       row['segment__id'],
+            'segment_code':     code,
+            'segment_name':     row['segment__name'] or '—',
+            'segment_emoji':    row['segment__emoji'] or '',
+            'segment_color':    row['segment__color'] or '#e0e0e0',
+            'segment_strategy': row['segment__strategy'] or '',
+            'segment_hint':     row['segment__hint'] or '',
+            'count':            row['count'] or 0,
+            'pct':              round((row['count'] or 0) / total * 100, 1) if total else 0.0,
+        }
+
+    from apps.tenant.analytics.models import RFSegment
+    all_segments = list(RFSegment.objects.all())
+
+    def _find_seg(r: int, f: int):
+        rec  = _R_REPRESENTATIVE.get(r, 90)
+        freq = _F_REPRESENTATIVE.get(f, 1)
+        for seg in all_segments:
+            if seg.recency_min <= rec <= seg.recency_max and seg.frequency_min <= freq <= seg.frequency_max:
+                return seg
+        return None
+
+    # Override segment display info with current DB values
+    for cell in cell_lookup.values():
+        seg = _find_seg(cell['r_score'], cell['f_score'])
+        if seg:
+            cell['segment_id']       = seg.pk
+            cell['segment_code']     = seg.code
+            cell['segment_name']     = seg.name
+            cell['segment_emoji']    = seg.emoji
+            cell['segment_color']    = seg.color
+            cell['segment_strategy'] = seg.strategy
+            cell['segment_hint']     = seg.hint
+
+    r_vals = [4, 3, 2, 1]
+    f_vals = [1, 2, 3]
+
+    cells: dict[str, dict] = {}
+    for r in r_vals:
+        for f in f_vals:
+            key = f'{r}_{f}'
+            if key in cell_lookup:
+                cells[key] = cell_lookup[key]
+            else:
+                seg = _find_seg(r, f)
+                cells[key] = {
+                    'r_score':          r,
+                    'f_score':          f,
+                    'segment_id':       seg.pk       if seg else None,
+                    'segment_code':     seg.code     if seg else '',
+                    'segment_name':     seg.name     if seg else '—',
+                    'segment_emoji':    seg.emoji    if seg else '',
+                    'segment_color':    seg.color    if seg else '#e8e8e8',
+                    'segment_strategy': seg.strategy if seg else '',
+                    'segment_hint':     seg.hint     if seg else '',
+                    'count': 0, 'pct': 0.0,
+                }
+
+    for cell in cells.values():
+        _apply_standard_hints(cell)
+
+    return {
+        'total':    total,
+        'r_levels': [{'r_score': r, **_R_META.get(r, {'label': f'R{r-1}', 'name': '', 'range': ''})} for r in r_vals],
+        'f_levels': [{'f_score': f, **_F_META.get(f, {'label': f'F{f}',   'name': '', 'range': ''})} for f in f_vals],
+        'cells':    cells,
+    }
+
+
 # ── RF Summary stats ──────────────────────────────────────────────────────────
 
 def get_rf_summary_stats(branch_ids: list[int] | None, mode: str = 'restaurant') -> dict:
@@ -1004,19 +1122,21 @@ def get_rf_segment_guests(
 # ── RF snapshot trend ─────────────────────────────────────────────────────────
 
 def get_rf_snapshot_trend(
-    branch_ids: list[int] | None, days: int = 30, mode: str = 'restaurant'
+    branch_ids: list[int] | None, days: int = 30, mode: str = 'restaurant',
+    start_date: date | None = None, end_date: date | None = None,
 ) -> list[dict]:
-    """Historical segment trend over the last N days."""
+    """Historical segment trend over a date range (or last N days if no dates given)."""
     from datetime import date as date_type, timedelta
     from django.db.models import Sum
 
-    end   = date_type.today()
-    start = end - timedelta(days=days)
+    if start_date is None or end_date is None:
+        end_date   = date_type.today()
+        start_date = end_date - timedelta(days=days)
 
     SnapshotModel = _get_snapshot_model(mode)
     qs = (
         SnapshotModel.objects
-        .filter(date__gte=start, date__lte=end)
+        .filter(date__gte=start_date, date__lte=end_date)
         .values('date', 'segment__code', 'segment__color', 'segment__name')
         .annotate(guests=Sum('guests_count'))
         .order_by('date', 'segment__code')
@@ -1039,15 +1159,20 @@ def get_rf_snapshot_trend(
 # ── RF Migration summary ──────────────────────────────────────────────────────
 
 def get_rf_migration_summary(
-    branch_ids: list[int] | None, days: int = 30, mode: str = 'restaurant'
+    branch_ids: list[int] | None, days: int = 30, mode: str = 'restaurant',
+    start_date: date | None = None, end_date: date | None = None,
 ) -> list[dict]:
     """Top migration flows sorted by count descending."""
     from datetime import date as date_type, timedelta
 
-    since = date_type.today() - timedelta(days=days)
+    if start_date is None or end_date is None:
+        end_date   = date_type.today()
+        start_date = end_date - timedelta(days=days)
+
     MigModel = _get_migration_model(mode)
     qs = MigModel.objects.filter(
-        created_at__date__gte=since,
+        created_at__date__gte=start_date,
+        created_at__date__lte=end_date,
         to_segment__isnull=False,           # skip records where target segment was deleted
     )
     if branch_ids:
@@ -1149,13 +1274,34 @@ def get_migration_effectiveness(
 
 # ── Combined RF stats ─────────────────────────────────────────────────────────
 
-def get_rf_stats(branch_ids: list[int] | None, mode: str = 'restaurant') -> dict:
-    """All RF analysis data in one dict."""
+def get_rf_stats(
+    branch_ids: list[int] | None,
+    mode: str = 'restaurant',
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> dict:
+    """All RF analysis data in one dict, optionally filtered by period."""
+    from datetime import date as date_type, timedelta
+
+    today = date_type.today()
+    if start_date is None:
+        start_date = today - timedelta(days=29)
+    if end_date is None:
+        end_date = today
+
+    matrix = get_rf_matrix_from_snapshot(branch_ids, start_date, end_date, mode)
+
+    # Derive summary cards directly from the period matrix
+    total   = matrix['total']
+    vip_f3  = sum(c['count'] for c in matrix['cells'].values() if c['f_score'] == 3)
+    at_risk = sum(c['count'] for c in matrix['cells'].values() if c['r_score'] == 2)
+    lost_r0 = sum(c['count'] for c in matrix['cells'].values() if c['r_score'] == 1)
+
     return {
-        'matrix':    get_rf_matrix(branch_ids, mode),
-        'summary':   get_rf_summary_stats(branch_ids, mode),
-        'trend':     get_rf_snapshot_trend(branch_ids, mode=mode),
-        'migrations': get_rf_migration_summary(branch_ids, mode=mode),
+        'matrix':     matrix,
+        'summary':    {'total': total, 'vip_f3': vip_f3, 'at_risk': at_risk, 'lost_r0': lost_r0},
+        'trend':      get_rf_snapshot_trend(branch_ids, mode=mode, start_date=start_date, end_date=end_date),
+        'migrations': get_rf_migration_summary(branch_ids, mode=mode, start_date=start_date, end_date=end_date),
     }
 
 

@@ -154,9 +154,12 @@ class RFAnalysisView(View):
     def get(self, request):
         branches, branch_ids, active_branches = _branches_context(request)
         mode = request.GET.get('mode', 'restaurant')  # restaurant | delivery
+        start, end, active_period = _parse_period(request)
 
-        rf_restaurant = get_rf_stats(branch_ids, mode='restaurant')
-        rf_delivery   = get_rf_stats(branch_ids, mode='delivery')
+        rf_restaurant = get_rf_stats(branch_ids, mode='restaurant', start_date=start, end_date=end)
+        rf_delivery   = get_rf_stats(branch_ids, mode='delivery',   start_date=start, end_date=end)
+
+        period_days = (end - start).days + 1
 
         context = {
             'title':              'RF-анализ',
@@ -165,6 +168,14 @@ class RFAnalysisView(View):
             'active_branches':    active_branches,
             'active_mode':        mode,
             'updated_at':         timezone.localdate().strftime('%d.%m.%Y'),
+            'active_period':      active_period,
+            'period_choices':     PERIOD_CHOICES,
+            'period_qs':          _period_qs(active_period, start, end),
+            'start':              start.isoformat(),
+            'end':                end.isoformat(),
+            'start_display':      start.strftime('%d.%m.%Y'),
+            'end_display':        end.strftime('%d.%m.%Y'),
+            'period_days':        period_days,
             # Restaurant
             'rf':                 rf_restaurant,
             'rf_json':            json.dumps(rf_restaurant['matrix']),

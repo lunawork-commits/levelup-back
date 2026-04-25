@@ -71,6 +71,8 @@ class RFStatsAPIView(APIView):
         trend_days = ser.validated_data['trend_days']
         r_score    = ser.validated_data.get('r_score')
         f_score    = ser.validated_data.get('f_score')
+        start_date = ser.validated_data.get('start')
+        end_date   = ser.validated_data.get('end')
 
         # Guest list for a specific matrix cell
         if r_score is not None and f_score is not None:
@@ -83,10 +85,11 @@ class RFStatsAPIView(APIView):
                 'count':        cell.get('count', 0),
             })
 
+        rf = services.get_rf_stats(branch_ids, mode=mode, start_date=start_date, end_date=end_date)
         return Response({
-            'matrix':     services.get_rf_matrix(branch_ids, mode=mode),
-            'trend':      services.get_rf_snapshot_trend(branch_ids, days=trend_days, mode=mode),
-            'migrations': services.get_rf_migration_summary(branch_ids, days=trend_days, mode=mode),
+            'matrix':     rf['matrix'],
+            'trend':      rf['trend'],
+            'migrations': rf['migrations'],
         })
 
 
