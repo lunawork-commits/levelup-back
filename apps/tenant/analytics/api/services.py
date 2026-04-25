@@ -1283,20 +1283,27 @@ def recalculate_rf_scores(
         from apps.tenant.game.models import ClientAttempt
 
         # Qualifying guest.Client IDs: those who did at least one meaningful action
-        # (matches the definition used in get_qr_scan_count)
+        # within the analysis period (mirrors get_qr_scan_count logic).
+        # VK status flags are timeless (once subscribed = always subscribed).
+        # Game/review/shop actions are restricted to since..today.
         qualifying_guest_ids = ClientBranch.objects.filter(
             _Q(vk_status__community_via_app=True)
             | _Q(vk_status__newsletter_via_app=True)
             | _Q(vk_status__is_story_uploaded=True)
-            | Exists(ClientAttempt.objects.filter(client=OuterRef('pk')))
+            | Exists(ClientAttempt.objects.filter(
+                client=OuterRef('pk'),
+                created_at__date__gte=since,
+            ))
             | Exists(TestimonialMessage.objects.filter(
                 conversation__client=OuterRef('pk'),
                 source=TestimonialMessage.Source.APP,
+                created_at__date__gte=since,
             ))
             | Exists(CoinTransaction.objects.filter(
                 client=OuterRef('pk'),
                 type=TransactionType.EXPENSE,
                 source=TransactionSource.SHOP,
+                created_at__date__gte=since,
             ))
         ).values('client_id')
 

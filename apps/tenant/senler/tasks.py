@@ -366,9 +366,9 @@ def _check_read_for_config(cfg, items_with_vk_id, now, tenant_schema):
             read_map: dict[int, int] = {}
             for conv in data.get('response', {}).get('items', []):
                 peer_id = conv.get('peer', {}).get('id')
-                in_read = conv.get('in_read', 0)
+                out_read = conv.get('out_read', 0)
                 if peer_id:
-                    read_map[peer_id] = in_read
+                    read_map[peer_id] = out_read
 
             for vk_id, msg_id_int, save_fn in batch:
                 last_read = read_map.get(vk_id, 0)
