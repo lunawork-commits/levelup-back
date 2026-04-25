@@ -932,7 +932,7 @@ def get_rf_matrix_from_snapshot(
     if not last_date:
         return get_rf_matrix(branch_ids, mode=mode)
 
-    rows = (
+    rows = list(
         qs.filter(date=last_date)
         .values(
             'segment__id', 'segment__code', 'segment__name',
@@ -1134,15 +1134,15 @@ def get_rf_snapshot_trend(
         start_date = end_date - timedelta(days=days)
 
     SnapshotModel = _get_snapshot_model(mode)
+    base = SnapshotModel.objects.filter(date__gte=start_date, date__lte=end_date)
+    if branch_ids:
+        base = base.filter(branch__in=branch_ids)
     qs = (
-        SnapshotModel.objects
-        .filter(date__gte=start_date, date__lte=end_date)
+        base
         .values('date', 'segment__code', 'segment__color', 'segment__name')
         .annotate(guests=Sum('guests_count'))
         .order_by('date', 'segment__code')
     )
-    if branch_ids:
-        qs = qs.filter(branch__in=branch_ids)
 
     by_date: dict[str, list] = defaultdict(list)
     for row in qs:
