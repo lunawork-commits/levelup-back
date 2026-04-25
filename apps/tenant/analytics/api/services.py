@@ -787,9 +787,16 @@ def _get_snapshot_model(mode: str):
 
 # ── RF Matrix ─────────────────────────────────────────────────────────────────
 
-def get_rf_matrix(branch_ids: list[int] | None, mode: str = 'restaurant') -> dict:
+def get_rf_matrix(
+    branch_ids: list[int] | None,
+    mode: str = 'restaurant',
+    client_ids: list[int] | None = None,
+) -> dict:
     """
     Build the RF matrix for the given mode (restaurant | delivery).
+
+    client_ids: optional list of guest.Client PKs to restrict the matrix to
+                (used for period-based filtering — only guests active in the period).
 
     Returns {
       total: int,
@@ -806,6 +813,8 @@ def get_rf_matrix(branch_ids: list[int] | None, mode: str = 'restaurant') -> dic
     qs = _branch_filter(qs, branch_ids, 'client__branch_profiles__branch__in')
     if branch_ids:
         qs = qs.distinct()
+    if client_ids is not None:
+        qs = qs.filter(client_id__in=client_ids)
 
     total = qs.count()
 
@@ -906,6 +915,36 @@ def get_rf_matrix(branch_ids: list[int] | None, mode: str = 'restaurant') -> dic
         'f_levels': [{'f_score': f, **_F_META.get(f, {'label': f'F{f}',   'name': '', 'range': ''})} for f in f_vals],
         'cells':    cells,
     }
+
+
+# ── Active guest IDs for a period ────────────────────────────────────────────
+
+def _get_active_client_ids(
+    branch_ids: list[int] | None, start_date: date, end_date: date, mode: str,
+) -> list[int]:
+    """
+    Return guest.Client PKs with at least one visit/delivery in [start_date, end_date].
+    Used to scope the RF matrix to guests active in the selected period.
+    """
+    if mode == 'restaurant':
+        from apps.tenant.branch.models import ClientBranchVisit
+        qs = ClientBranchVisit.objects.filter(
+            visited_at__date__gte=start_date,
+            visited_at__date__lte=end_date,
+        )
+        if branch_ids:
+            qs = qs.filter(client__branch__in=branch_ids)
+        return list(qs.values_list('client__client_id', flat=True).distinct())
+    else:
+        from apps.tenant.delivery.models import Delivery
+        qs = Delivery.objects.filter(
+            activated_at__date__gte=start_date,
+            activated_at__date__lte=end_date,
+            activated_by__isnull=False,
+        )
+        if branch_ids:
+            qs = qs.filter(activated_by__branch__in=branch_ids)
+        return list(qs.values_list('activated_by__client_id', flat=True).distinct())
 
 
 # ── RF Matrix from snapshot (period-based) ───────────────────────────────────
@@ -1289,7 +1328,8 @@ def get_rf_stats(
     if end_date is None:
         end_date = today
 
-    matrix = get_rf_matrix_from_snapshot(branch_ids, start_date, end_date, mode)
+    active_ids = _get_active_client_ids(branch_ids, start_date, end_date, mode)
+    matrix = get_rf_matrix(branch_ids, mode=mode, client_ids=active_ids)
 
     # Derive summary cards directly from the period matrix
     total   = matrix['total']
