@@ -38,7 +38,8 @@ class GameStartView(APIView):
 
     @extend_schema(request=GameStartSerializer, responses={200: GameSessionSerializer, 404: OpenApiTypes.OBJECT, 409: OpenApiTypes.OBJECT, 400: OpenApiTypes.OBJECT})
     def post(self, request: Request) -> Response:
-        s = GameStartSerializer(data=request.data)
+        data = {**request.query_params.dict(), **request.data}
+        s = GameStartSerializer(data=data)
         s.is_valid(raise_exception=True)
 
         try:
@@ -82,7 +83,8 @@ class GameClaimView(APIView):
 
     @extend_schema(request=GameClaimSerializer, responses={200: OpenApiTypes.OBJECT, 400: OpenApiTypes.OBJECT})
     def post(self, request: Request) -> Response:
-        s = GameClaimSerializer(data=request.data)
+        data = {**request.query_params.dict(), **request.data}
+        s = GameClaimSerializer(data=data)
         s.is_valid(raise_exception=True)
 
         try:

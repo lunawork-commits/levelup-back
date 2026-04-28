@@ -17,6 +17,7 @@ class GameClaimSerializer(serializers.Serializer):
     """Phase 2: guest claims the reward after the animation completes."""
     session_token = serializers.CharField()
     employee_id   = serializers.IntegerField(required=False, allow_null=True)
+    delivery      = serializers.BooleanField(required=False, default=False)
 
 
 class GameCooldownRequestSerializer(serializers.Serializer):

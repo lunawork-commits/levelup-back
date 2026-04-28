@@ -198,7 +198,7 @@ def start_game(vk_id: int, branch_id: int, code: str | None = None, delivery: bo
 
 
 @transaction.atomic
-def claim_game(session_token: str, employee_id: int | None = None) -> dict:
+def claim_game(session_token: str, employee_id: int | None = None, delivery: bool = False) -> dict:
     """
     Phase 2 — reveal the reward, record the attempt, activate the cooldown.
 
@@ -247,8 +247,10 @@ def claim_game(session_token: str, employee_id: int | None = None) -> dict:
             .first()
         )
 
-    # Delivery sessions require an activated delivery code before claiming
-    if payload.get('dl'):
+    # Delivery sessions require an activated delivery code before claiming.
+    # Check both the token flag (set at start) and the claim-time flag (passed
+    # explicitly by the client in case the token was started without delivery=True).
+    if delivery or payload.get('dl'):
         if not client_branch.activated_deliveries.exists():
             raise DeliveryCodeNotActivated
 
