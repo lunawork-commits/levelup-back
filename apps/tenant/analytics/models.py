@@ -75,9 +75,25 @@ class RFSegment(TimeStampedModel):
 
     Гость попадает в сегмент, если его recency_days и frequency
     оба попадают в соответствующие диапазоны.
+
+    Записи могут быть глобальными (branch=NULL) или per-branch.
+    Lookup идёт по приоритету: настройки точки → глобальные → нет данных.
     """
 
-    code = models.CharField(max_length=10, unique=True, verbose_name='Код')
+    branch = models.ForeignKey(
+        'branch.Branch',
+        on_delete=models.CASCADE,
+        related_name='rf_segments',
+        null=True,
+        blank=True,
+        verbose_name='Торговая точка',
+        help_text=(
+            'Оставьте пустым, чтобы создать общий сегмент для всей сети. '
+            'Если у точки задан собственный сегмент с тем же кодом — используется он, '
+            'иначе берётся общий.'
+        ),
+    )
+    code = models.CharField(max_length=10, verbose_name='Код')
     name = models.CharField(max_length=100, verbose_name='Название')
 
     # ── Recency boundaries (days since last visit) ────────────────────────────
@@ -138,13 +154,103 @@ class RFSegment(TimeStampedModel):
         if errors:
             raise ValidationError(errors)
 
+    @property
+    def is_global(self) -> bool:
+        """True для общего сегмента (branch=None)."""
+        return self.branch_id is None
+
+    @property
+    def scope_label(self) -> str:
+        """Человекочитаемая область применения."""
+        return 'Все точки' if self.is_global else str(self.branch)
+
     def __str__(self):
-        return f'{self.emoji} {self.name} ({self.code})'
+        return f'{self.emoji} {self.name} ({self.code}) — {self.scope_label}'
+
+    # ── Lookup ────────────────────────────────────────────────────────────────
+
+    @classmethod
+    def resolve_for_branch_and_code(
+        cls, branch_id: int | None, code: str,
+    ) -> 'RFSegment | None':
+        """
+        Возвращает сегмент с приоритетом: настройки точки → общий.
+        """
+        if branch_id is not None:
+            obj = cls.objects.filter(branch_id=branch_id, code=code).first()
+            if obj is not None:
+                return obj
+        return cls.objects.filter(branch__isnull=True, code=code).first()
+
+    # ── Mass-apply ────────────────────────────────────────────────────────────
+
+    def _copy_defaults(self) -> dict:
+        """Поля, которые копируются в per-branch версию (без branch и code)."""
+        return {
+            'name':           self.name,
+            'recency_min':    self.recency_min,
+            'recency_max':    self.recency_max,
+            'frequency_min':  self.frequency_min,
+            'frequency_max':  self.frequency_max,
+            'emoji':          self.emoji,
+            'color':          self.color,
+            'strategy':       self.strategy,
+            'hint':           self.hint,
+        }
+
+    def apply_to_all_branches(self) -> int:
+        """
+        Копирует поля сегмента (без code и branch) во все RFSegment-записи
+        активных торговых точек с тем же кодом. Если у точки нет записи
+        с таким кодом — создаёт.
+
+        Возвращает количество затронутых точек.
+        """
+        from apps.tenant.branch.models import Branch
+
+        defaults = self._copy_defaults()
+        affected = 0
+        for branch in Branch.objects.filter(is_active=True):
+            type(self).objects.update_or_create(
+                branch=branch, code=self.code, defaults=defaults,
+            )
+            affected += 1
+        return affected
+
+    def apply_to_branches(self, branch_ids: list[int]) -> int:
+        """То же, что apply_to_all_branches, но только для указанных PK точек."""
+        from apps.tenant.branch.models import Branch
+
+        if not branch_ids:
+            return 0
+
+        defaults = self._copy_defaults()
+        affected = 0
+        for branch in Branch.objects.filter(pk__in=branch_ids, is_active=True):
+            type(self).objects.update_or_create(
+                branch=branch, code=self.code, defaults=defaults,
+            )
+            affected += 1
+        return affected
 
     class Meta:
         verbose_name = 'RF-сегмент'
         verbose_name_plural = 'RF-сегменты'
-        ordering = ['recency_min', 'frequency_min']
+        ordering = ['branch__name', 'recency_min', 'frequency_min']
+        constraints = [
+            # (branch, code) уникальны для не-NULL branch.
+            models.UniqueConstraint(
+                fields=['branch', 'code'],
+                condition=models.Q(branch__isnull=False),
+                name='analytics_rfsegment_branch_code_uniq',
+            ),
+            # Для глобальных сегментов (branch=NULL) уникальность по code.
+            models.UniqueConstraint(
+                fields=['code'],
+                condition=models.Q(branch__isnull=True),
+                name='analytics_rfsegment_global_code_uniq',
+            ),
+        ]
 
 
 # ── GuestRFScore ──────────────────────────────────────────────────────────────

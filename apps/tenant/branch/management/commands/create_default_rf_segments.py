@@ -272,7 +272,7 @@ class Command(BaseCommand):
         for seg_data in DEFAULT_SEGMENTS:
             code = seg_data['code']
             try:
-                obj = RFSegment.objects.get(code=code)
+                obj = RFSegment.objects.get(code=code, branch__isnull=True)
                 if force:
                     for field, value in seg_data.items():
                         setattr(obj, field, value)
@@ -301,7 +301,7 @@ class Command(BaseCommand):
                         self.stdout.write(f'  ✓ {code} — без изменений')
 
             except RFSegment.DoesNotExist:
-                RFSegment.objects.create(**seg_data)
+                RFSegment.objects.create(branch=None, **seg_data)
                 created += 1
                 self.stdout.write(self.style.SUCCESS(f'  + {code} — создан'))
 

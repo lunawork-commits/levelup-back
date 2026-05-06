@@ -894,6 +894,22 @@ def _get_snapshot_model(mode: str):
     return BranchSegmentSnapshotDelivery if mode == 'delivery' else BranchSegmentSnapshot
 
 
+def _build_code_to_segment(branch_ids: list[int] | None) -> dict:
+    """
+    Возвращает {code: RFSegment} с приоритетом per-branch → global.
+
+    Если выбрана одна точка — её сегменты переопределяют общие.
+    Иначе используются только общие (branch=NULL) сегменты.
+    """
+    from apps.tenant.analytics.models import RFSegment
+
+    global_map = {seg.code: seg for seg in RFSegment.objects.filter(branch__isnull=True)}
+    if branch_ids and len(branch_ids) == 1:
+        branch_map = {seg.code: seg for seg in RFSegment.objects.filter(branch_id=branch_ids[0])}
+        return {**global_map, **branch_map}
+    return global_map
+
+
 # ── RF Matrix ─────────────────────────────────────────────────────────────────
 
 def get_rf_matrix(
@@ -956,7 +972,8 @@ def get_rf_matrix(
 
     # 3) Подтягиваем метаданные сегментов по коду (R3F1 и т.п.) — это
     #    стабильно при изменении границ конкретных RFSegment-записей.
-    code_to_segment = {seg.code: seg for seg in RFSegment.objects.all()}
+    #    Per-branch версии (если есть) переопределяют общие.
+    code_to_segment = _build_code_to_segment(branch_ids)
 
     r_vals = [4, 3, 2, 1]
     f_vals = [1, 2, 3]
@@ -1097,8 +1114,9 @@ def get_rf_matrix_from_snapshot(
             'pct':              round((row['count'] or 0) / total * 100, 1) if total else 0.0,
         }
 
-    # Подтягиваем актуальные метаданные сегментов по коду.
-    code_to_segment = {seg.code: seg for seg in RFSegment.objects.all()}
+    # Подтягиваем актуальные метаданные сегментов по коду
+    # (per-branch версии переопределяют общие).
+    code_to_segment = _build_code_to_segment(branch_ids)
 
     r_vals = [4, 3, 2, 1]
     f_vals = [1, 2, 3]
@@ -1394,6 +1412,8 @@ def get_migration_effectiveness(
     # которое не зависит от изменения границ recency_min/recency_max
     # на конкретном RFSegment и от текущих порогов.
     seg_r_score: dict[int, int] = {}
+    # Включает и общие, и per-branch сегменты — pk у каждого свой,
+    # но r_score определяется только кодом.
     for s in RFSegment.objects.all():
         rf = _CODE_TO_RF.get(s.code or '')
         if rf:
@@ -1479,7 +1499,11 @@ def get_migration_history(
         ]
 
     from apps.tenant.analytics.models import RFSegment
-    all_segments = list(RFSegment.objects.values('code', 'name', 'emoji').order_by('recency_min', 'frequency_min'))
+    all_segments = list(
+        RFSegment.objects.filter(branch__isnull=True)
+        .values('code', 'name', 'emoji')
+        .order_by('recency_min', 'frequency_min')
+    )
 
     return {
         'flows':         flows,
@@ -1542,7 +1566,10 @@ def recalculate_rf_scores(
     _, thresholds, source = RFSettings.resolve_for_scope(branch_ids)
 
     # ── Segment lookup: by code (R3F1, …) — стабильно при изменении границ. ──
-    segments = list(RFSegment.objects.all())
+    # Используем только общие сегменты (branch=NULL): GuestRFScore.segment
+    # ссылается на единый набор сегментов. Per-branch сегменты применяются
+    # только при отображении матрицы.
+    segments = list(RFSegment.objects.filter(branch__isnull=True))
     code_to_segment = {seg.code: seg for seg in segments}
 
     def find_segment(recency_days: int, frequency: int):

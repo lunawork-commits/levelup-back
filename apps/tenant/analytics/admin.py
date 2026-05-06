@@ -29,20 +29,56 @@ def _segment_badge(seg):
 
 # ── RFSegment admin ───────────────────────────────────────────────────────────
 
+
+class RFSegmentAdminForm(forms.ModelForm):
+    """
+    Форма с дополнительным служебным полем «Применить настройки ко всем кафе».
+
+    Если чекбокс установлен — после сохранения записи её поля (имя, эмодзи,
+    цвет, диапазоны R/F, стратегия, подсказка) будут скопированы в
+    per-branch RFSegment-записи всех активных торговых точек с тем же кодом.
+    На странице подтверждения пользователь увидит сводку и сможет отменить.
+    """
+
+    apply_to_all_branches = forms.BooleanField(
+        required=False,
+        label='Применить настройки ко всем кафе',
+        help_text=(
+            'После сохранения скопировать поля сегмента в per-branch версии '
+            'всех активных торговых точек (с тем же кодом). Текущие значения '
+            'этих полей у каждой точки будут перезаписаны. '
+            'Поле «Дата последней рассылки» НЕ копируется.'
+        ),
+    )
+
+    class Meta:
+        model = RFSegment
+        fields = '__all__'
+
+
 @admin.register(RFSegment, site=tenant_admin)
 class RFSegmentAdmin(admin.ModelAdmin):
+    form = RFSegmentAdminForm
+
     list_display = (
-        'code_badge', 'name', 'recency_range_col',
+        'code_badge', 'scope_col', 'name', 'recency_range_col',
         'frequency_range_col', 'guests_count_col', 'hint_preview_col',
         'last_campaign_date',
     )
     list_display_links = ('code_badge',)
-    search_fields = ('code', 'name')
+    list_filter = ('branch',)
+    search_fields = ('code', 'name', 'branch__name')
     readonly_fields = ('created_at', 'updated_at', 'guests_count_col')
+    actions = ['apply_to_all_action']
 
     fieldsets = (
         (None, {
-            'fields': ('code', 'name', 'emoji', 'color'),
+            'fields': ('branch', 'code', 'name', 'emoji', 'color'),
+            'description': (
+                'Оставьте поле «Торговая точка» пустым, чтобы создать общий сегмент '
+                'для всей сети (используется как fallback для точек, у которых нет '
+                'собственной версии этого сегмента).'
+            ),
         }),
         ('RF-границы', {
             'fields': (('recency_min', 'recency_max'), ('frequency_min', 'frequency_max')),
@@ -56,6 +92,15 @@ class RFSegmentAdmin(admin.ModelAdmin):
             'description': (
                 '<b>Подсказка</b> — краткая инструкция менеджеру по работе с рассылками для этого сегмента. '
                 'Отображается в таблице сегментов и помогает принять правильное решение.'
+            ),
+        }),
+        ('Применить ко всем точкам', {
+            'fields': ('apply_to_all_branches',),
+            'description': (
+                'Удобно при первичной настройке сети: задайте поля сегмента один раз '
+                'и одной галочкой раскопируйте их во все кафе. '
+                'После применения для отдельной точки можно индивидуально '
+                'переопределить значения — общие настройки используются как fallback.'
             ),
         }),
         ('Статистика', {
@@ -82,7 +127,108 @@ class RFSegmentAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self._export_senler_view),
                 name='analytics_rfsegment_export_senler',
             ),
+            path(
+                '<int:pk>/apply-all/',
+                self.admin_site.admin_view(self._apply_to_all_view),
+                name='analytics_rfsegment_apply_all',
+            ),
         ] + urls
+
+    # ── Save logic: handle apply_to_all checkbox ─────────────────────────────
+
+    def save_model(self, request, obj, form, change):
+        """
+        Обычное сохранение + опциональное массовое применение.
+
+        - Если стоит галочка и confirm-токен ЕЩЁ НЕ пришёл — сохраняем
+          запись и показываем warning со ссылкой на страницу подтверждения.
+        - Если confirm-токен пришёл — выполняем копирование во все точки.
+        """
+        super().save_model(request, obj, form, change)
+
+        if form.cleaned_data.get('apply_to_all_branches'):
+            confirmed = request.POST.get('_apply_all_confirmed') == '1'
+            if confirmed:
+                affected = obj.apply_to_all_branches()
+                self.message_user(
+                    request,
+                    f'Сегмент «{obj.emoji} {obj.name}» применён к {affected} торговым точкам. '
+                    f'Запустите пересчёт RF, чтобы матрицы обновились.',
+                    level=messages.SUCCESS,
+                )
+            else:
+                self.message_user(
+                    request,
+                    mark_safe(
+                        'Сегмент сохранён. '
+                        'Для массового применения ко всем кафе перейдите в '
+                        f'<a href="{reverse("admin:analytics_rfsegment_apply_all", args=[obj.pk])}">'
+                        'окно подтверждения</a> — там будет сводка и кнопка '
+                        '«Применить».'
+                    ),
+                    level=messages.WARNING,
+                )
+
+    def _apply_to_all_view(self, request, pk):
+        """
+        Промежуточная страница «Вы уверены, что хотите применить
+        настройки ко всем точкам? Текущие значения будут заменены».
+        """
+        from apps.tenant.branch.models import Branch
+        try:
+            obj = RFSegment.objects.get(pk=pk)
+        except RFSegment.DoesNotExist:
+            self.message_user(request, 'Сегмент не найден.', level=messages.ERROR)
+            return HttpResponseRedirect(reverse('admin:analytics_rfsegment_changelist'))
+
+        if request.method == 'POST' and request.POST.get('_apply_all_confirmed') == '1':
+            affected = obj.apply_to_all_branches()
+            self.message_user(
+                request,
+                f'Готово: сегмент «{obj.emoji} {obj.name}» применён к {affected} торговым точкам.',
+                level=messages.SUCCESS,
+            )
+            return HttpResponseRedirect(reverse('admin:analytics_rfsegment_changelist'))
+
+        active_branches = list(Branch.objects.filter(is_active=True).order_by('name'))
+        ctx = {
+            'title': 'Применить RF-сегмент ко всем кафе?',
+            'object': obj,
+            'fields': obj._copy_defaults(),
+            'branches': active_branches,
+            'branches_count': len(active_branches),
+            'opts': self.model._meta,
+            'app_label': self.model._meta.app_label,
+            'has_view_permission': True,
+            'site_header': getattr(self.admin_site, 'site_header', 'Администрирование'),
+            'site_title':  getattr(self.admin_site, 'site_title',  'Администрирование'),
+        }
+        return TemplateResponse(
+            request,
+            'admin/analytics/rfsegment/apply_all_confirm.html',
+            ctx,
+        )
+
+    # ── Admin actions ─────────────────────────────────────────────────────────
+
+    @admin.action(description='Применить выбранный сегмент ко ВСЕМ точкам')
+    def apply_to_all_action(self, request, queryset):
+        if queryset.count() != 1:
+            self.message_user(
+                request,
+                'Выберите ровно одну запись-источник: её настройки будут раскопированы '
+                'во все активные торговые точки.',
+                level=messages.WARNING,
+            )
+            return
+        source = queryset.first()
+        affected = source.apply_to_all_branches()
+        self.message_user(
+            request,
+            f'Сегмент «{source.emoji} {source.name}» ({source.code}) '
+            f'применён к {affected} торговым точкам.',
+            level=messages.SUCCESS,
+        )
 
     def _send_broadcast_view(self, request, pk):
         """
@@ -181,6 +327,16 @@ class RFSegmentAdmin(admin.ModelAdmin):
             '{} {}</span>',
             obj.color, obj.emoji, obj.code,
         )
+
+    @admin.display(description='Область применения', ordering='branch__name')
+    def scope_col(self, obj):
+        if obj.is_global:
+            return format_html(
+                '<span style="background:#e0f2fe;color:#0369a1;padding:3px 10px;'
+                'border-radius:10px;font-weight:700;font-size:11px;">'
+                '🌐 Все точки</span>'
+            )
+        return obj.branch.name if obj.branch else '—'
 
     @admin.display(description='Давность (дни)', ordering='recency_min')
     def recency_range_col(self, obj):
